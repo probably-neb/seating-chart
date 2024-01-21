@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, DragEventHandler, useRef, useMemo, DragEvent } from "react";
+import { useState, type DragEventHandler, useRef, useMemo, type DragEvent } from "react";
 import { produce } from "immer";
 
 type Seat = {
@@ -26,7 +26,7 @@ export function Canvas() {
     function setSeatOffset(id: number, x: number, y: number) {
         setSeats(
             produce((seats) => {
-                let i = seats.findIndex((s) => s.id === id);
+                const i = seats.findIndex((s) => s.id === id);
                 if (i === -1) {
                     return seats;
                 }
