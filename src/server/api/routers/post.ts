@@ -18,14 +18,15 @@ export const postRouter = createTRPCRouter({
       // simulate a slow db call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      await ctx.db.insert(posts).values({
-        name: input.name,
-      });
+      // await ctx.db.insert(posts).values({
+      //   name: input.name,
+      // });
     }),
 
   getLatest: publicProcedure.query(({ ctx }) => {
-    return ctx.db.query.posts.findFirst({
-      orderBy: (posts, { desc }) => [desc(posts.createdAt)],
-    });
+    return []
+    // return ctx.db.query.posts.findFirst({
+    //   orderBy: (posts, { desc }) => [desc(posts.createdAt)],
+    // });
   }),
 });
