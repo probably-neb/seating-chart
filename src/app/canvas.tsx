@@ -93,19 +93,25 @@ function useCentroids() {
     };
 }
 
+const SEATING_CHART_DROPPABLE_ID = "seating-chart";
+
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
     const { seats, addSeat, addDelta } = useSeats();
     const centroids = useCentroids();
 
+    const [active, setActive] = useState<{x: number, y: number} | null>(null);
+
     return (
-        <Dnd.Context onDragEnd={handleDragEnd}>
+        <Dnd.Context onDragEnd={handleDragEnd} onDragStart={handleDragStart} onDragMove={handleDragMove}>
             <Dnd.Droppable
-                id={CANVAS_DROPPABLE_ID}
+                id={SEATING_CHART_DROPPABLE_ID}
                 className="relative min-h-[600px] min-w-[80%] bg-white"
             >
                 <div ref={dropRef}>
+                    {active && <div className="absolute h-24 w-24 bg-blue-200" style={{left: active.x, top: active.y}}>
+                    </div>}
                     {seats.map((s) => (
                         <DraggableSeat key={s.id} seat={s} />
                     ))}
@@ -128,12 +134,38 @@ export function Canvas() {
         </Dnd.Context>
     );
 
+    function handleDragStart(e: Dnd.DragStartEvent) {
+        const seat = seats.find(s => ''+s.id === e.active.id)
+        console.log("drag start", seat)
+        if (seat) {
+            setActive(() => ({x: seat.x, y: seat.y}))
+        }
+    }
+
+    function handleDragMove(e: Dnd.DragMoveEvent) {
+        // console.log("drag over", e)
+        if (e.over === null && e.active.id === "new") {
+            if (active !== null) {
+                setActive(() => null)
+            }
+            return;
+        }
+        const cbb = dropRef.current?.getBoundingClientRect()
+        const [x,y] = calcCoordsDelta(e, cbb)
+
+        // NOTE: 
+        const yOffset = e.active.id === "new" ? 0 : 19
+
+        setActive(() => ( {x, y: y - yOffset} ))
+    }
+
     function handleDragEnd(e: Dnd.DragEndEvent) {
+        setActive(null)
         console.log("drag end", e);
         const id = e.active.id as "new" | `${number}`;
         if (id == "new") {
             const cbb = dropRef.current?.getBoundingClientRect()
-            const [x,y] = calcCoords(e, cbb)
+            const [x,y] = calcCoordsDelta(e, cbb)
             console.log({ id, x, y });
             addSeat(x, y);
             return;
@@ -141,6 +173,23 @@ export function Canvas() {
         const { x, y } = e.delta;
         addDelta(parseInt(id), x, y);
     }
+}
+
+function calcCoordsDelta(e: Dnd.DragEvent, dzOfs?: {left: number, top: number}) {
+    // FIXME: need to test whether all properties exist on touch event as well
+    const activator = e.activatorEvent as MouseEvent;
+    const origX = activator.clientX;
+    const origY = activator.clientY;
+    const delta = e.delta
+    const dzOfsX = dzOfs?.left ?? 0
+    const dzOfsY = dzOfs?.top ?? 0
+    // NOTE: I believe accessing offsetX sets it in place
+    // (important when accessed in handleDragMove)
+    const mouseOfsX = activator.offsetX
+    const mouseOfsY = activator.offsetY
+    const x = origX + delta.x - dzOfsX - mouseOfsX;
+    const y = origY + delta.y - dzOfsY - mouseOfsY;
+    return [x,y] as const
 }
 
 function calcCoords(e: Dnd.DragEndEvent, dzOfs?: {left: number, top: number}) {
@@ -157,39 +206,40 @@ function calcCoords(e: Dnd.DragEndEvent, dzOfs?: {left: number, top: number}) {
 
 }
 
-const CANVAS_DROPPABLE_ID = "seating-chart";
 
 function DraggableSeat(props: { seat?: Seat }) {
     const seat = props.seat ?? { id: "new" };
     return (
         <Dnd.Draggable id={seat.id + ""} data={seat}>
-            <Seat seat={props.seat} />
+            <Seat id={seat.id} offset={props.seat} />
         </Dnd.Draggable>
     );
 }
 
-function Seat(props: { seat?: Seat }) {
-    const id = props.seat?.id ?? -1;
+function Seat(props: { id: number | string, offset?: {x: number, y: number} }) {
 
-    const style = useSeatPos(props.seat);
+    const style = useSeatPos(props.offset);
 
     return (
         <div
-            id={id ? id + "" : undefined}
-            className="align-center absolute h-24 w-24 border-2 border-black bg-white text-center text-black"
+            id={props.id + ""}
+            className="align-center h-24 w-24 border-2 border-black bg-white text-center text-black"
             style={style}
         >
-            {props.seat?.id}
+            {props.id}
         </div>
     );
 }
 
-function useSeatPos(seat?: Seat) {
+function useSeatPos(seat?: {x: number, y: number}) {
     const style = useMemo(() => {
         if (!seat) {
-            return;
+            return {
+                position: "unset" as const
+            };
         }
         return {
+            position: "absolute" as const,
             top: seat.y,
             left: seat.x,
         };

@@ -17,7 +17,8 @@ import { splitProps } from "@/lib/split-props";
 
 export * as Dnd from "./dnd";
 
-export type {DragStartEvent, DragEndEvent, DragMoveEvent, DragOverEvent, UniqueIdentifier} from "@dnd-kit/core"
+// NOTE: DragEndEvent is just an alias for the non-exported DragEvent, so for generality it is aliased here
+export type {DragEndEvent as DragEvent, DragStartEvent, DragEndEvent, DragMoveEvent, DragOverEvent, UniqueIdentifier} from "@dnd-kit/core"
 
 export {DragOverlay} from "@dnd-kit/core"
 
@@ -52,12 +53,13 @@ export function Droppable(props: PropsWithChildren<{ id: string } & DivProps>) {
 }
 
 export function Draggable(props: PropsWithChildren<{ id: string, data?: any}>) {
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    const { attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
         id: props.id,
         data: props.data
     });
     const style = {
         transform: CSS.Translate.toString(transform),
+        zIndex: isDragging ? 10 : 0
     };
 
     return (
