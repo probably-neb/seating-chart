@@ -3,18 +3,10 @@
 import { useState, DragEventHandler, useRef, useMemo, DragEvent } from "react";
 import { produce } from "immer";
 
-type TSeat = React.ReactNode;
-
 type Seat = {
     id: number;
     x: number;
     y: number;
-    proto: false;
-};
-
-type ProtoSeat = {
-    id: number;
-    proto: true;
 };
 
 export function Canvas() {
@@ -24,10 +16,9 @@ export function Canvas() {
     function addSeat(x: number, y: number) {
         const seat = {
             id,
-            proto: false as const,
             x,
             y,
-        };
+        } satisfies Seat;
         setSeats((seats) => [...seats, seat]);
         setId((id) => id + 1);
     }
