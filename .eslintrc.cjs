@@ -31,6 +31,8 @@ const config = {
         checksVoidReturn: { attributes: false },
       },
     ],
+    "@typescript-eslint/prefer-for-of": "off",
+    "@typescript-eslint/unbound-method": "off"
   },
 };
 

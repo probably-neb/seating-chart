@@ -1,18 +1,15 @@
 "use client";
 
 import {
-    useState,
     useRef,
     useMemo,
-    useEffect,
     RefObject,
     useCallback,
 } from "react";
-import { produce, enableMapSet, Draft } from "immer";
+import {  enableMapSet, Draft } from "immer";
 import { Dnd } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { useShallow } from "zustand/react/shallow";
 
 enableMapSet();
 
@@ -29,7 +26,7 @@ type Active = Point & { id: newId };
 type SeatsData = {
     seats: id[];
     offsets: Map<id, Point>;
-    refs: Map<newId, HTMLElement>;
+    refs: Map<newId, HTMLElement | null>;
     centroids: Map<newId, Point>;
     nextId: id;
 } & (
@@ -96,7 +93,7 @@ const seatStore = create<SeatStore>()(
             return (elem) => {
                 set((state) => {
                     // FIXME: why is ref a WriteAbleDraft?
-                    state.refs.set(id, elem as any);
+                    state.refs.set(id, elem as Draft<HTMLElement> | null);
                     console.log("set ref");
                     updateCentroid(state, id);
                 });
@@ -203,10 +200,6 @@ function useSeats() {
     return seatStore((s) => s.seats);
 }
 
-function useActive() {
-    return seatStore((s) => s.active);
-}
-
 function useSetActive() {
     return seatStore((s) => s.setActive);
 }
@@ -260,7 +253,7 @@ function closestCentroid(cur: Point, centroids: [id, Point][]) {
     let closest: [id, Point] | null = null;
     let closestDistance = Infinity;
     for (let i = 0; i < centroids.length; i++) {
-        let centroid = centroids[i]!;
+        const centroid = centroids[i]!;
         const dist = distance(cur, centroid[1]);
         if (dist < closestDistance) {
             closest = centroid;
@@ -377,18 +370,6 @@ function getDropPreviewCoords(
         return getNonSnapPreviewCoords(dzRef, dragEvent);
     }
     return snapCoords;
-}
-
-function getDropCoords(
-    dzRef: RefObject<HTMLDivElement>,
-    dragEvent: Dnd.DragEvent,
-) {
-    const snapCoords = getSnapCoords(dzRef, dragEvent);
-    if (snapCoords === null) {
-        console.log("no snap coords")
-        return getNonSnapCoords(dzRef, dragEvent);
-    }
-    return [snapCoords.x, snapCoords.y] as const;
 }
 
 const SNAP_THRESHOLD = 150;
@@ -516,22 +497,6 @@ function calcCoordsDelta(
     const x = origX + delta.x - dzOfsX - mouseOfsX;
     const y = origY + delta.y - dzOfsY - mouseOfsY;
     return { x, y };
-}
-
-function calcCoords(
-    e: Dnd.DragEndEvent,
-    dzOfs?: { left: number; top: number },
-) {
-    const activator = e.activatorEvent as MouseEvent;
-    const origX = activator.clientX;
-    const origY = activator.clientY;
-    const ofsX = activator.offsetX;
-    const ofsY = activator.offsetY;
-    const dzOfsX = dzOfs?.left ?? 0;
-    const dzOfsY = dzOfs?.top ?? 0;
-    const x = origX - ofsX - dzOfsX;
-    const y = origY - ofsY - dzOfsY;
-    return [x, y] as const;
 }
 
 function DropPreview() {

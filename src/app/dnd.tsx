@@ -2,6 +2,7 @@
 
 import React, { PropsWithChildren } from "react";
 import {
+    Data,
     DndContext,
     DndContextProps,
     KeyboardSensor,
@@ -52,7 +53,7 @@ export function Droppable(props: PropsWithChildren<{ id: string } & DivProps>) {
     );
 }
 
-export function Draggable(props: PropsWithChildren<{ id: string, data?: any}>) {
+export function Draggable(props: PropsWithChildren<{ id: string, data?: Data}>) {
     const { attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
         id: props.id,
         data: props.data
