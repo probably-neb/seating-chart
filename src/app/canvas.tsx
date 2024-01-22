@@ -24,12 +24,15 @@ type newId = id | typeof NEW_ID;
 
 type Point = { x: number; y: number };
 
+type Active = Point & { id: newId };
+
 type SeatsData = {
     seats: id[];
     offsets: Map<id, Point>;
     refs: Map<newId, HTMLElement>;
     centroids: Map<newId, Point>;
     nextId: id;
+    active: Active | null;
 };
 
 type SeatsFns = {
@@ -37,6 +40,7 @@ type SeatsFns = {
     setSeatOffset(id: id, x: number, y: number): void;
     addDelta(id: id, x: number, y: number): void;
     setSeatRef(id: newId): (elem: HTMLElement | null) => void;
+    setActive(p: Active | null): void;
 };
 
 type SeatStore = SeatsData & SeatsFns;
@@ -48,6 +52,7 @@ const seatStore = create<SeatStore>()(
         refs: new Map(),
         centroids: new Map(),
         nextId: 0,
+        active: null,
         addSeat(x, y) {
             set((state) => {
                 const id = state.nextId;
@@ -86,12 +91,31 @@ const seatStore = create<SeatStore>()(
                 });
             };
         },
+        setActive(active) {
+            set((state) => {
+                if (active !== null && active.id !== "new" && typeof active.id === "string") {
+                    active.id = parseInt(active.id)
+                }
+                state.active = active;
+                if (active === null) {
+                    state.centroids.delete("new")
+                    return
+                }
+                const id = active.id
+                const ref = state.refs.get(id)
+                if (!ref) {
+                    console.log(`no ref for ${id}`, Array.from(state.refs.keys()))
+                    return
+                }
+                state.centroids.set(id, calculateCentroid(active, ref))
+            });
+        },
     })),
 );
 
 function updateCentroid(state: Draft<SeatStore>, id: newId) {
     const ref = state.refs.get(id);
-    const offset = id !== "new" ? state.offsets.get(id) : undefined
+    const offset = id !== "new" ? state.offsets.get(id) : undefined;
     if (!ref || !offset) {
         // console.error(`no ref for ${id} while attempting to update centroid`)
         return;
@@ -113,10 +137,13 @@ function useSeatOffset(id: newId) {
 function useSetSeatRef(id: newId) {
     const setSeatRefFn = seatStore((s) => s.setSeatRef);
     const setSeatRef = useCallback(setSeatRefFn(id), [id]);
-    return setSeatRef
+    return setSeatRef;
 }
 
-function calculateCentroid<Elem extends HTMLElement>(offset: Point, ref: Draft<Elem>) {
+function calculateCentroid<Elem extends HTMLElement>(
+    offset: Point,
+    ref: Draft<Elem>,
+) {
     const bcr = ref.getBoundingClientRect();
     const centroid = {
         x: offset.x + Math.floor(bcr.width / 2),
@@ -138,7 +165,15 @@ function useCentroids() {
 }
 
 function useSeats() {
-    return seatStore(s => s.seats)
+    return seatStore((s) => s.seats);
+}
+
+function useActive() {
+    return seatStore((s) => s.active);
+}
+
+function useSetActive() {
+    return seatStore(s => s.setActive)
 }
 
 const SEATING_CHART_DROPPABLE_ID = "seating-chart";
@@ -146,12 +181,11 @@ const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
-    const seats = useSeats()
     const addSeat = seatStore((s) => s.addSeat);
     const addDelta = seatStore((s) => s.addDelta);
     const offsets = seatStore((s) => s.offsets);
 
-    const [active, setActive] = useState<{ x: number; y: number } | null>(null);
+    const setActive = useSetActive();
 
     return (
         <Dnd.Context
@@ -164,15 +198,8 @@ export function Canvas() {
                 className="relative min-h-[600px] min-w-[80%] bg-white"
             >
                 <div ref={dropRef}>
-                    {active && (
-                        <div
-                            className="absolute h-24 w-24 bg-blue-200"
-                            style={{ left: active.x, top: active.y }}
-                        ></div>
-                    )}
-                    {seats.map((s) => (
-                        <DraggableSeat key={s} seatId={s} />
-                    ))}
+                    <DropPreview />
+                    <Seats />
                 </div>
                 <Centroids />
             </Dnd.Droppable>
@@ -188,20 +215,21 @@ export function Canvas() {
             return;
         }
         console.log("drag start", offset);
-        setActive(() => offset);
+        const active = Object.assign(offset, { id: e.active.id as newId });
+        setActive(active);
     }
 
     function handleDragMove(e: Dnd.DragMoveEvent) {
         // console.log("drag over", e)
-        if (e.over === null && e.active.id === "new") {
-            if (active !== null) {
-                setActive(() => null);
-            }
+        const id = e.active.id as newId;
+
+        if (e.over === null && id === "new") {
+            setActive(null);
             return;
         }
         const [x, y] = getDropPreviewCoords(dropRef, e);
 
-        setActive(() => ({ x, y }));
+        setActive({ id, x, y });
     }
 
     function handleDragEnd(e: Dnd.DragEndEvent) {
@@ -245,6 +273,10 @@ function getSnapCoords(
     dragEvent: Dnd.DragEvent,
 ) {
     return null;
+}
+
+function distance(a: Point, b: Point) {
+    return Math.floor(Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)))
 }
 
 // NOTE: this is the offset controlled by browser or @dnd-kit (idk which) giving the
@@ -305,6 +337,19 @@ function calcCoords(
     return [x, y] as const;
 }
 
+function DropPreview() {
+    const active = useActive();
+    return (
+        active && (
+            <div
+                id={`centroid-${active.id}`}
+                className="absolute h-24 w-24 bg-blue-200"
+                style={{ left: active.x, top: active.y }}
+            ></div>
+        )
+    );
+}
+
 function DraggableSeat(props: { seatId?: id }) {
     const id: newId = props.seatId ?? "new";
     const offset = useSeatOffset(id);
@@ -315,9 +360,14 @@ function DraggableSeat(props: { seatId?: id }) {
     );
 }
 
+function Seats() {
+    const seats = useSeats();
+    return seats.map((s) => <DraggableSeat key={s} seatId={s} />);
+}
+
 function Seat(props: { id: newId; offset?: { x: number; y: number } }) {
     const style = useSeatPos(props.offset);
-    const setSeatRef = useSetSeatRef(props.id)
+    const setSeatRef = useSetSeatRef(props.id);
     return (
         <div
             ref={setSeatRef}
