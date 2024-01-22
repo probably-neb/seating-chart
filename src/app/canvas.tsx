@@ -45,11 +45,12 @@ type SeatsData = {
 
 type SeatsFns = {
     addSeat(x: number, y: number): void;
-    setSeatOffset(id: id, x: number, y: number): void;
-    addDelta(id: id, x: number, y: number): void;
+    setSeatOffset(id: id, offset: Point): void;
+    addDelta(id: id, delta: Point): void;
     setSeatRef(id: newId): (elem: HTMLElement | null) => void;
     setActive(p: Active | null): void;
     setPreview(p: Point | null): void;
+    stopDrag(): void;
 };
 
 type SeatStore = SeatsData & SeatsFns;
@@ -72,13 +73,13 @@ const seatStore = create<SeatStore>()(
                 updateCentroid(state, id);
             });
         },
-        setSeatOffset(id, x, y) {
+        setSeatOffset(id, offset) {
             set((state) => {
-                state.offsets.set(id, { x, y });
+                state.offsets.set(id, offset);
                 updateCentroid(state, id);
             });
         },
-        addDelta(id, x, y) {
+        addDelta(id, delta) {
             set((state) => {
                 const offset = state.offsets.get(id);
                 if (!offset) {
@@ -87,7 +88,7 @@ const seatStore = create<SeatStore>()(
                     );
                     return;
                 }
-                state.offsets.set(id, { x: offset.x + x, y: offset.y + y });
+                state.offsets.set(id, { x: offset.x + delta.x, y: offset.y + delta.y });
                 updateCentroid(state, id);
             });
         },
@@ -113,6 +114,7 @@ const seatStore = create<SeatStore>()(
                 state.active = active;
                 if (active === null) {
                     state.centroids.delete("new");
+                    state.preview = null;
                     return;
                 }
                 const id = active.id;
@@ -134,6 +136,13 @@ const seatStore = create<SeatStore>()(
                     return;
                 }
                 state.preview = preview;
+            })
+        },
+        stopDrag() {
+            set(state => {
+                state.active = null;
+                state.preview = null;
+                state.centroids.delete("new");
             })
         }
     })),
@@ -276,10 +285,12 @@ export function Canvas() {
     const addSeat = seatStore((s) => s.addSeat);
     const addDelta = seatStore((s) => s.addDelta);
     const offsets = seatStore((s) => s.offsets);
+    const setSeatOffset = seatStore((s) => s.setSeatOffset);
 
     const setActive = useSetActive();
     const setPreview = seatStore((s) => s.setPreview);
 
+    const stopDrag = seatStore((s) => s.stopDrag);
     return (
         <Dnd.Context
             onDragEnd={handleDragEnd}
@@ -320,23 +331,28 @@ export function Canvas() {
             setActive(null);
             return;
         }
-        const [x, y] = getNonSnapPreviewCoords(dropRef, e);
+        const coords = getNonSnapPreviewCoords(dropRef, e);
 
-        setActive({ id, x, y });
+        setActive(Object.assign(coords, { id }))
         setPreview(getDropPreviewCoords(dropRef, e));
     }
 
     function handleDragEnd(e: Dnd.DragEndEvent) {
-        setActive(null);
         console.log("drag end", e);
-        const id = e.active.id as "new" | `${number}`;
+        const id = parseId(e.active.id);
+        const snapCoords = getSnapCoords(dropRef, e);
         if (id == "new") {
-            const [x, y] = getDropCoords(dropRef, e);
-            addSeat(x, y);
+            const coords = snapCoords ?? getNonSnapCoords(dropRef, e);
+            addSeat(coords.x, coords.y);
+            stopDrag()
             return;
         }
-        const { x, y } = e.delta;
-        addDelta(parseInt(id), x, y);
+        if (snapCoords) {
+            setSeatOffset(id, snapCoords);
+            return;
+        }
+        addDelta(id, e.delta);
+        stopDrag()
     }
 }
 
@@ -358,8 +374,7 @@ function getDropPreviewCoords(
 ) {
     const snapCoords = getSnapCoords(dzRef, dragEvent);
     if (snapCoords === null) {
-        const [x, y] = getNonSnapPreviewCoords(dzRef, dragEvent);
-        return {x, y}
+        return getNonSnapPreviewCoords(dzRef, dragEvent);
     }
     return snapCoords;
 }
@@ -370,6 +385,7 @@ function getDropCoords(
 ) {
     const snapCoords = getSnapCoords(dzRef, dragEvent);
     if (snapCoords === null) {
+        console.log("no snap coords")
         return getNonSnapCoords(dzRef, dragEvent);
     }
     return [snapCoords.x, snapCoords.y] as const;
@@ -397,7 +413,7 @@ function getSnapCoords(
         return null;
     }
     if (closest.distance > SNAP_THRESHOLD) {
-        console.log("closest too far", closest.distance);
+        // console.log("closest too far", closest.distance);
         return null;
     }
     const closestLoc = getOffset(closest.id);
@@ -412,7 +428,7 @@ function getSnapCoords(
         return null;
     }
     const coords = calcSnapCoords(side, activeDims, closestLoc);
-    console.log("side", side, coords);
+    // console.log("side", side, coords);
     return coords;
 }
 
@@ -468,9 +484,9 @@ function getNonSnapPreviewCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent,
 ) {
-    const [x, y] = getNonSnapCoords(dzRef, dragEvent);
+    const {x, y} = getNonSnapCoords(dzRef, dragEvent);
     const yOffset = dragEvent.active.id === "new" ? 0 : DRAG_EXISTING_Y_OFFSET;
-    return [x, y - yOffset] as const;
+    return { x, y: y - yOffset };
 }
 
 function getNonSnapCoords(
@@ -499,7 +515,7 @@ function calcCoordsDelta(
     const mouseOfsY = activator.offsetY;
     const x = origX + delta.x - dzOfsX - mouseOfsX;
     const y = origY + delta.y - dzOfsY - mouseOfsY;
-    return [x, y] as const;
+    return { x, y };
 }
 
 function calcCoords(
