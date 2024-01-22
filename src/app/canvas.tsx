@@ -3,12 +3,66 @@
 import { useState, useRef, useMemo, useEffect, RefObject } from "react";
 import { produce } from "immer";
 import { Dnd } from "./dnd";
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
 
 type Seat = {
     id: number;
     x: number;
     y: number;
 };
+
+type SeatsData = {
+    seats: Seat[];
+    nextId: number;
+};
+
+type SeatsFns = {
+    addSeat(x: number, y: number): void;
+    setSeatOffset(id: number, x: number, y: number): void;
+    addDelta(id: number, x: number, y: number): void;
+};
+
+type SeatStore = SeatsData & SeatsFns;
+
+const seatsStore = create<SeatStore>()(
+    immer((set) => ({
+        seats: [],
+        nextId: 0,
+        addSeat(x, y) {
+            set((state) => {
+                const seat = {
+                    id: state.nextId,
+                    x,
+                    y,
+                } satisfies Seat;
+                state.seats.push(seat);
+                state.nextId += 1;
+            });
+        },
+        setSeatOffset(id, x, y) {
+            set((state) => {
+                const i = state.seats.findIndex((s) => s.id === id);
+                if (i === -1) {
+                    return;
+                }
+                state.seats[i]!.x = x;
+                state.seats[i]!.y = y;
+            });
+        },
+        addDelta(id, x, y) {
+            set(state => {
+                const i = state.seats.findIndex((s) => s.id === id);
+                if (i === -1) {
+                    return;
+                }
+                state.seats[i]!.x += x;
+                state.seats[i]!.y += y;
+
+            })
+        }
+    })),
+);
 
 function useSeats() {
     const [seats, setSeats] = useState<Seat[]>([]);
@@ -93,7 +147,10 @@ const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
-    const { seats, addSeat, addDelta } = useSeats();
+    const seats = seatsStore(s => s.seats)
+    const addSeat = seatsStore(s => s.addSeat)
+    const addDelta = seatsStore(s => s.addDelta)
+
     const centroids = useCentroids();
 
     const [active, setActive] = useState<{ x: number; y: number } | null>(null);
@@ -172,27 +229,34 @@ export function Canvas() {
     }
 }
 
-function getDropPreviewCoords( dzRef: RefObject<HTMLDivElement>, dragEvent: Dnd.DragEvent) {
-    const snapCoords = getSnapCoords(dzRef, dragEvent)
+function getDropPreviewCoords(
+    dzRef: RefObject<HTMLDivElement>,
+    dragEvent: Dnd.DragEvent,
+) {
+    const snapCoords = getSnapCoords(dzRef, dragEvent);
     if (snapCoords === null) {
-        return getNonSnapPreviewCoords(dzRef, dragEvent)
+        return getNonSnapPreviewCoords(dzRef, dragEvent);
     }
-    return snapCoords
-
+    return snapCoords;
 }
 
-function getDropCoords( dzRef: RefObject<HTMLDivElement>, dragEvent: Dnd.DragEvent) {
-    const snapCoords = getSnapCoords(dzRef, dragEvent)
+function getDropCoords(
+    dzRef: RefObject<HTMLDivElement>,
+    dragEvent: Dnd.DragEvent,
+) {
+    const snapCoords = getSnapCoords(dzRef, dragEvent);
     if (snapCoords === null) {
-        return getNonSnapCoords(dzRef, dragEvent)
+        return getNonSnapCoords(dzRef, dragEvent);
     }
-    return snapCoords
+    return snapCoords;
 }
 
-function getSnapCoords( dzRef: RefObject<HTMLDivElement>, dragEvent: Dnd.DragEvent,) {
-    return null
+function getSnapCoords(
+    dzRef: RefObject<HTMLDivElement>,
+    dragEvent: Dnd.DragEvent,
+) {
+    return null;
 }
-
 
 // NOTE: this is the offset controlled by browser or @dnd-kit (idk which) giving the
 // dragged element a lifted effect
