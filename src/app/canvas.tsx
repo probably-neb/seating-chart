@@ -32,8 +32,16 @@ type SeatsData = {
     refs: Map<newId, HTMLElement>;
     centroids: Map<newId, Point>;
     nextId: id;
-    active: Active | null;
-};
+} & (
+    | {
+          active: Active;
+          preview: Point;
+      }
+    | {
+          active: null;
+          preview: null;
+      }
+);
 
 type SeatsFns = {
     addSeat(x: number, y: number): void;
@@ -41,6 +49,7 @@ type SeatsFns = {
     addDelta(id: id, x: number, y: number): void;
     setSeatRef(id: newId): (elem: HTMLElement | null) => void;
     setActive(p: Active | null): void;
+    setPreview(p: Point | null): void;
 };
 
 type SeatStore = SeatsData & SeatsFns;
@@ -53,6 +62,7 @@ const seatStore = create<SeatStore>()(
         centroids: new Map(),
         nextId: 0,
         active: null,
+        preview: null,
         addSeat(x, y) {
             set((state) => {
                 const id = state.nextId;
@@ -93,23 +103,39 @@ const seatStore = create<SeatStore>()(
         },
         setActive(active) {
             set((state) => {
-                if (active !== null && active.id !== "new" && typeof active.id === "string") {
-                    active.id = parseInt(active.id)
+                if (
+                    active !== null &&
+                    active.id !== "new" &&
+                    typeof active.id === "string"
+                ) {
+                    active.id = parseInt(active.id);
                 }
                 state.active = active;
                 if (active === null) {
-                    state.centroids.delete("new")
-                    return
+                    state.centroids.delete("new");
+                    return;
                 }
-                const id = active.id
-                const ref = state.refs.get(id)
+                const id = active.id;
+                const ref = state.refs.get(id);
                 if (!ref) {
-                    console.log(`no ref for ${id}`, Array.from(state.refs.keys()))
-                    return
+                    console.log(
+                        `no ref for ${id}`,
+                        Array.from(state.refs.keys()),
+                    );
+                    return;
                 }
-                state.centroids.set(id, calculateCentroid(active, ref))
+                state.centroids.set(id, calculateCentroid(active, ref));
             });
         },
+        setPreview(preview) {
+            set(state => {
+                if (preview === null) {
+                    state.preview = state.active;
+                    return;
+                }
+                state.preview = preview;
+            })
+        }
     })),
 );
 
@@ -149,13 +175,13 @@ function calculateCentroid<Elem extends HTMLElement>(
         x: offset.x + Math.floor(bcr.width / 2),
         y: offset.y + Math.floor(bcr.height / 2),
     };
-    console.log({
-        x: bcr.left,
-        y: bcr.top,
-        w: bcr.width,
-        h: bcr.height,
-        centroid,
-    });
+    // console.log({
+    //     x: bcr.left,
+    //     y: bcr.top,
+    //     w: bcr.width,
+    //     h: bcr.height,
+    //     centroid,
+    // });
     return centroid;
 }
 
@@ -173,7 +199,73 @@ function useActive() {
 }
 
 function useSetActive() {
-    return seatStore(s => s.setActive)
+    return seatStore((s) => s.setActive);
+}
+
+function getActiveCentroid() {
+    const state = seatStore.getState();
+    const active = state.active;
+    if (active === null) {
+        return null;
+    }
+    const id = active.id;
+    const centroid = state.centroids.get(id);
+    if (!centroid) {
+        return null;
+    }
+    return centroid;
+}
+
+function getOffset(id: id) {
+    return seatStore.getState().offsets.get(id) ?? null;
+}
+
+function getActiveDims() {
+    const state = seatStore.getState();
+    const active = state.active;
+    if (active === null) {
+        return null;
+    }
+    const id = active.id;
+    const ref = state.refs.get(id);
+    if (!ref) {
+        return null;
+    }
+    const bcr = ref.getBoundingClientRect();
+    return bcr;
+}
+
+function getClosestCentroid(id: newId) {
+    const state = seatStore.getState();
+    const cur = state.centroids.get(id);
+    if (!cur) {
+        return null;
+    }
+    const centroids = Array.from(state.centroids.entries()).filter(
+        (c): c is [id, Point] => c[0] !== id && c[0] !== "new",
+    );
+    return closestCentroid(cur, centroids);
+}
+
+function closestCentroid(cur: Point, centroids: [id, Point][]) {
+    let closest: [id, Point] | null = null;
+    let closestDistance = Infinity;
+    for (let i = 0; i < centroids.length; i++) {
+        let centroid = centroids[i]!;
+        const dist = distance(cur, centroid[1]);
+        if (dist < closestDistance) {
+            closest = centroid;
+            closestDistance = dist;
+        }
+    }
+    if (closest === null) {
+        return null;
+    }
+    return {
+        id: closest[0],
+        distance: closestDistance,
+        centroid: closest[1],
+    };
 }
 
 const SEATING_CHART_DROPPABLE_ID = "seating-chart";
@@ -186,6 +278,7 @@ export function Canvas() {
     const offsets = seatStore((s) => s.offsets);
 
     const setActive = useSetActive();
+    const setPreview = seatStore((s) => s.setPreview);
 
     return (
         <Dnd.Context
@@ -227,9 +320,10 @@ export function Canvas() {
             setActive(null);
             return;
         }
-        const [x, y] = getDropPreviewCoords(dropRef, e);
+        const [x, y] = getNonSnapPreviewCoords(dropRef, e);
 
         setActive({ id, x, y });
+        setPreview(getDropPreviewCoords(dropRef, e));
     }
 
     function handleDragEnd(e: Dnd.DragEndEvent) {
@@ -246,13 +340,26 @@ export function Canvas() {
     }
 }
 
+function parseId(id: number | string): newId {
+    if (typeof id === "number" || id === "new") {
+        return id;
+    }
+    const idInt = parseInt(id);
+    if (isNaN(idInt)) {
+        console.error(`invalid id ${id}`);
+        return "new";
+    }
+    return idInt;
+}
+
 function getDropPreviewCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent,
 ) {
     const snapCoords = getSnapCoords(dzRef, dragEvent);
     if (snapCoords === null) {
-        return getNonSnapPreviewCoords(dzRef, dragEvent);
+        const [x, y] = getNonSnapPreviewCoords(dzRef, dragEvent);
+        return {x, y}
     }
     return snapCoords;
 }
@@ -265,18 +372,92 @@ function getDropCoords(
     if (snapCoords === null) {
         return getNonSnapCoords(dzRef, dragEvent);
     }
-    return snapCoords;
+    return [snapCoords.x, snapCoords.y] as const;
 }
+
+const SNAP_THRESHOLD = 150;
 
 function getSnapCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent,
 ) {
-    return null;
+    const active = getActiveCentroid();
+    if (active === null) {
+        console.log("no active");
+        return null;
+    }
+    const activeDims = getActiveDims();
+    if (activeDims === null) {
+        console.log("no active dims");
+        return null;
+    }
+    const closest = getClosestCentroid(parseId(dragEvent.active.id));
+    if (closest === null) {
+        console.log("no closest");
+        return null;
+    }
+    if (closest.distance > SNAP_THRESHOLD) {
+        console.log("closest too far", closest.distance);
+        return null;
+    }
+    const closestLoc = getOffset(closest.id);
+    if (!closestLoc) {
+        console.log("no closest loc");
+        return null;
+    }
+    const side = getSide(active, closest.centroid);
+    const dzDims = dzRef.current?.getBoundingClientRect();
+    if (!dzDims) {
+        console.log("no dz dims");
+        return null;
+    }
+    const coords = calcSnapCoords(side, activeDims, closestLoc);
+    console.log("side", side, coords);
+    return coords;
+}
+
+type Side = "above" | "below" | "left" | "right";
+
+function getSide(a: Point, b: Point): Side {
+    const right = a.x > b.x;
+    const below = a.y > b.y;
+    const xCloser = Math.abs(a.x - b.x) < Math.abs(a.y - b.y);
+    if (xCloser) {
+        return below ? "below" : "above";
+    }
+    return right ? "right" : "left";
+}
+
+const SNAP_PAD = 5;
+
+function calcSnapCoords(side: Side, activeDims: DOMRect, closest: Point) {
+    let snapX = activeDims.left;
+    let snapY = activeDims.top;
+    switch (side) {
+        case "above":
+            snapX = closest.x;
+            snapY = closest.y - activeDims.height - SNAP_PAD;
+            break;
+        case "below":
+            snapX = closest.x;
+            snapY = closest.y + activeDims.height + SNAP_PAD;
+            break;
+        case "left":
+            snapX = closest.x - activeDims.width - SNAP_PAD;
+            snapY = closest.y;
+            break;
+        case "right":
+            snapX = closest.x + activeDims.width + SNAP_PAD;
+            snapY = closest.y;
+            break;
+    }
+    return {x: snapX, y: snapY};
 }
 
 function distance(a: Point, b: Point) {
-    return Math.floor(Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)))
+    return Math.floor(
+        Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)),
+    );
 }
 
 // NOTE: this is the offset controlled by browser or @dnd-kit (idk which) giving the
@@ -338,11 +519,10 @@ function calcCoords(
 }
 
 function DropPreview() {
-    const active = useActive();
+    const active = seatStore(s => s.preview);
     return (
         active && (
             <div
-                id={`centroid-${active.id}`}
                 className="absolute h-24 w-24 bg-blue-200"
                 style={{ left: active.x, top: active.y }}
             ></div>
