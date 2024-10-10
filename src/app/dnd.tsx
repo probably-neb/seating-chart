@@ -1,10 +1,9 @@
-"use client"
+"use client";
 
-import React, { PropsWithChildren } from "react";
+import React from "react";
+import type { PropsWithChildren } from "react";
 import {
-    Data,
     DndContext,
-    DndContextProps,
     KeyboardSensor,
     MouseSensor,
     TouchSensor,
@@ -13,15 +12,23 @@ import {
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
+import type {Data, DndContextProps} from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities";
 import { splitProps } from "@/lib/split-props";
 
 export * as Dnd from "./dnd";
 
 // NOTE: DragEndEvent is just an alias for the non-exported DragEvent, so for generality it is aliased here
-export type {DragEndEvent as DragEvent, DragStartEvent, DragEndEvent, DragMoveEvent, DragOverEvent, UniqueIdentifier} from "@dnd-kit/core"
+export type {
+    DragEndEvent as DragEvent,
+    DragStartEvent,
+    DragEndEvent,
+    DragMoveEvent,
+    DragOverEvent,
+    UniqueIdentifier,
+} from "@dnd-kit/core";
 
-export {DragOverlay} from "@dnd-kit/core"
+export { DragOverlay } from "@dnd-kit/core";
 
 export function Context(props: PropsWithChildren<DndContextProps>) {
     const mouseSensor = useSensor(MouseSensor);
@@ -30,21 +37,35 @@ export function Context(props: PropsWithChildren<DndContextProps>) {
 
     const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
 
-    return <DndContext {...props} sensors={sensors}>{props.children}</DndContext>;
+    return (
+        <DndContext {...props} sensors={sensors}>
+            {props.children}
+        </DndContext>
+    );
 }
 
-type DivProps = React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
+type DivProps = React.DetailedHTMLProps<
+    React.HTMLAttributes<HTMLDivElement>,
+    HTMLDivElement
+>;
 
 export function Droppable(props: PropsWithChildren<{ id: string } & DivProps>) {
-    const [dropProps, divProps] = splitProps(props, ["id", "style", "children"])
+    const [dropProps, divProps] = splitProps(props, [
+        "id",
+        "style",
+        "children",
+    ]);
 
     const { isOver, setNodeRef } = useDroppable({
         id: dropProps.id,
     });
 
-    const style = Object.assign({
-        color: isOver ? "green" : undefined,
-    }, dropProps.style);
+    const style = Object.assign(
+        {
+            color: isOver ? "green" : undefined,
+        },
+        dropProps.style,
+    );
 
     return (
         <div ref={setNodeRef} {...divProps} style={style}>
@@ -53,14 +74,17 @@ export function Droppable(props: PropsWithChildren<{ id: string } & DivProps>) {
     );
 }
 
-export function Draggable(props: PropsWithChildren<{ id: string, data?: Data}>) {
-    const { attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
-        id: props.id,
-        data: props.data
-    });
+export function Draggable(
+    props: PropsWithChildren<{ id: string; data?: Data }>,
+) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } =
+        useDraggable({
+            id: props.id,
+            data: props.data,
+        });
     const style = {
         transform: CSS.Translate.toString(transform),
-        zIndex: isDragging ? 10 : 0
+        zIndex: isDragging ? 10 : 0,
     };
 
     return (

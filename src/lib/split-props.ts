@@ -1,5 +1,3 @@
-import { useCallback, useMemo } from "react";
-
 // CREDIT: https://github.com/solidjs/solid/blob/daa419be822ed343179cb06ec8f5a6600c91f4a0/packages/solid/src/server/rendering.ts#L162
 export function splitProps<T extends object, K1 extends keyof T>(
     props: T,

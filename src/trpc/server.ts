@@ -3,7 +3,6 @@ import "server-only";
 import {
   createTRPCProxyClient,
   loggerLink,
-  TRPCClientError,
 } from "@trpc/client";
 import { callProcedure } from "@trpc/server";
 import { observable } from "@trpc/server/observable";

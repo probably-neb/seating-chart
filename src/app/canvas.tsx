@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useMemo, RefObject, useCallback } from "react";
-import { enableMapSet, Draft } from "immer";
+import { useRef, useMemo, useCallback } from "react";
+import type { RefObject } from "react";
+import { enableMapSet } from "immer";
+import type { Draft } from "immer";
 import { Dnd } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { assert } from "@/lib/assert";
 
 enableMapSet();
 
@@ -13,13 +14,13 @@ const NEW_ID = "new" as const;
 
 const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 
-const SEAT_GRID_W = 4
-const SEAT_GRID_H = 4
+const SEAT_GRID_W = 4;
+const SEAT_GRID_H = 4;
 
-const GRID_W = 120
-const GRID_H = 80
+const GRID_W = 120;
+const GRID_H = 80;
 
-const GRID_CELL_PX = 24
+const GRID_CELL_PX = 24;
 
 type id = number;
 
@@ -151,8 +152,6 @@ const seatStore = create<SeatStore>()(
     })),
 );
 
-
-
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
@@ -161,7 +160,7 @@ export function Canvas() {
     const offsets = seatStore((s) => s.offsets);
     const setSeatOffset = seatStore((s) => s.setSeatOffset);
 
-    const setActive = useSetActive();
+    const setActive = seatStore((s) => s.setActive);
     const setPreview = seatStore((s) => s.setPreview);
 
     const stopDrag = seatStore((s) => s.stopDrag);
@@ -216,7 +215,7 @@ export function Canvas() {
         }
         const snapCoords = getSnapCoords(dropRef, e);
         if (snapCoords === null) {
-            return
+            return;
         }
         setActive(Object.assign(snapCoords, { id }));
         setPreview(snapCoords);
@@ -258,7 +257,7 @@ function parseId(id: number | string): newId {
 
 function getSnapCoords(
     dzRef: RefObject<HTMLDivElement>,
-    dragEvent: Dnd.DragEvent
+    dragEvent: Dnd.DragEvent,
 ): GridPoint {
     const dzDims = dzRef.current?.getBoundingClientRect();
     if (!dzDims) {
@@ -270,18 +269,32 @@ function getSnapCoords(
     const x = clientX - dzDims.left + dragEvent.delta.x;
     const y = clientY - dzDims.top + dragEvent.delta.y;
 
-    let gridX = Math.floor(x / GRID_CELL_PX);
-    let gridY = Math.floor(y / GRID_CELL_PX);
+    const gridX = Math.floor(x / GRID_CELL_PX);
+    const gridY = Math.floor(y / GRID_CELL_PX);
 
     const seats = seatStore.getState().seats;
     const offsets = seatStore.getState().offsets;
     const activeSeatId = dragEvent.active.id;
-    
+
+    function isOverlapping(
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+    ): boolean {
+        return (
+            Math.abs(x1 - x2) < SEAT_GRID_W && Math.abs(y1 - y2) < SEAT_GRID_H
+        );
+    }
+
     const isValidPosition = (x: number, y: number): boolean => {
         for (const seatId of seats) {
             if (seatId.toString() === activeSeatId) continue; // Skip the actively dragging seat
             const seatOffset = offsets.get(seatId);
-            if (seatOffset && isOverlapping(x, y, seatOffset.gridX, seatOffset.gridY)) {
+            if (
+                seatOffset &&
+                isOverlapping(x, y, seatOffset.gridX, seatOffset.gridY)
+            ) {
                 return false;
             }
         }
@@ -290,16 +303,28 @@ function getSnapCoords(
 
     if (!isValidPosition(gridX, gridY)) {
         const directions = [
-            { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
-            { dx: 1, dy: 1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 }
+            { dx: 1, dy: 0 },
+            { dx: -1, dy: 0 },
+            { dx: 0, dy: 1 },
+            { dx: 0, dy: -1 },
+            { dx: 1, dy: 1 },
+            { dx: 1, dy: -1 },
+            { dx: -1, dy: 1 },
+            { dx: -1, dy: -1 },
         ];
-        
+
         let distance = 1;
         while (distance < Math.max(GRID_W, GRID_H)) {
             for (const { dx, dy } of directions) {
                 const newX = gridX + dx * distance;
                 const newY = gridY + dy * distance;
-                if (newX >= 0 && newX < GRID_W && newY >= 0 && newY < GRID_H && isValidPosition(newX, newY)) {
+                if (
+                    newX >= 0 &&
+                    newX < GRID_W &&
+                    newY >= 0 &&
+                    newY < GRID_H &&
+                    isValidPosition(newX, newY)
+                ) {
                     return { gridX: newX, gridY: newY };
                 }
             }
@@ -310,21 +335,17 @@ function getSnapCoords(
     return { gridX, gridY };
 }
 
-function isOverlapping(x1: number, y1: number, x2: number, y2: number): boolean {
-    return Math.abs(x1 - x2) < SEAT_GRID_W && Math.abs(y1 - y2) < SEAT_GRID_H;
-}
-
 function DropPreview() {
     const active = seatStore((s) => s.preview);
     return (
         active && (
             <div
                 className="absolute h-24 w-24 bg-blue-200"
-                style={{ 
-                    left: active.gridX * GRID_CELL_PX, 
-                    top: active.gridY * GRID_CELL_PX, 
-                    height: SEAT_GRID_H * GRID_CELL_PX, 
-                    width: SEAT_GRID_W * GRID_CELL_PX 
+                style={{
+                    left: active.gridX * GRID_CELL_PX,
+                    top: active.gridY * GRID_CELL_PX,
+                    height: SEAT_GRID_H * GRID_CELL_PX,
+                    width: SEAT_GRID_W * GRID_CELL_PX,
                 }}
             ></div>
         )
@@ -342,16 +363,16 @@ function DraggableSeat(props: { seatId?: id }) {
 }
 
 function Seats() {
-    const seats = useSeats();
+    const seats = seatStore((s) => s.seats);
     return seats.map((s) => <DraggableSeat key={s} seatId={s} />);
 }
 
 function Seat(props: { id: newId; offset?: GridPoint }) {
     const style = useMemo(() => {
-        const base =  {
+        const base = {
             height: SEAT_GRID_H * GRID_CELL_PX,
             width: SEAT_GRID_W * GRID_CELL_PX,
-        }
+        };
         if (!props.offset) {
             return Object.assign(base, { position: "unset" as const });
         }
@@ -387,15 +408,7 @@ function useSeatOffset(id: newId) {
 }
 
 function useSetSeatRef(id: newId) {
-    const setSeatRefFn = seatStore((s) => s.setSeatRef);
-    const setSeatRef = useCallback(setSeatRefFn(id), [id]);
+    const setSeatRefFn = seatStore((s) => s.setSeatRef(id));
+    const setSeatRef = useCallback<(elem: HTMLElement | null) => void>(setSeatRefFn, [id, setSeatRefFn]);
     return setSeatRef;
-}
-
-function useSeats() {
-    return seatStore((s) => s.seats);
-}
-
-function useSetActive() {
-    return seatStore((s) => s.setActive);
 }
