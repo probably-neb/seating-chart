@@ -259,28 +259,51 @@ function parseId(id: number | string): newId {
 function getSnapCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent
-): GridPoint | null {
+): GridPoint {
     const dzDims = dzRef.current?.getBoundingClientRect();
     if (!dzDims) {
         console.log("no dz dims");
-        return null;
+        return { gridX: 0, gridY: 0 };
     }
 
     const { clientX, clientY } = dragEvent.activatorEvent as MouseEvent;
     const x = clientX - dzDims.left + dragEvent.delta.x;
     const y = clientY - dzDims.top + dragEvent.delta.y;
 
-    const gridX = Math.floor(x / GRID_CELL_PX);
-    const gridY = Math.floor(y / GRID_CELL_PX);
+    let gridX = Math.floor(x / GRID_CELL_PX);
+    let gridY = Math.floor(y / GRID_CELL_PX);
 
-    // Check if the new position overlaps with existing seats
     const seats = seatStore.getState().seats;
     const offsets = seatStore.getState().offsets;
+    const activeSeatId = dragEvent.active.id;
     
-    for (const seatId of seats) {
-        const seatOffset = offsets.get(seatId);
-        if (seatOffset && isOverlapping(gridX, gridY, seatOffset.gridX, seatOffset.gridY)) {
-            return null; // Overlapping, don't allow placement
+    const isValidPosition = (x: number, y: number): boolean => {
+        for (const seatId of seats) {
+            if (seatId.toString() === activeSeatId) continue; // Skip the actively dragging seat
+            const seatOffset = offsets.get(seatId);
+            if (seatOffset && isOverlapping(x, y, seatOffset.gridX, seatOffset.gridY)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!isValidPosition(gridX, gridY)) {
+        const directions = [
+            { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+            { dx: 1, dy: 1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 }
+        ];
+        
+        let distance = 1;
+        while (distance < Math.max(GRID_W, GRID_H)) {
+            for (const { dx, dy } of directions) {
+                const newX = gridX + dx * distance;
+                const newY = gridY + dy * distance;
+                if (newX >= 0 && newX < GRID_W && newY >= 0 && newY < GRID_H && isValidPosition(newX, newY)) {
+                    return { gridX: newX, gridY: newY };
+                }
+            }
+            distance++;
         }
     }
 
