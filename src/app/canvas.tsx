@@ -11,12 +11,6 @@ enableMapSet();
 
 const NEW_ID = "new" as const;
 
-const SNAP_THRESHOLD = 120;
-
-// NOTE: this is the offset controlled by browser or @dnd-kit (idk which) giving the
-// dragged element a lifted effect
-const DRAG_EXISTING_Y_OFFSET = 10;
-const SNAP_PAD = 5;
 const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 
 const SEAT_GRID_W = 4
@@ -81,13 +75,11 @@ const seatStore = create<SeatStore>()(
                 state.seats.push(id);
                 state.offsets.set(id, { gridX, gridY });
                 state.nextId += 1;
-                // updateCentroid(state, id);
             });
         },
         setSeatOffset(id, offset: GridPoint) {
             set((state) => {
                 state.offsets.set(id, offset);
-                // updateCentroid(state, id);
             });
         },
         addDelta(id, delta: Point) {
@@ -103,7 +95,6 @@ const seatStore = create<SeatStore>()(
                     gridX: offset.gridX + Math.round(delta.x / GRID_CELL_PX),
                     gridY: offset.gridY + Math.round(delta.y / GRID_CELL_PX),
                 });
-                // updateCentroid(state, id);
             });
         },
         setSeatRef(id) {
@@ -112,7 +103,6 @@ const seatStore = create<SeatStore>()(
                     // FIXME: why is ref a WriteAbleDraft?
                     state.refs.set(id, elem as Draft<HTMLElement> | null);
                     console.log("set ref");
-                    // updateCentroid(state, id);
                 });
             };
         },
@@ -140,7 +130,6 @@ const seatStore = create<SeatStore>()(
                     );
                     return;
                 }
-                // state.centroids.set(id, calculateCentroid(active, ref));
             });
         },
         setPreview(preview) {
@@ -200,7 +189,6 @@ export function Canvas() {
                     <DropPreview />
                     <Seats />
                 </div>
-                <Centroids />
             </Dnd.Droppable>
             <div className="h-[600px] min-w-28 border-l-2 border-l-black bg-white pl-4">
                 <DraggableSeat />
@@ -288,13 +276,6 @@ function getSnapCoords(
     return { gridX, gridY };
 }
 
-function distance(a: Point, b: Point) {
-    return Math.floor(
-        Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)),
-    );
-}
-
-
 function DropPreview() {
     const active = seatStore((s) => s.preview);
     return (
@@ -353,49 +334,6 @@ function Seat(props: { id: newId; offset?: GridPoint }) {
     );
 }
 
-function Centroids() {
-    const centroids = useCentroids();
-    return centroids.map(([id, c]) => (
-        <div
-            key={id}
-            className="absolute z-10 h-4 w-4 rounded-full bg-red-500"
-            style={{
-                left: c.x,
-                top: c.y,
-                transform: "translate(-50%, -50%)",
-            }}
-        ></div>
-    ));
-}
-
-function useSeatPos(seat?: { x: number; y: number }) {
-    const style = useMemo(() => {
-        if (!seat) {
-            return {
-                position: "unset" as const,
-            };
-        }
-        return {
-            position: "absolute" as const,
-            top: seat.y,
-            left: seat.x,
-        };
-    }, [seat]);
-
-    return style;
-}
-
-function updateCentroid(state: Draft<SeatStore>, id: newId) {
-    const ref = state.refs.get(id);
-    const offset = id !== "new" ? state.offsets.get(id) : undefined;
-    if (!ref || !offset) {
-        // console.error(`no ref for ${id} while attempting to update centroid`)
-        return;
-    }
-    // const centroid = calculateCentroid(offset, ref);
-    // state.centroids.set(id, centroid);
-}
-
 function useSeatOffset(id: newId) {
     const offset = seatStore((s) => {
         if (id === NEW_ID) {
@@ -412,109 +350,10 @@ function useSetSeatRef(id: newId) {
     return setSeatRef;
 }
 
-function calculateCentroid<Elem extends HTMLElement>(
-    offset: Point,
-    ref: Draft<Elem>,
-) {
-    const bcr = ref.getBoundingClientRect();
-    const centroid = {
-        x: offset.x + Math.floor(bcr.width / 2),
-        y: offset.y + Math.floor(bcr.height / 2),
-    };
-    // console.log({
-    //     x: bcr.left,
-    //     y: bcr.top,
-    //     w: bcr.width,
-    //     h: bcr.height,
-    //     centroid,
-    // });
-    return centroid;
-}
-
-function useCentroids() {
-    const centroids = seatStore((s) => Array.from(s.centroids.entries()));
-    return centroids;
-}
-
 function useSeats() {
     return seatStore((s) => s.seats);
 }
 
 function useSetActive() {
     return seatStore((s) => s.setActive);
-}
-
-function getActiveCentroid() {
-    const state = seatStore.getState();
-    const active = state.active;
-    if (active === null) {
-        return null;
-    }
-    const id = active.id;
-    const centroid = state.centroids.get(id);
-    if (!centroid) {
-        return null;
-    }
-    return centroid;
-}
-
-function getActiveDims() {
-    const state = seatStore.getState();
-    const active = state.active;
-    if (active === null) {
-        return null;
-    }
-    const id = active.id;
-    const ref = state.refs.get(id);
-    if (!ref) {
-        return null;
-    }
-    const bcr = ref.getBoundingClientRect();
-    return bcr;
-}
-
-function getClosestCentroid(id: newId) {
-    const state = seatStore.getState();
-    const cur = state.centroids.get(id);
-    if (cur == null) {
-        return null;
-    }
-    // calculate closest centroid
-
-    let closestID: id | null = null;
-    let closestLoc: Point | null = null;
-    let closestDistance = Infinity;
-    for (const [centroidID, centroidLoc] of state.centroids.entries()) {
-        if (centroidID === id || centroidID === "new") {
-            continue;
-        }
-        const dist = distance(cur, centroidLoc);
-        if (dist < closestDistance) {
-            closestID = centroidID;
-            closestLoc = centroidLoc;
-            closestDistance = dist;
-        }
-    }
-    if (closestID === null) {
-        return null;
-    }
-    assert(
-        closestLoc != null,
-        "closestID",
-        closestID,
-        "is not null so closestLoc",
-        closestLoc,
-        "should be non null as well",
-    );
-    assert(
-        Number.isSafeInteger(closestDistance),
-        "closest distance",
-        closestDistance,
-        "should be safe integer",
-    );
-    return {
-        id: closestID,
-        distance: closestDistance,
-        centroid: closestLoc,
-    };
 }
