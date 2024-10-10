@@ -6,7 +6,7 @@ settings:
 
 importers:
 
-  .:
+  app/desk:
     dependencies:
       '@dnd-kit/core':
         specifier: ^6.1.0

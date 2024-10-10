@@ -1,0 +1,12 @@
+{
+  "name": "deskribe",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "sso": "aws sso login --sso-session=acme"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
