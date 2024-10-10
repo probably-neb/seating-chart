@@ -310,18 +310,22 @@ function Seats() {
 
 function Seat(props: { id: newId; offset?: GridPoint }) {
     const style = useMemo(() => {
-        if (!props.offset) {
-            return { position: "unset" as const };
+        const base =  {
+            height: SEAT_GRID_H * GRID_CELL_PX,
+            width: SEAT_GRID_W * GRID_CELL_PX,
         }
-        return {
+        if (!props.offset) {
+            return Object.assign(base, { position: "unset" as const });
+        }
+        return Object.assign(base, {
             position: "absolute" as const,
             top: props.offset.gridY * GRID_CELL_PX,
             left: props.offset.gridX * GRID_CELL_PX,
-            height: SEAT_GRID_H * GRID_CELL_PX,
-            width: SEAT_GRID_W * GRID_CELL_PX,
-        };
+        });
     }, [props.offset]);
+
     const setSeatRef = useSetSeatRef(props.id);
+
     return (
         <div
             ref={setSeatRef}
