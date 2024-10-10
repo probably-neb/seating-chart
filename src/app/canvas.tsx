@@ -33,18 +33,20 @@ type newId = id | typeof NEW_ID;
 
 type Point = { x: number; y: number };
 
-type Active = Point & { id: newId };
+type GridPoint = { gridX: number; gridY: number };
+
+type Active = GridPoint & { id: newId };
 
 type SeatsData = {
     seats: id[];
-    offsets: Map<id, Point>;
+    offsets: Map<id, GridPoint>;
     refs: Map<newId, HTMLElement | null>;
     centroids: Map<newId, Point>;
     nextId: id;
 } & (
     | {
           active: Active;
-          preview: Point;
+          preview: GridPoint;
       }
     | {
           active: null;
@@ -54,11 +56,11 @@ type SeatsData = {
 
 type SeatsFns = {
     addSeat(x: number, y: number): void;
-    setSeatOffset(id: id, offset: Point): void;
+    setSeatOffset(id: id, offset: GridPoint): void;
     addDelta(id: id, delta: Point): void;
     setSeatRef(id: newId): (elem: HTMLElement | null) => void;
     setActive(p: Active | null): void;
-    setPreview(p: Point | null): void;
+    setPreview(p: GridPoint | null): void;
     stopDrag(): void;
 };
 
@@ -73,22 +75,22 @@ const seatStore = create<SeatStore>()(
         nextId: 0,
         active: null,
         preview: null,
-        addSeat(x, y) {
+        addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
                 state.seats.push(id);
-                state.offsets.set(id, { x, y });
+                state.offsets.set(id, { gridX, gridY });
                 state.nextId += 1;
-                updateCentroid(state, id);
+                // updateCentroid(state, id);
             });
         },
-        setSeatOffset(id, offset) {
+        setSeatOffset(id, offset: GridPoint) {
             set((state) => {
                 state.offsets.set(id, offset);
-                updateCentroid(state, id);
+                // updateCentroid(state, id);
             });
         },
-        addDelta(id, delta) {
+        addDelta(id, delta: Point) {
             set((state) => {
                 const offset = state.offsets.get(id);
                 if (!offset) {
@@ -98,10 +100,10 @@ const seatStore = create<SeatStore>()(
                     return;
                 }
                 state.offsets.set(id, {
-                    x: offset.x + delta.x,
-                    y: offset.y + delta.y,
+                    gridX: offset.gridX + Math.round(delta.x / GRID_CELL_PX),
+                    gridY: offset.gridY + Math.round(delta.y / GRID_CELL_PX),
                 });
-                updateCentroid(state, id);
+                // updateCentroid(state, id);
             });
         },
         setSeatRef(id) {
@@ -110,7 +112,7 @@ const seatStore = create<SeatStore>()(
                     // FIXME: why is ref a WriteAbleDraft?
                     state.refs.set(id, elem as Draft<HTMLElement> | null);
                     console.log("set ref");
-                    updateCentroid(state, id);
+                    // updateCentroid(state, id);
                 });
             };
         },
@@ -138,7 +140,7 @@ const seatStore = create<SeatStore>()(
                     );
                     return;
                 }
-                state.centroids.set(id, calculateCentroid(active, ref));
+                // state.centroids.set(id, calculateCentroid(active, ref));
             });
         },
         setPreview(preview) {
@@ -241,7 +243,7 @@ export function Canvas() {
         }
         if (id == "new") {
             const coords = snapCoords;
-            addSeat(coords.x, coords.y);
+            addSeat(coords.gridX, coords.gridY);
             stopDrag();
             return;
         }
@@ -269,7 +271,7 @@ function parseId(id: number | string): newId {
 function getSnapCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent
-) {
+): GridPoint | null {
     const dzDims = dzRef.current?.getBoundingClientRect();
     if (!dzDims) {
         console.log("no dz dims");
@@ -283,10 +285,7 @@ function getSnapCoords(
     const gridX = Math.floor(x / GRID_CELL_PX);
     const gridY = Math.floor(y / GRID_CELL_PX);
 
-    return {
-        x: gridX * GRID_CELL_PX,
-        y: gridY * GRID_CELL_PX
-    };
+    return { gridX, gridY };
 }
 
 function distance(a: Point, b: Point) {
@@ -302,7 +301,12 @@ function DropPreview() {
         active && (
             <div
                 className="absolute h-24 w-24 bg-blue-200"
-                style={{ left: active.x, top: active.y, height: SEAT_GRID_H * GRID_CELL_PX, width: SEAT_GRID_W * GRID_CELL_PX }}
+                style={{ 
+                    left: active.gridX * GRID_CELL_PX, 
+                    top: active.gridY * GRID_CELL_PX, 
+                    height: SEAT_GRID_H * GRID_CELL_PX, 
+                    width: SEAT_GRID_W * GRID_CELL_PX 
+                }}
             ></div>
         )
     );
@@ -323,11 +327,19 @@ function Seats() {
     return seats.map((s) => <DraggableSeat key={s} seatId={s} />);
 }
 
-function Seat(props: { id: newId; offset?: { x: number; y: number } }) {
-    const style = Object.assign({}, useSeatPos(props.offset), {
-        height: SEAT_GRID_H * GRID_CELL_PX,
-        width: SEAT_GRID_W * GRID_CELL_PX,
-    });
+function Seat(props: { id: newId; offset?: GridPoint }) {
+    const style = useMemo(() => {
+        if (!props.offset) {
+            return { position: "unset" as const };
+        }
+        return {
+            position: "absolute" as const,
+            top: props.offset.gridY * GRID_CELL_PX,
+            left: props.offset.gridX * GRID_CELL_PX,
+            height: SEAT_GRID_H * GRID_CELL_PX,
+            width: SEAT_GRID_W * GRID_CELL_PX,
+        };
+    }, [props.offset]);
     const setSeatRef = useSetSeatRef(props.id);
     return (
         <div
@@ -380,8 +392,8 @@ function updateCentroid(state: Draft<SeatStore>, id: newId) {
         // console.error(`no ref for ${id} while attempting to update centroid`)
         return;
     }
-    const centroid = calculateCentroid(offset, ref);
-    state.centroids.set(id, centroid);
+    // const centroid = calculateCentroid(offset, ref);
+    // state.centroids.set(id, centroid);
 }
 
 function useSeatOffset(id: newId) {
