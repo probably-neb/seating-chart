@@ -1,15 +1,11 @@
 "use client";
 
-import {
-    useRef,
-    useMemo,
-    RefObject,
-    useCallback,
-} from "react";
-import {  enableMapSet, Draft } from "immer";
+import { useRef, useMemo, RefObject, useCallback } from "react";
+import { enableMapSet, Draft } from "immer";
 import { Dnd } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import { assert } from "@/lib/assert";
 
 enableMapSet();
 
@@ -85,7 +81,10 @@ const seatStore = create<SeatStore>()(
                     );
                     return;
                 }
-                state.offsets.set(id, { x: offset.x + delta.x, y: offset.y + delta.y });
+                state.offsets.set(id, {
+                    x: offset.x + delta.x,
+                    y: offset.y + delta.y,
+                });
                 updateCentroid(state, id);
             });
         },
@@ -127,21 +126,21 @@ const seatStore = create<SeatStore>()(
             });
         },
         setPreview(preview) {
-            set(state => {
+            set((state) => {
                 if (preview === null) {
                     state.preview = state.active;
                     return;
                 }
                 state.preview = preview;
-            })
+            });
         },
         stopDrag() {
-            set(state => {
+            set((state) => {
                 state.active = null;
                 state.preview = null;
                 state.centroids.delete("new");
-            })
-        }
+            });
+        },
     })),
 );
 
@@ -218,10 +217,6 @@ function getActiveCentroid() {
     return centroid;
 }
 
-function getOffset(id: id) {
-    return seatStore.getState().offsets.get(id) ?? null;
-}
-
 function getActiveDims() {
     const state = seatStore.getState();
     const active = state.active;
@@ -240,33 +235,46 @@ function getActiveDims() {
 function getClosestCentroid(id: newId) {
     const state = seatStore.getState();
     const cur = state.centroids.get(id);
-    if (!cur) {
+    if (cur == null) {
         return null;
     }
-    const centroids = Array.from(state.centroids.entries()).filter(
-        (c): c is [id, Point] => c[0] !== id && c[0] !== "new",
-    );
-    return closestCentroid(cur, centroids);
-}
+    // calculate closest centroid
 
-function closestCentroid(cur: Point, centroids: [id, Point][]) {
-    let closest: [id, Point] | null = null;
+    let closestID: id | null = null;
+    let closestLoc: Point | null = null;
     let closestDistance = Infinity;
-    for (let i = 0; i < centroids.length; i++) {
-        const centroid = centroids[i]!;
-        const dist = distance(cur, centroid[1]);
+    for (const [centroidID, centroidLoc] of state.centroids.entries()) {
+        if (centroidID === id || centroidID === "new") {
+            continue;
+        }
+        const dist = distance(cur, centroidLoc);
         if (dist < closestDistance) {
-            closest = centroid;
+            closestID = centroidID;
+            closestLoc = centroidLoc;
             closestDistance = dist;
         }
     }
-    if (closest === null) {
+    if (closestID === null) {
         return null;
     }
+    assert(
+        closestLoc != null,
+        "closestID",
+        closestID,
+        "is not null so closestLoc",
+        closestLoc,
+        "should be non null as well",
+    );
+    assert(
+        Number.isSafeInteger(closestDistance),
+        "closest distance",
+        closestDistance,
+        "should be safe integer",
+    );
     return {
-        id: closest[0],
+        id: closestID,
         distance: closestDistance,
-        centroid: closest[1],
+        centroid: closestLoc,
     };
 }
 
@@ -326,7 +334,7 @@ export function Canvas() {
         }
         const coords = getNonSnapPreviewCoords(dropRef, e);
 
-        setActive(Object.assign(coords, { id }))
+        setActive(Object.assign(coords, { id }));
         setPreview(getDropPreviewCoords(dropRef, e));
     }
 
@@ -337,7 +345,7 @@ export function Canvas() {
         if (id == "new") {
             const coords = snapCoords ?? getNonSnapCoords(dropRef, e);
             addSeat(coords.x, coords.y);
-            stopDrag()
+            stopDrag();
             return;
         }
         if (snapCoords) {
@@ -345,7 +353,7 @@ export function Canvas() {
             return;
         }
         addDelta(id, e.delta);
-        stopDrag()
+        stopDrag();
     }
 }
 
@@ -353,8 +361,8 @@ function parseId(id: number | string): newId {
     if (typeof id === "number" || id === "new") {
         return id;
     }
-    const idInt = parseInt(id);
-    if (isNaN(idInt)) {
+    const idInt = Number.parseInt(id);
+    if (!Number.isSafeInteger(idInt)) {
         console.error(`invalid id ${id}`);
         return "new";
     }
@@ -397,59 +405,64 @@ function getSnapCoords(
         // console.log("closest too far", closest.distance);
         return null;
     }
-    const closestLoc = getOffset(closest.id);
+    const closestLoc = seatStore.getState().offsets.get(closest.id) ?? null;
     if (!closestLoc) {
-        console.log("no closest loc");
+        console.error("no closest loc");
         return null;
     }
-    const side = getSide(active, closest.centroid);
+
+    let side: Side;
+    {
+        const a = active;
+        const b = closest.centroid;
+
+        const right = a.x > b.x;
+        const below = a.y > b.y;
+        const xCloser = Math.abs(a.x - b.x) < Math.abs(a.y - b.y);
+
+        if (xCloser) {
+            side = below ? "below" : "above";
+        } else {
+            side = right ? "right" : "left";
+        }
+    }
+
     const dzDims = dzRef.current?.getBoundingClientRect();
     if (!dzDims) {
         console.log("no dz dims");
         return null;
     }
-    const coords = calcSnapCoords(side, activeDims, closestLoc);
-    // console.log("side", side, coords);
+
+    let coords: Point = {
+        x: activeDims.left,
+        y: activeDims.top,
+    };
+
+    switch (side) {
+        case "above":
+            coords.x = closestLoc.x;
+            coords.y = closestLoc.y - activeDims.height - SNAP_PAD;
+            break;
+        case "below":
+            coords.x = closestLoc.x;
+            coords.y = closestLoc.y + activeDims.height + SNAP_PAD;
+            break;
+        case "left":
+            coords.x = closestLoc.x - activeDims.width - SNAP_PAD;
+            coords.y = closestLoc.y;
+            break;
+        case "right":
+            coords.x = closestLoc.x + activeDims.width + SNAP_PAD;
+            coords.y = closestLoc.y;
+            break;
+    }
+
     return coords;
 }
 
 type Side = "above" | "below" | "left" | "right";
 
-function getSide(a: Point, b: Point): Side {
-    const right = a.x > b.x;
-    const below = a.y > b.y;
-    const xCloser = Math.abs(a.x - b.x) < Math.abs(a.y - b.y);
-    if (xCloser) {
-        return below ? "below" : "above";
-    }
-    return right ? "right" : "left";
-}
-
 const SNAP_PAD = 5;
-
-function calcSnapCoords(side: Side, activeDims: DOMRect, closest: Point) {
-    let snapX = activeDims.left;
-    let snapY = activeDims.top;
-    switch (side) {
-        case "above":
-            snapX = closest.x;
-            snapY = closest.y - activeDims.height - SNAP_PAD;
-            break;
-        case "below":
-            snapX = closest.x;
-            snapY = closest.y + activeDims.height + SNAP_PAD;
-            break;
-        case "left":
-            snapX = closest.x - activeDims.width - SNAP_PAD;
-            snapY = closest.y;
-            break;
-        case "right":
-            snapX = closest.x + activeDims.width + SNAP_PAD;
-            snapY = closest.y;
-            break;
-    }
-    return {x: snapX, y: snapY};
-}
 
 function distance(a: Point, b: Point) {
     return Math.floor(
@@ -465,7 +478,7 @@ function getNonSnapPreviewCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent,
 ) {
-    const {x, y} = getNonSnapCoords(dzRef, dragEvent);
+    const { x, y } = getNonSnapCoords(dzRef, dragEvent);
     const yOffset = dragEvent.active.id === "new" ? 0 : DRAG_EXISTING_Y_OFFSET;
     return { x, y: y - yOffset };
 }
@@ -500,7 +513,7 @@ function calcCoordsDelta(
 }
 
 function DropPreview() {
-    const active = seatStore(s => s.preview);
+    const active = seatStore((s) => s.preview);
     return (
         active && (
             <div
