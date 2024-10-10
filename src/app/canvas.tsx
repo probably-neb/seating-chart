@@ -19,8 +19,8 @@ const DRAG_EXISTING_Y_OFFSET = 10;
 const SNAP_PAD = 5;
 const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 
-const SEAT_GRID_W = 3
-const SEAT_GRID_H = 3
+const SEAT_GRID_W = 4
+const SEAT_GRID_H = 4
 
 const GRID_W = 120
 const GRID_H = 80
@@ -288,9 +288,6 @@ function getSnapCoords(
         y: gridY * GRID_CELL_PX
     };
 }
-
-type Side = "above" | "below" | "left" | "right";
-
 
 function distance(a: Point, b: Point) {
     return Math.floor(
