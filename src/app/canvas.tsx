@@ -273,7 +273,22 @@ function getSnapCoords(
     const gridX = Math.floor(x / GRID_CELL_PX);
     const gridY = Math.floor(y / GRID_CELL_PX);
 
+    // Check if the new position overlaps with existing seats
+    const seats = seatStore.getState().seats;
+    const offsets = seatStore.getState().offsets;
+    
+    for (const seatId of seats) {
+        const seatOffset = offsets.get(seatId);
+        if (seatOffset && isOverlapping(gridX, gridY, seatOffset.gridX, seatOffset.gridY)) {
+            return null; // Overlapping, don't allow placement
+        }
+    }
+
     return { gridX, gridY };
+}
+
+function isOverlapping(x1: number, y1: number, x2: number, y2: number): boolean {
+    return Math.abs(x1 - x2) < SEAT_GRID_W && Math.abs(y1 - y2) < SEAT_GRID_H;
 }
 
 function DropPreview() {
