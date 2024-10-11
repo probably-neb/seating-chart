@@ -4,7 +4,7 @@ import { useRef, useMemo, useCallback } from "react";
 import type { RefObject } from "react";
 import { enableMapSet } from "immer";
 import type { Draft } from "immer";
-import { Dnd } from "./dnd";
+import { Dnd, DragOverlay } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
@@ -16,11 +16,8 @@ const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 
 const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
-
 const GRID_W = 120;
 const GRID_H = 80;
-
-const GRID_CELL_PX = 24;
 
 type id = number;
 
@@ -38,6 +35,9 @@ type SeatsData = {
     refs: Map<newId, HTMLElement | null>;
     centroids: Map<newId, Point>;
     nextId: id;
+    gridCellPx: number;
+    gridW: number;
+    gridH: number;
 } & (
     | {
           active: Active;
@@ -70,6 +70,9 @@ const seatStore = create<SeatStore>()(
         nextId: 0,
         active: null,
         preview: null,
+        gridCellPx: 24,
+        gridW: 120,
+        gridH: 80,
         addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
@@ -93,8 +96,10 @@ const seatStore = create<SeatStore>()(
                     return;
                 }
                 state.offsets.set(id, {
-                    gridX: offset.gridX + Math.round(delta.x / GRID_CELL_PX),
-                    gridY: offset.gridY + Math.round(delta.y / GRID_CELL_PX),
+                    gridX:
+                        offset.gridX + Math.round(delta.x / state.gridCellPx),
+                    gridY:
+                        offset.gridY + Math.round(delta.y / state.gridCellPx),
                 });
             });
         },
@@ -103,7 +108,7 @@ const seatStore = create<SeatStore>()(
                 set((state) => {
                     // FIXME: why is ref a WriteAbleDraft?
                     state.refs.set(id, elem as Draft<HTMLElement> | null);
-                    console.log("set ref");
+                    // console.log("set ref");
                 });
             };
         },
@@ -165,34 +170,57 @@ export function Canvas() {
 
     const stopDrag = seatStore((s) => s.stopDrag);
 
-    return (
-        <Dnd.Context
-            onDragEnd={handleDragEnd}
-            onDragStart={handleDragStart}
-            onDragMove={handleDragMove}
-        >
-            <Dnd.Droppable
-                id={SEATING_CHART_DROPPABLE_ID}
-                className="relative bg-white"
-                style={{
-                    height: GRID_H * GRID_CELL_PX,
-                    width: GRID_W * GRID_CELL_PX,
-                    backgroundImage: `
+    const seats = seatStore((s) => s.seats);
+
+    const gridH = seatStore((s) => s.gridH);
+    const gridW = seatStore((s) => s.gridW);
+    const gridCellPx = seatStore((s) => s.gridCellPx);
+
+    const active = seatStore((s) => s.active);
+
+    const droppableStyle = useMemo(
+        () => ({
+            height: gridH * gridCellPx,
+            width: gridW * gridCellPx,
+            backgroundImage: `
                         linear-gradient(to right, #e5e5e5 1px, transparent 1px),
                         linear-gradient(to bottom, #e5e5e5 1px, transparent 1px)
                     `,
-                    backgroundSize: `${GRID_CELL_PX}px ${GRID_CELL_PX}px`,
-                }}
+            backgroundSize: `${gridCellPx}px ${gridCellPx}px`,
+            zIndex: 0,
+        }),
+        [gridCellPx, gridH, gridW],
+    );
+
+    return (
+        <div className="lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
+            <Dnd.Context
+                onDragEnd={handleDragEnd}
+                onDragStart={handleDragStart}
+                onDragMove={handleDragMove}
             >
-                <div ref={dropRef}>
-                    <DropPreview />
-                    <Seats />
+                <div className="min-w-28 border-l-2 border-l-black bg-white p-4">
+                    <DraggableSeat />
                 </div>
-            </Dnd.Droppable>
-            <div className="h-[600px] min-w-28 border-l-2 border-l-black bg-white pl-4">
-                <DraggableSeat />
-            </div>
-        </Dnd.Context>
+                <Dnd.Droppable
+                    id={SEATING_CHART_DROPPABLE_ID}
+                    className="relative z-auto overflow-auto bg-white"
+                    style={droppableStyle}
+                >
+                    <div ref={dropRef} className="z-0">
+                        <DropPreview />
+                        {seats.map((id) =>
+                            id == active?.id ? null : (
+                                <DraggableSeat seatId={id} key={id} />
+                            ),
+                        )}
+                    </div>
+                    <DragOverlay className="relative">
+                        {active ? <Seat id={active.id} /> : null}
+                    </DragOverlay>
+                </Dnd.Droppable>
+            </Dnd.Context>
+        </div>
     );
 
     function handleDragStart(e: Dnd.DragStartEvent) {
@@ -226,6 +254,7 @@ export function Canvas() {
         const id = parseId(e.active.id);
         const snapCoords = getSnapCoords(dropRef, e);
         if (snapCoords == null) {
+            console.error("no snap coords");
             return;
         }
         if (id == "new") {
@@ -236,6 +265,7 @@ export function Canvas() {
         }
         if (snapCoords) {
             setSeatOffset(id, snapCoords);
+            stopDrag();
             return;
         }
         addDelta(id, e.delta);
@@ -260,6 +290,12 @@ function getSnapCoords(
     dragEvent: Dnd.DragEvent,
 ): GridPoint {
     const dzDims = dzRef.current?.getBoundingClientRect();
+
+    const state = seatStore.getState();
+    const gridCellPx = state.gridCellPx;
+    const gridW = state.gridW;
+    const gridH = state.gridH;
+
     if (!dzDims) {
         console.log("no dz dims");
         return { gridX: 0, gridY: 0 };
@@ -269,8 +305,8 @@ function getSnapCoords(
     const x = clientX - dzDims.left + dragEvent.delta.x;
     const y = clientY - dzDims.top + dragEvent.delta.y;
 
-    const gridX = Math.floor(x / GRID_CELL_PX);
-    const gridY = Math.floor(y / GRID_CELL_PX);
+    const gridX = Math.floor(x / gridCellPx);
+    const gridY = Math.floor(y / gridCellPx);
 
     const seats = seatStore.getState().seats;
     const offsets = seatStore.getState().offsets;
@@ -287,7 +323,7 @@ function getSnapCoords(
         );
     }
 
-    const isValidPosition = (x: number, y: number): boolean => {
+    function isValidPosition(x: number, y: number): boolean {
         for (const seatId of seats) {
             if (seatId.toString() === activeSeatId) continue; // Skip the actively dragging seat
             const seatOffset = offsets.get(seatId);
@@ -299,30 +335,30 @@ function getSnapCoords(
             }
         }
         return true;
-    };
+    }
 
     if (!isValidPosition(gridX, gridY)) {
-        const directions = [
-            { dx: 1, dy: 0 },
-            { dx: -1, dy: 0 },
-            { dx: 0, dy: 1 },
-            { dx: 0, dy: -1 },
-            { dx: 1, dy: 1 },
-            { dx: 1, dy: -1 },
-            { dx: -1, dy: 1 },
-            { dx: -1, dy: -1 },
+        const directions: Array<[dx: number, dy: number]> = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+            [1, 1],
+            [1, -1],
+            [-1, 1],
+            [-1, -1],
         ];
 
         let distance = 1;
         while (distance < Math.max(GRID_W, GRID_H)) {
-            for (const { dx, dy } of directions) {
+            for (const [dx, dy] of directions) {
                 const newX = gridX + dx * distance;
                 const newY = gridY + dy * distance;
                 if (
                     newX >= 0 &&
-                    newX < GRID_W &&
+                    newX < gridW &&
                     newY >= 0 &&
-                    newY < GRID_H &&
+                    newY < gridH &&
                     isValidPosition(newX, newY)
                 ) {
                     return { gridX: newX, gridY: newY };
@@ -337,15 +373,16 @@ function getSnapCoords(
 
 function DropPreview() {
     const active = seatStore((s) => s.preview);
+    const gridCellPx = seatStore((s) => s.gridCellPx);
     return (
         active && (
             <div
                 className="absolute h-24 w-24 bg-blue-200"
                 style={{
-                    left: active.gridX * GRID_CELL_PX,
-                    top: active.gridY * GRID_CELL_PX,
-                    height: SEAT_GRID_H * GRID_CELL_PX,
-                    width: SEAT_GRID_W * GRID_CELL_PX,
+                    left: active.gridX * gridCellPx,
+                    top: active.gridY * gridCellPx,
+                    height: SEAT_GRID_H * gridCellPx,
+                    width: SEAT_GRID_W * gridCellPx,
                 }}
             ></div>
         )
@@ -355,36 +392,41 @@ function DropPreview() {
 function DraggableSeat(props: { seatId?: id }) {
     const id: newId = props.seatId ?? "new";
     const offset = useSeatOffset(id);
+    const active = seatStore((s) => dbg(s.active, "active"));
+
+    const gridCellPx = seatStore((s) => s.gridCellPx);
+    const activeID = seatStore((s) => s.active?.id);
+
+    const style = useMemo(() => {
+        if (!offset) {
+            return { position: "unset" as const };
+        }
+        return {
+            position: "absolute" as const,
+            top: offset.gridY * gridCellPx,
+            left: offset.gridX * gridCellPx,
+        };
+    }, [offset, id, activeID, gridCellPx]);
     return (
-        <Dnd.Draggable id={id + ""} data={{ id }}>
-            <Seat id={id} offset={offset} />
+        <Dnd.Draggable id={id + ""} data={{ id }} style={style}>
+            <Seat id={id} offset={id == active?.id ? active : offset} />
         </Dnd.Draggable>
     );
 }
 
-function Seats() {
-    const seats = seatStore((s) => s.seats);
-    return seats.map((s) => <DraggableSeat key={s} seatId={s} />);
+function dbg<T>(v: T, msg: string): T {
+    console.log(msg, v);
+    return v;
 }
 
 function Seat(props: { id: newId; offset?: GridPoint }) {
-    const style = useMemo(() => {
-        const base = {
-            height: SEAT_GRID_H * GRID_CELL_PX,
-            width: SEAT_GRID_W * GRID_CELL_PX,
-        };
-        if (!props.offset) {
-            return Object.assign(base, { position: "unset" as const });
-        }
-        return Object.assign(base, {
-            position: "absolute" as const,
-            top: props.offset.gridY * GRID_CELL_PX,
-            left: props.offset.gridX * GRID_CELL_PX,
-        });
-    }, [props.offset]);
-
+    const gridCellPx = seatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
 
+    const style = {
+        height: SEAT_GRID_H * gridCellPx,
+        width: SEAT_GRID_W * gridCellPx,
+    };
     return (
         <div
             ref={setSeatRef}
@@ -408,7 +450,10 @@ function useSeatOffset(id: newId) {
 }
 
 function useSetSeatRef(id: newId) {
-    const setSeatRefFn = seatStore((s) => s.setSeatRef(id));
-    const setSeatRef = useCallback<(elem: HTMLElement | null) => void>(setSeatRefFn, [id, setSeatRefFn]);
+    const setSeatRefFn = seatStore((s) => s.setSeatRef);
+    const setSeatRef = useCallback<(elem: HTMLElement | null) => void>(
+        setSeatRefFn(id),
+        [id, setSeatRefFn],
+    );
     return setSeatRef;
 }

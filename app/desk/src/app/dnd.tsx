@@ -75,7 +75,7 @@ export function Droppable(props: PropsWithChildren<{ id: string } & DivProps>) {
 }
 
 export function Draggable(
-    props: PropsWithChildren<{ id: string; data?: Data }>,
+    props: PropsWithChildren<{ id: string; data?: Data, style?: React.CSSProperties}>,
 ) {
     const { attributes, listeners, setNodeRef, transform, isDragging } =
         useDraggable({
@@ -85,6 +85,7 @@ export function Draggable(
     const style = {
         transform: CSS.Translate.toString(transform),
         zIndex: isDragging ? 10 : 0,
+        ...props.style,
     };
 
     return (
