@@ -40,6 +40,7 @@ type SeatsData = {
     gridCellPx: number;
     gridW: number;
     gridH: number;
+    selectedSeats: Set<id>;
 } & (
     | {
           active: Active;
@@ -75,6 +76,7 @@ const seatStore = create<SeatStore>()(
         gridCellPx: DEFAULT_GRID_CELL_PX,
         gridW: DEFAULT_GRID_W,
         gridH: DEFAULT_GRID_H,
+        selectedSeats: new Set(),
         addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
@@ -161,10 +163,15 @@ const seatStore = create<SeatStore>()(
 
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
+
     const [selectionStart, setSelectionStart] = React.useState<Point | null>(
         null,
     );
     const [selectionEnd, setSelectionEnd] = React.useState<Point | null>(null);
+    const [persistentSelection, setPersistentSelection] = React.useState<{
+        start: Point;
+        end: Point;
+    } | null>(null);
 
     const addSeat = seatStore((s) => s.addSeat);
     const addDelta = seatStore((s) => s.addDelta);
@@ -198,44 +205,6 @@ export function Canvas() {
         [gridCellPx, gridH, gridW],
     );
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        const rect = dropRef.current?.getBoundingClientRect();
-        if (rect) {
-            const x =
-                Math.floor((e.clientX - rect.left) / gridCellPx) * gridCellPx;
-            const y =
-                Math.floor((e.clientY - rect.top) / gridCellPx) * gridCellPx;
-            setSelectionStart({ x, y });
-        }
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (selectionStart) {
-            const rect = dropRef.current?.getBoundingClientRect();
-            if (rect) {
-                const x =
-                    Math.floor((e.clientX - rect.left) / gridCellPx) *
-                    gridCellPx;
-                const y =
-                    Math.floor((e.clientY - rect.top) / gridCellPx) *
-                    gridCellPx;
-                setSelectionEnd({ x, y });
-            }
-        }
-    };
-
-    const handleMouseUp = () => {
-        if (selectionStart && selectionEnd) {
-            // Here you can add logic to process the selected area
-            console.log("Selected area:", {
-                start: selectionStart,
-                end: selectionEnd,
-            });
-        }
-        setSelectionStart(null);
-        setSelectionEnd(null);
-    };
-
     return (
         <div className="w-xs lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
             <Dnd.Context
@@ -258,29 +227,50 @@ export function Canvas() {
                                 <DraggableSeat seatId={id} key={id} />
                             ),
                         )}
-                        {selectionStart && selectionEnd && !active && (
+                        {(selectionStart && selectionEnd && !active) ||
+                        persistentSelection ? (
                             <div
-                                className="absolute bg-blue-200/20 border-2 border-blue-400 pointer-events-none z-10"
+                                className="pointer-events-none absolute z-10 border-2 border-blue-400 bg-blue-200/20"
                                 style={{
                                     left: Math.min(
-                                        selectionStart.x,
-                                        selectionEnd.x,
+                                        (persistentSelection?.start.x ??
+                                            selectionStart?.x) ||
+                                            0,
+                                        (persistentSelection?.end.x ??
+                                            selectionEnd?.x) ||
+                                            0,
                                     ),
                                     top: Math.min(
-                                        selectionStart.y,
-                                        selectionEnd.y,
+                                        (persistentSelection?.start.y ??
+                                            selectionStart?.y) ||
+                                            0,
+                                        (persistentSelection?.end.y ??
+                                            selectionEnd?.y) ||
+                                            0,
                                     ),
                                     width:
                                         Math.abs(
-                                            selectionEnd.x - selectionStart.x,
+                                            ((persistentSelection?.end.x ??
+                                                selectionEnd?.x) ||
+                                                0) -
+                                                ((persistentSelection?.start
+                                                    .x ??
+                                                    selectionStart?.x) ||
+                                                    0),
                                         ) + gridCellPx,
                                     height:
                                         Math.abs(
-                                            selectionEnd.y - selectionStart.y,
+                                            ((persistentSelection?.end.y ??
+                                                selectionEnd?.y) ||
+                                                0) -
+                                                ((persistentSelection?.start
+                                                    .y ??
+                                                    selectionStart?.y) ||
+                                                    0),
                                         ) + gridCellPx,
                                 }}
                             />
-                        )}
+                        ) : null}
                     </div>
                     <DragOverlay
                         dropAnimation={{
@@ -303,6 +293,73 @@ export function Canvas() {
         </div>
     );
 
+    function handleMouseDown(e: React.MouseEvent) {
+        const rect = dropRef.current?.getBoundingClientRect();
+        if (rect) {
+            const x =
+                Math.floor((e.clientX - rect.left) / gridCellPx) * gridCellPx;
+            const y =
+                Math.floor((e.clientY - rect.top) / gridCellPx) * gridCellPx;
+            setSelectionStart({ x, y });
+            setPersistentSelection(null); // Clear persistent selection
+        }
+    }
+
+    function handleMouseMove(e: React.MouseEvent) {
+        if (selectionStart) {
+            const rect = dropRef.current?.getBoundingClientRect();
+            if (rect) {
+                const x =
+                    Math.floor((e.clientX - rect.left) / gridCellPx) *
+                    gridCellPx;
+                const y =
+                    Math.floor((e.clientY - rect.top) / gridCellPx) *
+                    gridCellPx;
+                setSelectionEnd({ x, y });
+            }
+        }
+    }
+
+    function handleMouseUp() {
+        if (selectionStart && selectionEnd && active == null) {
+            const startX =
+                Math.min(selectionStart.x, selectionEnd.x) / gridCellPx;
+            const startY =
+                Math.min(selectionStart.y, selectionEnd.y) / gridCellPx;
+            const endX =
+                Math.max(selectionStart.x, selectionEnd.x) / gridCellPx;
+            const endY =
+                Math.max(selectionStart.y, selectionEnd.y) / gridCellPx;
+
+            seatStore.setState((state) => {
+                const selectedSeats = new Set<id>();
+                for (let i = 0; i < state.seats.length; i++) {
+                    const seatId = state.seats[i]!;
+                    const offset = state.offsets.get(seatId);
+                    if (offset == null) {
+                        continue;
+                    }
+                    const isInSelection =
+                        offset.gridX >= startX &&
+                        offset.gridX <= endX &&
+                        offset.gridY >= startY &&
+                        offset.gridY <= endY;
+                    if (isInSelection) {
+                        selectedSeats.add(seatId);
+                    }
+                }
+                state.selectedSeats = selectedSeats;
+            });
+
+            setPersistentSelection({
+                start: selectionStart,
+                end: selectionEnd,
+            });
+        }
+        setSelectionStart(null);
+        setSelectionEnd(null);
+    }
+
     function handleDragStart(e: Dnd.DragStartEvent) {
         const offset = offsets.get(e.active.id as id);
         if (!offset) {
@@ -311,6 +368,7 @@ export function Canvas() {
         console.log("drag start", offset);
         const active = Object.assign(offset, { id: e.active.id as newId });
         setActive(active);
+        setPersistentSelection(null); // Clear persistent selection when dragging starts
     }
 
     function handleDragMove(e: Dnd.DragMoveEvent) {
@@ -341,15 +399,18 @@ export function Canvas() {
             const coords = snapCoords;
             addSeat(coords.gridX, coords.gridY);
             stopDrag();
-            return;
-        }
-        if (snapCoords) {
+        } else if (snapCoords) {
             setSeatOffset(id, snapCoords);
             stopDrag();
-            return;
+        } else {
+            addDelta(id, e.delta);
+            stopDrag();
         }
-        addDelta(id, e.delta);
-        stopDrag();
+        // Clear persistent selection after drag
+        setPersistentSelection(null);
+        seatStore.setState(s => {
+            s.selectedSeats = new Set();
+        })
     }
 }
 
@@ -502,6 +563,7 @@ function dbg<T>(v: T, msg: string): T {
 function Seat(props: { id: newId; offset?: GridPoint }) {
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
+    const isSelected = seatStore((s) => s.selectedSeats.has(props.id as id));
 
     const style = {
         height: SEAT_GRID_H * gridCellPx,
@@ -511,7 +573,8 @@ function Seat(props: { id: newId; offset?: GridPoint }) {
         <div
             ref={setSeatRef}
             id={props.id + ""}
-            className="align-center border-2 border-black bg-white text-center text-black"
+            data-selected={isSelected ? "" : null}
+            className="align-center border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
             style={style}
         >
             {props.id}
