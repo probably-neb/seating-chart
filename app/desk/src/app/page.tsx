@@ -1,6 +1,10 @@
 import { unstable_noStore as noStore } from "next/cache";
 
-import {Canvas} from "./canvas";
+import dynamic from "next/dynamic";
+
+const Canvas = dynamic(() => import("./canvas").then(c => c.Canvas), {
+    ssr: false,
+})
 
 export default async function Home() {
   noStore();
