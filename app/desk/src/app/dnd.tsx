@@ -12,7 +12,7 @@ import {
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
-import type {Data, DndContextProps} from "@dnd-kit/core"
+import type { Data, DndContextProps } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { splitProps } from "@/lib/split-props";
 
@@ -32,7 +32,13 @@ export { DragOverlay } from "@dnd-kit/core";
 
 export function Context(props: PropsWithChildren<DndContextProps>) {
     const mouseSensor = useSensor(MouseSensor);
-    const touchSensor = useSensor(TouchSensor);
+    const touchSensor = useSensor(TouchSensor, {
+        // Press delay of 250ms, with tolerance of 5px of movement
+        activationConstraint: {
+            delay: 250,
+            tolerance: 5,
+        },
+    });
     const keyboardSensor = useSensor(KeyboardSensor);
 
     const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
@@ -75,16 +81,21 @@ export function Droppable(props: PropsWithChildren<{ id: string } & DivProps>) {
 }
 
 export function Draggable(
-    props: PropsWithChildren<{ id: string; data?: Data, style?: React.CSSProperties}>,
+    props: PropsWithChildren<{
+        id: string;
+        data?: Data;
+        style?: React.CSSProperties;
+    }>,
 ) {
     const { attributes, listeners, setNodeRef, transform, isDragging } =
         useDraggable({
             id: props.id,
             data: props.data,
         });
-    const style = {
+    const style: React.CSSProperties = {
         transform: CSS.Translate.toString(transform),
         zIndex: isDragging ? 10 : 0,
+        touchAction: "manipulation",
         ...props.style,
     };
 
