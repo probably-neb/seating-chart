@@ -15,6 +15,8 @@ const NEW_ID = "new" as const;
 
 const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 
+const SELECTION_DRAGGABLE_ID = "selection";
+
 const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
 const DEFAULT_GRID_W = 60;
@@ -164,6 +166,9 @@ const seatStore = create<SeatStore>()(
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
+    const [isDraggingSelection, setIsDraggingSelection] =
+        React.useState<boolean>(false);
+
     const [selectionStart, setSelectionStart] = React.useState<Point | null>(
         null,
     );
@@ -190,6 +195,7 @@ export function Canvas() {
     const gridCellPx = seatStore((s) => s.gridCellPx);
 
     const active = seatStore((s) => s.active);
+    const selectedSeats = seatStore((s) => s.selectedSeats);
 
     const droppableStyle = useMemo(
         () => ({
@@ -221,64 +227,64 @@ export function Canvas() {
                     onMouseUp={handleMouseUp}
                 >
                     <div ref={dropRef} className="z-0">
-                        <DropPreview />
-                        {seats.map((id) =>
-                            id == active?.id ? null : (
-                                <DraggableSeat seatId={id} key={id} />
-                            ),
-                        )}
-                        {(selectionStart && selectionEnd && !active) ||
-                        persistentSelection ? (
-                            <div
-                                className="pointer-events-none absolute z-10 border-2 border-blue-400 bg-blue-200/20"
-                                style={{
-                                    left: Math.min(
-                                        (persistentSelection?.start.x ??
-                                            selectionStart?.x) ||
-                                            0,
-                                        (persistentSelection?.end.x ??
-                                            selectionEnd?.x) ||
-                                            0,
+                        {active ? null : persistentSelection ? (
+                            <DraggableSelection
+                                persistentSelection={persistentSelection}
+                                gridCellPx={gridCellPx}
+                            >
+                                {Array.from(selectedSeats.values()).map(
+                                    (id) => (
+                                        <SelectedSeat
+                                            seatId={id}
+                                            key={id}
+                                            selection={persistentSelection}
+                                        />
                                     ),
-                                    top: Math.min(
-                                        (persistentSelection?.start.y ??
-                                            selectionStart?.y) ||
-                                            0,
-                                        (persistentSelection?.end.y ??
-                                            selectionEnd?.y) ||
-                                            0,
+                                )}
+                            </DraggableSelection>
+                        ) : selectionStart && selectionEnd ? (
+                            <SelectionPreview
+                                selectionStart={selectionStart}
+                                selectionEnd={selectionEnd}
+                                gridCellPx={gridCellPx}
+                            >
+                                {Array.from(selectedSeats.values()).map(
+                                    (id) => (
+                                        <NonDraggableSeat
+                                            seatId={id}
+                                            key={id}
+                                        />
                                     ),
-                                    width:
-                                        Math.abs(
-                                            ((persistentSelection?.end.x ??
-                                                selectionEnd?.x) ||
-                                                0) -
-                                                ((persistentSelection?.start
-                                                    .x ??
-                                                    selectionStart?.x) ||
-                                                    0),
-                                        ) + gridCellPx,
-                                    height:
-                                        Math.abs(
-                                            ((persistentSelection?.end.y ??
-                                                selectionEnd?.y) ||
-                                                0) -
-                                                ((persistentSelection?.start
-                                                    .y ??
-                                                    selectionStart?.y) ||
-                                                    0),
-                                        ) + gridCellPx,
-                                }}
-                            />
+                                )}
+                            </SelectionPreview>
                         ) : null}
                     </div>
+                    <DropPreview />
+                    {seats.map((id) =>
+                        id == active?.id || selectedSeats.has(id) ? null : (
+                            <DraggableSeat seatId={id} key={id} />
+                        ),
+                    )}
                     <DragOverlay
                         dropAnimation={{
                             duration: 250,
                             easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
                         }}
                     >
-                        {active ? <Seat id={active.id} /> : null}
+                        {persistentSelection ? (
+                            <Selection>
+                                {Array.from(selectedSeats.values()).map(
+                                    (id) => (
+                                        <NonDraggableSeat
+                                            seatId={id}
+                                            key={id}
+                                        />
+                                    ),
+                                )}
+                            </Selection>
+                        ) : active ? (
+                            <Seat id={active.id} />
+                        ) : null}
                     </DragOverlay>
                 </Dnd.Droppable>
                 <div
@@ -293,7 +299,32 @@ export function Canvas() {
         </div>
     );
 
+    function clearPersistentSelection() {
+        setPersistentSelection(null);
+        seatStore.setState((s) => {
+            s.selectedSeats = new Set();
+        });
+    }
+
     function handleMouseDown(e: React.MouseEvent) {
+        if (isDraggingSelection) {
+            return; // Don't create new selections while dragging an existing one
+        }
+        if (persistentSelection) {
+            const rect = dropRef.current?.getBoundingClientRect();
+            if (rect) {
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const isClickInSelection =
+                    x >= persistentSelection.start.x &&
+                    x <= persistentSelection.end.x &&
+                    y >= persistentSelection.start.y &&
+                    y <= persistentSelection.end.y;
+                if (isClickInSelection) {
+                    return; // Click is within the persistent selection, don't start a new selection
+                }
+            }
+        }
         const rect = dropRef.current?.getBoundingClientRect();
         if (rect) {
             const x =
@@ -301,7 +332,7 @@ export function Canvas() {
             const y =
                 Math.floor((e.clientY - rect.top) / gridCellPx) * gridCellPx;
             setSelectionStart({ x, y });
-            setPersistentSelection(null); // Clear persistent selection
+            clearPersistentSelection();
         }
     }
 
@@ -321,7 +352,24 @@ export function Canvas() {
     }
 
     function handleMouseUp() {
-        if (selectionStart && selectionEnd && active == null) {
+        if (isDraggingSelection) {
+            if (selectionStart) {
+                console.warn("selection start", selectionStart);
+                setSelectionStart(null);
+            }
+            if (selectionEnd) {
+                console.warn("selection end", selectionEnd);
+                setSelectionEnd(null);
+            }
+
+            return;
+        }
+        if (
+            selectionStart &&
+            selectionEnd &&
+            active == null &&
+            !isDraggingSelection
+        ) {
             const startX =
                 Math.min(selectionStart.x, selectionEnd.x) / gridCellPx;
             const startY =
@@ -361,6 +409,10 @@ export function Canvas() {
     }
 
     function handleDragStart(e: Dnd.DragStartEvent) {
+        if (e.active.id === SELECTION_DRAGGABLE_ID) {
+            setIsDraggingSelection(true);
+            return;
+        }
         const offset = offsets.get(e.active.id as id);
         if (!offset) {
             return;
@@ -368,11 +420,13 @@ export function Canvas() {
         console.log("drag start", offset);
         const active = Object.assign(offset, { id: e.active.id as newId });
         setActive(active);
-        setPersistentSelection(null); // Clear persistent selection when dragging starts
+        clearPersistentSelection();
     }
 
     function handleDragMove(e: Dnd.DragMoveEvent) {
-        // console.log("drag over", e)
+        if (e.active.id === SELECTION_DRAGGABLE_ID) {
+            return;
+        }
         const id = e.active.id as newId;
 
         if (e.over === null && id === "new") {
@@ -388,7 +442,32 @@ export function Canvas() {
     }
 
     function handleDragEnd(e: Dnd.DragEndEvent) {
-        console.log("drag end", e);
+        if (e.active.id === SELECTION_DRAGGABLE_ID) {
+            setIsDraggingSelection(false);
+            // Update the persistent selection position
+            if (persistentSelection) {
+                const snapCoords = getSnapCoords(dropRef, e);
+                if (snapCoords) {
+                    setPersistentSelection({
+                        start: {
+                            x: snapCoords.gridX * gridCellPx,
+                            y: snapCoords.gridY * gridCellPx,
+                        },
+                        end: {
+                            x:
+                                snapCoords.gridX * gridCellPx +
+                                (persistentSelection.end.x -
+                                    persistentSelection.start.x),
+                            y:
+                                snapCoords.gridY * gridCellPx +
+                                (persistentSelection.end.y -
+                                    persistentSelection.start.y),
+                        },
+                    });
+                }
+            }
+            return;
+        }
         const id = parseId(e.active.id);
         const snapCoords = getSnapCoords(dropRef, e);
         if (snapCoords == null) {
@@ -407,11 +486,81 @@ export function Canvas() {
             stopDrag();
         }
         // Clear persistent selection after drag
-        setPersistentSelection(null);
-        seatStore.setState(s => {
+        clearPersistentSelection();
+        seatStore.setState((s) => {
             s.selectedSeats = new Set();
-        })
+        });
     }
+}
+
+function DraggableSelection({
+    persistentSelection,
+    gridCellPx,
+    children,
+}: React.PropsWithChildren<{
+    persistentSelection: { start: Point; end: Point };
+    gridCellPx: number;
+}>) {
+    const startX = persistentSelection.start.x;
+    const startY = persistentSelection.start.y;
+
+    const endX = persistentSelection.end.x;
+    const endY = persistentSelection.end.y;
+    return (
+        <Dnd.Draggable
+            id={SELECTION_DRAGGABLE_ID}
+            className="absolute z-0 border-2 "
+            style={{
+                left: Math.min(startX, endX),
+                top: Math.min(startY, endY),
+                width: Math.abs(endX - startX) + gridCellPx,
+                height: Math.abs(endY - startY) + gridCellPx,
+            }}
+        >
+            <div className="relative h-full w-full">
+                <Selection>{children}</Selection>
+            </div>
+        </Dnd.Draggable>
+    );
+}
+
+function SelectionPreview({
+    selectionStart,
+    selectionEnd,
+    gridCellPx,
+    children,
+}: React.PropsWithChildren<{
+    selectionStart: Point;
+    selectionEnd: Point;
+    gridCellPx: number;
+}>) {
+    const startX = selectionStart.x;
+    const startY = selectionStart.y;
+
+    const endX = selectionEnd.x;
+    const endY = selectionEnd.y;
+
+    return (
+        <div
+            className="absolute z-0 border-2 "
+            style={{
+                left: Math.min(startX, endX),
+                top: Math.min(startY, endY),
+                width: Math.abs(endX - startX) + gridCellPx,
+                height: Math.abs(endY - startY) + gridCellPx,
+            }}
+        >
+            <Selection>{children}</Selection>
+        </div>
+    );
+}
+
+function Selection(props: React.PropsWithChildren<{}>) {
+    return (
+        <div className="h-full w-full border-2 border-blue-400 bg-blue-200/20">
+            {props.children}
+        </div>
+    );
 }
 
 function parseId(id: number | string): newId {
@@ -533,7 +682,7 @@ function DropPreview() {
 function DraggableSeat(props: { seatId?: id }) {
     const id: newId = props.seatId ?? "new";
     const offset = useSeatOffset(id);
-    const active = seatStore((s) => dbg(s.active, "active"));
+    const active = seatStore((s) => s.active);
 
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const activeID = seatStore((s) => s.active?.id);
@@ -552,6 +701,59 @@ function DraggableSeat(props: { seatId?: id }) {
         <Dnd.Draggable id={id + ""} data={{ id }} style={style}>
             <Seat id={id} offset={id == active?.id ? active : offset} />
         </Dnd.Draggable>
+    );
+}
+
+function NonDraggableSeat(props: { seatId: id }) {
+    const id: newId = props.seatId ?? "new";
+    const offset = useSeatOffset(id);
+    const active = seatStore((s) => dbg(s.active, "active"));
+
+    const gridCellPx = seatStore((s) => s.gridCellPx);
+    const activeID = seatStore((s) => s.active?.id);
+
+    const style = useMemo(() => {
+        if (!offset) {
+            return { position: "unset" as const };
+        }
+        return {
+            position: "absolute" as const,
+            top: offset.gridY * gridCellPx,
+            left: offset.gridX * gridCellPx,
+        };
+    }, [offset, id, activeID, gridCellPx]);
+    return (
+        <div style={style}>
+            <Seat id={id} offset={id == active?.id ? active : offset} />
+        </div>
+    );
+}
+
+function SelectedSeat(props: { seatId: id; selection: { start: Point } }) {
+    const id: newId = props.seatId;
+    const offset = useSeatOffset(id);
+    const active = seatStore((s) => s.active);
+
+    const gridCellPx = seatStore((s) => s.gridCellPx);
+    const activeID = seatStore((s) => s.active?.id);
+
+    const style = useMemo(() => {
+        if (!offset) {
+            return { position: "unset" as const };
+        }
+        const relativeX = offset.gridX * gridCellPx - props.selection.start.x;
+        const relativeY = offset.gridY * gridCellPx - props.selection.start.y;
+        return {
+            position: "absolute" as const,
+            top: relativeY,
+            left: relativeX,
+        };
+    }, [offset, id, activeID, gridCellPx, props.selection]);
+
+    return (
+        <div style={style}>
+            <Seat id={id} offset={id == active?.id ? active : offset} />
+        </div>
     );
 }
 

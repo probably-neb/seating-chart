@@ -84,6 +84,7 @@ export function Draggable(
     props: PropsWithChildren<{
         id: string;
         data?: Data;
+        className?: string;
         style?: React.CSSProperties;
     }>,
 ) {
@@ -100,7 +101,7 @@ export function Draggable(
     };
 
     return (
-        <button ref={setNodeRef} style={style} {...listeners} {...attributes}>
+        <button ref={setNodeRef} style={style} {...listeners} {...attributes} className={props.className}>
             {props.children}
         </button>
     );
