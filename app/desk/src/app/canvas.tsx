@@ -200,7 +200,7 @@ export function Canvas() {
                 onDragMove={handleDragMove}
             >
                 <div className="min-w-28 border-l-2 border-l-black bg-white p-4">
-                    <DraggableSeat />
+                    <DraggableSeat  />
                 </div>
                 <Dnd.Droppable
                     id={SEATING_CHART_DROPPABLE_ID}
@@ -215,7 +215,12 @@ export function Canvas() {
                             ),
                         )}
                     </div>
-                    <DragOverlay className="relative">
+                    <DragOverlay
+                        dropAnimation={{
+                            duration: 250,
+                            easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+                        }}
+                    >
                         {active ? <Seat id={active.id} /> : null}
                     </DragOverlay>
                 </Dnd.Droppable>
