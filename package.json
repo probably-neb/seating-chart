@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "sso": "aws sso login --sso-session=acme"
+    "sso": "aws sso login --sso-session=deskribe"
   },
   "keywords": [],
   "author": "",
