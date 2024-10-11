@@ -493,6 +493,16 @@ export function Canvas() {
                                 persistentSelection.start.y),
                     },
                 });
+
+                const newStartGridX = Math.floor(newStartX / gridCellPx);
+                const newStartGridY = Math.floor(newStartY / gridCellPx);
+
+                for (const [id, offset] of selectedSeats.entries()) {
+                    setSeatOffset(id, {
+                        gridX: newStartGridX + offset.gridX,
+                        gridY: newStartGridY + offset.gridY,
+                    })
+                }
             }
             return;
         }
