@@ -8,7 +8,7 @@ import { Dnd, DragOverlay } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import React from "react";
-import { useMap, useSet } from "@uidotdev/usehooks";
+import { useMap } from "@uidotdev/usehooks";
 
 enableMapSet();
 
@@ -590,7 +590,7 @@ function SelectionPreview({
     );
 }
 
-function Selection(props: React.PropsWithChildren<{}>) {
+function Selection(props: React.PropsWithChildren) {
     return (
         <div className="h-full w-full border-2 border-blue-400 bg-blue-200/20">
             {props.children}
@@ -720,7 +720,6 @@ function DraggableSeat(props: { seatId?: id }) {
     const active = seatStore((s) => s.active);
 
     const gridCellPx = seatStore((s) => s.gridCellPx);
-    const activeID = seatStore((s) => s.active?.id);
 
     const style = useMemo(() => {
         if (!offset) {
@@ -731,7 +730,7 @@ function DraggableSeat(props: { seatId?: id }) {
             top: offset.gridY * gridCellPx,
             left: offset.gridX * gridCellPx,
         };
-    }, [offset, id, activeID, gridCellPx]);
+    }, [offset, gridCellPx]);
     return (
         <Dnd.Draggable id={id + ""} data={{ id }} style={style}>
             <Seat id={id} offset={id == active?.id ? active : offset} />
@@ -745,7 +744,6 @@ function NonDraggableSeat(props: { seatId: id, selected?: boolean}) {
     const active = seatStore((s) => s.active);
 
     const gridCellPx = seatStore((s) => s.gridCellPx);
-    const activeID = seatStore((s) => s.active?.id);
 
     const style = useMemo(() => {
         if (!offset) {
@@ -756,7 +754,7 @@ function NonDraggableSeat(props: { seatId: id, selected?: boolean}) {
             top: offset.gridY * gridCellPx,
             left: offset.gridX * gridCellPx,
         };
-    }, [offset, id, activeID, gridCellPx]);
+    }, [offset,  gridCellPx]);
     return (
         <div style={style}>
             <Seat id={id} offset={id == active?.id ? active : offset} />
@@ -768,12 +766,8 @@ function SelectedSeat(props: { seatId: id; offset: GridPoint }) {
     const id: newId = props.seatId;
 
     const gridCellPx = seatStore((s) => s.gridCellPx);
-    const activeID = seatStore((s) => s.active?.id);
 
     const style = useMemo(() => {
-        if (!props.offset) {
-            return { position: "unset" as const };
-        }
         const relativeX = props.offset.gridX * gridCellPx;
         const relativeY = props.offset.gridY * gridCellPx;
         return {
@@ -782,8 +776,6 @@ function SelectedSeat(props: { seatId: id; offset: GridPoint }) {
             left: relativeX,
         };
     }, [
-        id,
-        activeID,
         gridCellPx,
         props.offset.gridX,
         props.offset.gridY,
