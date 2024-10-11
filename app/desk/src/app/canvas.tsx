@@ -7,6 +7,7 @@ import type { Draft } from "immer";
 import { Dnd, DragOverlay } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import React from "react";
 
 enableMapSet();
 
@@ -16,8 +17,9 @@ const SEATING_CHART_DROPPABLE_ID = "seating-chart";
 
 const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
-const GRID_W = 120;
-const GRID_H = 80;
+const DEFAULT_GRID_W = 60;
+const DEFAULT_GRID_H = 40;
+const DEFAULT_GRID_CELL_PX = 32;
 
 type id = number;
 
@@ -70,9 +72,9 @@ const seatStore = create<SeatStore>()(
         nextId: 0,
         active: null,
         preview: null,
-        gridCellPx: 24,
-        gridW: 120,
-        gridH: 80,
+        gridCellPx: DEFAULT_GRID_CELL_PX,
+        gridW: DEFAULT_GRID_W,
+        gridH: DEFAULT_GRID_H,
         addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
@@ -159,6 +161,10 @@ const seatStore = create<SeatStore>()(
 
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
+    const [selectionStart, setSelectionStart] = React.useState<Point | null>(
+        null,
+    );
+    const [selectionEnd, setSelectionEnd] = React.useState<Point | null>(null);
 
     const addSeat = seatStore((s) => s.addSeat);
     const addDelta = seatStore((s) => s.addDelta);
@@ -192,20 +198,58 @@ export function Canvas() {
         [gridCellPx, gridH, gridW],
     );
 
+    const handleMouseDown = (e: React.MouseEvent) => {
+        const rect = dropRef.current?.getBoundingClientRect();
+        if (rect) {
+            const x =
+                Math.floor((e.clientX - rect.left) / gridCellPx) * gridCellPx;
+            const y =
+                Math.floor((e.clientY - rect.top) / gridCellPx) * gridCellPx;
+            setSelectionStart({ x, y });
+        }
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (selectionStart) {
+            const rect = dropRef.current?.getBoundingClientRect();
+            if (rect) {
+                const x =
+                    Math.floor((e.clientX - rect.left) / gridCellPx) *
+                    gridCellPx;
+                const y =
+                    Math.floor((e.clientY - rect.top) / gridCellPx) *
+                    gridCellPx;
+                setSelectionEnd({ x, y });
+            }
+        }
+    };
+
+    const handleMouseUp = () => {
+        if (selectionStart && selectionEnd) {
+            // Here you can add logic to process the selected area
+            console.log("Selected area:", {
+                start: selectionStart,
+                end: selectionEnd,
+            });
+        }
+        setSelectionStart(null);
+        setSelectionEnd(null);
+    };
+
     return (
-        <div className="lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
+        <div className="w-xs lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
             <Dnd.Context
                 onDragEnd={handleDragEnd}
                 onDragStart={handleDragStart}
                 onDragMove={handleDragMove}
             >
-                <div className="min-w-28 border-l-2 border-l-black bg-white p-4">
-                    <DraggableSeat  />
-                </div>
                 <Dnd.Droppable
                     id={SEATING_CHART_DROPPABLE_ID}
-                    className="relative z-auto overflow-auto bg-white"
+                    className="relative z-auto overflow-auto border-2 border-red-800 bg-white"
                     style={droppableStyle}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                 >
                     <div ref={dropRef} className="z-0">
                         <DropPreview />
@@ -213,6 +257,29 @@ export function Canvas() {
                             id == active?.id ? null : (
                                 <DraggableSeat seatId={id} key={id} />
                             ),
+                        )}
+                        {selectionStart && selectionEnd && !active && (
+                            <div
+                                className="absolute bg-blue-200/20 border-2 border-blue-400 pointer-events-none z-10"
+                                style={{
+                                    left: Math.min(
+                                        selectionStart.x,
+                                        selectionEnd.x,
+                                    ),
+                                    top: Math.min(
+                                        selectionStart.y,
+                                        selectionEnd.y,
+                                    ),
+                                    width:
+                                        Math.abs(
+                                            selectionEnd.x - selectionStart.x,
+                                        ) + gridCellPx,
+                                    height:
+                                        Math.abs(
+                                            selectionEnd.y - selectionStart.y,
+                                        ) + gridCellPx,
+                                }}
+                            />
                         )}
                     </div>
                     <DragOverlay
@@ -224,6 +291,14 @@ export function Canvas() {
                         {active ? <Seat id={active.id} /> : null}
                     </DragOverlay>
                 </Dnd.Droppable>
+                <div
+                    className="border-l-2 border-l-black bg-white p-4"
+                    style={{
+                        minHeight: gridCellPx * (SEAT_GRID_H + 2),
+                    }}
+                >
+                    <DraggableSeat />
+                </div>
             </Dnd.Context>
         </div>
     );
@@ -355,7 +430,7 @@ function getSnapCoords(
         ];
 
         let distance = 1;
-        while (distance < Math.max(GRID_W, GRID_H)) {
+        while (distance < Math.max(DEFAULT_GRID_W, DEFAULT_GRID_H)) {
             for (const [dx, dy] of directions) {
                 const newX = gridX + dx * distance;
                 const newY = gridY + dy * distance;
