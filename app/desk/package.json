@@ -12,6 +12,7 @@
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@uidotdev/usehooks": "^2.4.1",
     "immer": "^10.0.3",
     "nanoid": "^5.0.4",
     "next": "^14.0.4",
