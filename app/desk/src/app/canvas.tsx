@@ -8,6 +8,7 @@ import { Dnd, DragOverlay } from "./dnd";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import React from "react";
+import { useMap, useSet } from "@uidotdev/usehooks";
 
 enableMapSet();
 
@@ -42,7 +43,6 @@ type SeatsData = {
     gridCellPx: number;
     gridW: number;
     gridH: number;
-    selectedSeats: Set<id>;
 } & (
     | {
           active: Active;
@@ -78,7 +78,6 @@ const seatStore = create<SeatStore>()(
         gridCellPx: DEFAULT_GRID_CELL_PX,
         gridW: DEFAULT_GRID_W,
         gridH: DEFAULT_GRID_H,
-        selectedSeats: new Set(),
         addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
@@ -166,9 +165,12 @@ const seatStore = create<SeatStore>()(
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
-    const [isDraggingSelection, setIsDraggingSelection] =
-        React.useState<boolean>(false);
+    const selectedSeats = useMap() as Map<id, GridPoint>;
 
+    const [selectionDragOffset, setSelectionDragOffset] =
+        React.useState<Point | null>(null);
+
+    const [isDraggingSelection, setIsDraggingSelection] = React.useState(false);
     const [selectionStart, setSelectionStart] = React.useState<Point | null>(
         null,
     );
@@ -195,7 +197,6 @@ export function Canvas() {
     const gridCellPx = seatStore((s) => s.gridCellPx);
 
     const active = seatStore((s) => s.active);
-    const selectedSeats = seatStore((s) => s.selectedSeats);
 
     const droppableStyle = useMemo(
         () => ({
@@ -227,17 +228,18 @@ export function Canvas() {
                     onMouseUp={handleMouseUp}
                 >
                     <div ref={dropRef} className="z-0">
-                        {active ? null : persistentSelection ? (
+                        {active ? null : !isDraggingSelection &&
+                          persistentSelection ? (
                             <DraggableSelection
                                 persistentSelection={persistentSelection}
                                 gridCellPx={gridCellPx}
                             >
-                                {Array.from(selectedSeats.values()).map(
-                                    (id) => (
+                                {Array.from(selectedSeats.entries()).map(
+                                    ([id, offset]) => (
                                         <SelectedSeat
                                             seatId={id}
                                             key={id}
-                                            selection={persistentSelection}
+                                            offset={offset}
                                         />
                                     ),
                                 )}
@@ -248,7 +250,7 @@ export function Canvas() {
                                 selectionEnd={selectionEnd}
                                 gridCellPx={gridCellPx}
                             >
-                                {Array.from(selectedSeats.values()).map(
+                                {Array.from(selectedSeats.keys()).map(
                                     (id) => (
                                         <NonDraggableSeat
                                             seatId={id}
@@ -272,16 +274,22 @@ export function Canvas() {
                         }}
                     >
                         {persistentSelection ? (
-                            <Selection>
-                                {Array.from(selectedSeats.values()).map(
-                                    (id) => (
-                                        <NonDraggableSeat
-                                            seatId={id}
-                                            key={id}
-                                        />
-                                    ),
-                                )}
-                            </Selection>
+                            <div
+                                className="relative h-full w-full"
+                                style={{
+                                    transform: selectionDragOffset
+                                        ? `translate(${selectionDragOffset.x}px, ${selectionDragOffset.y}px)`
+                                        : undefined,
+                                }}
+                            >
+                                <Selection>
+                                    {Array.from(selectedSeats.entries()).map(
+                                        ([id, offset]) => (
+                                            <SelectedSeat seatId={id} key={id} offset={offset} />
+                                        ),
+                                    )}
+                                </Selection>
+                            </div>
                         ) : active ? (
                             <Seat id={active.id} />
                         ) : null}
@@ -301,9 +309,7 @@ export function Canvas() {
 
     function clearPersistentSelection() {
         setPersistentSelection(null);
-        seatStore.setState((s) => {
-            s.selectedSeats = new Set();
-        });
+        selectedSeats.clear();
     }
 
     function handleMouseDown(e: React.MouseEvent) {
@@ -379,25 +385,24 @@ export function Canvas() {
             const endY =
                 Math.max(selectionStart.y, selectionEnd.y) / gridCellPx;
 
-            seatStore.setState((state) => {
-                const selectedSeats = new Set<id>();
-                for (let i = 0; i < state.seats.length; i++) {
-                    const seatId = state.seats[i]!;
-                    const offset = state.offsets.get(seatId);
-                    if (offset == null) {
-                        continue;
-                    }
-                    const isInSelection =
-                        offset.gridX >= startX &&
-                        offset.gridX <= endX &&
-                        offset.gridY >= startY &&
-                        offset.gridY <= endY;
-                    if (isInSelection) {
-                        selectedSeats.add(seatId);
-                    }
+            const state = seatStore.getState()
+
+            for (let i = 0; i < state.seats.length; i++) {
+                const seatId = state.seats[i]!;
+                const offset = state.offsets.get(seatId);
+                if (offset == null) {
+                    continue;
                 }
-                state.selectedSeats = selectedSeats;
-            });
+                const isInSelection =
+                    offset.gridX >= startX &&
+                    offset.gridX <= endX &&
+                    offset.gridY >= startY &&
+                    offset.gridY <= endY;
+                if (isInSelection) {
+                    const seatSelectionOffset = {gridX: offset.gridX - startX, gridY: offset.gridY - startY};
+                    selectedSeats.set(seatId, seatSelectionOffset);
+                }
+            }
 
             setPersistentSelection({
                 start: selectionStart,
@@ -422,9 +427,25 @@ export function Canvas() {
         setActive(active);
         clearPersistentSelection();
     }
-
     function handleDragMove(e: Dnd.DragMoveEvent) {
         if (e.active.id === SELECTION_DRAGGABLE_ID) {
+            const rect = dropRef.current?.getBoundingClientRect();
+            if (rect) {
+                const snapCoords = getSnapCoords(dropRef, e);
+                const currentRect = e.active.rect.current.translated;
+                if (snapCoords) {
+                    setSelectionDragOffset({
+                        x:
+                            snapCoords.gridX * gridCellPx -
+                            (rect.left + currentRect!.left) +
+                            9,
+                        y:
+                            snapCoords.gridY * gridCellPx -
+                            (rect.top + currentRect!.top) +
+                            4,
+                    });
+                }
+            }
             return;
         }
         const id = e.active.id as newId;
@@ -444,27 +465,34 @@ export function Canvas() {
     function handleDragEnd(e: Dnd.DragEndEvent) {
         if (e.active.id === SELECTION_DRAGGABLE_ID) {
             setIsDraggingSelection(false);
+            setSelectionDragOffset(null);
             // Update the persistent selection position
-            if (persistentSelection) {
-                const snapCoords = getSnapCoords(dropRef, e);
-                if (snapCoords) {
-                    setPersistentSelection({
-                        start: {
-                            x: snapCoords.gridX * gridCellPx,
-                            y: snapCoords.gridY * gridCellPx,
-                        },
-                        end: {
-                            x:
-                                snapCoords.gridX * gridCellPx +
-                                (persistentSelection.end.x -
-                                    persistentSelection.start.x),
-                            y:
-                                snapCoords.gridY * gridCellPx +
-                                (persistentSelection.end.y -
-                                    persistentSelection.start.y),
-                        },
-                    });
-                }
+            if (persistentSelection && selectionDragOffset) {
+                const delta = e.delta;
+                const newStartX =
+                    selectionDragOffset.x +
+                    persistentSelection.start.x +
+                    delta.x;
+                const newStartY =
+                    selectionDragOffset.y +
+                    persistentSelection.start.y +
+                    delta.y;
+                setPersistentSelection({
+                    start: {
+                        x: newStartX,
+                        y: newStartY,
+                    },
+                    end: {
+                        x:
+                            newStartX +
+                            (persistentSelection.end.x -
+                                persistentSelection.start.x),
+                        y:
+                            newStartY +
+                            (persistentSelection.end.y -
+                                persistentSelection.start.y),
+                    },
+                });
             }
             return;
         }
@@ -487,9 +515,6 @@ export function Canvas() {
         }
         // Clear persistent selection after drag
         clearPersistentSelection();
-        seatStore.setState((s) => {
-            s.selectedSeats = new Set();
-        });
     }
 }
 
@@ -704,10 +729,10 @@ function DraggableSeat(props: { seatId?: id }) {
     );
 }
 
-function NonDraggableSeat(props: { seatId: id }) {
+function NonDraggableSeat(props: { seatId: id, selected?: boolean}) {
     const id: newId = props.seatId ?? "new";
     const offset = useSeatOffset(id);
-    const active = seatStore((s) => dbg(s.active, "active"));
+    const active = seatStore((s) => s.active);
 
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const activeID = seatStore((s) => s.active?.id);
@@ -729,30 +754,34 @@ function NonDraggableSeat(props: { seatId: id }) {
     );
 }
 
-function SelectedSeat(props: { seatId: id; selection: { start: Point } }) {
+function SelectedSeat(props: { seatId: id; offset: GridPoint }) {
     const id: newId = props.seatId;
-    const offset = useSeatOffset(id);
-    const active = seatStore((s) => s.active);
 
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const activeID = seatStore((s) => s.active?.id);
 
     const style = useMemo(() => {
-        if (!offset) {
+        if (!props.offset) {
             return { position: "unset" as const };
         }
-        const relativeX = offset.gridX * gridCellPx - props.selection.start.x;
-        const relativeY = offset.gridY * gridCellPx - props.selection.start.y;
+        const relativeX = props.offset.gridX * gridCellPx;
+        const relativeY = props.offset.gridY * gridCellPx;
         return {
             position: "absolute" as const,
             top: relativeY,
             left: relativeX,
         };
-    }, [offset, id, activeID, gridCellPx, props.selection]);
+    }, [
+        id,
+        activeID,
+        gridCellPx,
+        props.offset.gridX,
+        props.offset.gridY,
+    ]);
 
     return (
         <div style={style}>
-            <Seat id={id} offset={id == active?.id ? active : offset} />
+            <Seat id={id} selected />
         </div>
     );
 }
@@ -762,10 +791,9 @@ function dbg<T>(v: T, msg: string): T {
     return v;
 }
 
-function Seat(props: { id: newId; offset?: GridPoint }) {
+function Seat(props: { id: newId; offset?: GridPoint, selected?: boolean }) {
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
-    const isSelected = seatStore((s) => s.selectedSeats.has(props.id as id));
 
     const style = {
         height: SEAT_GRID_H * gridCellPx,
@@ -775,7 +803,7 @@ function Seat(props: { id: newId; offset?: GridPoint }) {
         <div
             ref={setSeatRef}
             id={props.id + ""}
-            data-selected={isSelected ? "" : null}
+            data-selected={props.selected === true ? "" : null}
             className="align-center border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
             style={style}
         >
