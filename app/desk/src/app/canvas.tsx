@@ -111,7 +111,6 @@ const seatStore = create<SeatStore>()(
                 set((state) => {
                     // FIXME: why is ref a WriteAbleDraft?
                     state.refs.set(id, elem as Draft<HTMLElement> | null);
-                    // console.log("set ref");
                 });
             };
         },
@@ -246,14 +245,9 @@ export function Canvas() {
                                 selectionEnd={selectionEnd}
                                 gridCellPx={gridCellPx}
                             >
-                                {Array.from(selectedSeats.keys()).map(
-                                    (id) => (
-                                        <NonDraggableSeat
-                                            seatId={id}
-                                            key={id}
-                                        />
-                                    ),
-                                )}
+                                {Array.from(selectedSeats.keys()).map((id) => (
+                                    <NonDraggableSeat seatId={id} key={id} />
+                                ))}
                             </SelectionPreview>
                         ) : null}
                     </div>
@@ -281,7 +275,11 @@ export function Canvas() {
                                 <Selection>
                                     {Array.from(selectedSeats.entries()).map(
                                         ([id, offset]) => (
-                                            <SelectedSeat seatId={id} key={id} offset={offset} />
+                                            <SelectedSeat
+                                                seatId={id}
+                                                key={id}
+                                                offset={offset}
+                                            />
                                         ),
                                     )}
                                 </Selection>
@@ -381,7 +379,9 @@ export function Canvas() {
             const endY =
                 Math.max(selectionStart.y, selectionEnd.y) / gridCellPx;
 
-            const state = seatStore.getState()
+            let newSelectedSeats: typeof selectedSeats = new Map();
+
+            const state = seatStore.getState();
 
             for (let i = 0; i < state.seats.length; i++) {
                 const seatId = state.seats[i]!;
@@ -395,10 +395,28 @@ export function Canvas() {
                     offset.gridY >= startY &&
                     offset.gridY <= endY;
                 if (isInSelection) {
-                    const seatSelectionOffset = {gridX: offset.gridX - startX, gridY: offset.gridY - startY};
-                    selectedSeats.set(seatId, seatSelectionOffset);
+                    const seatSelectionOffset = {
+                        gridX: offset.gridX - startX,
+                        gridY: offset.gridY - startY,
+                    };
+                    newSelectedSeats.set(seatId, seatSelectionOffset);
                 }
             }
+
+            if (newSelectedSeats.size === 0) {
+                console.log("empty selection");
+                setSelectionStart(null);
+                setSelectionEnd(null);
+                return;
+            }
+
+            React.startTransition(() => {
+                selectedSeats.clear();
+
+                for (const [id, offset] of newSelectedSeats) {
+                    selectedSeats.set(id, offset);
+                }
+            });
 
             setPersistentSelection({
                 start: selectionStart,
@@ -447,6 +465,8 @@ export function Canvas() {
             }
             return;
         }
+
+        // dragging seat
         const id = e.active.id as newId;
 
         if (e.over === null && id === "new") {
@@ -500,7 +520,7 @@ export function Canvas() {
                     setSeatOffset(id, {
                         gridX: newStartGridX + offset.gridX,
                         gridY: newStartGridY + offset.gridY,
-                    })
+                    });
                 }
             }
             return;
@@ -740,7 +760,7 @@ function DraggableSeat(props: { seatId?: id }) {
     );
 }
 
-function NonDraggableSeat(props: { seatId: id, selected?: boolean}) {
+function NonDraggableSeat(props: { seatId: id; selected?: boolean }) {
     const id: newId = props.seatId ?? "new";
     const offset = useSeatOffset(id);
     const active = seatStore((s) => s.active);
@@ -795,7 +815,7 @@ function dbg<T>(v: T, msg: string): T {
     return v;
 }
 
-function Seat(props: { id: newId; offset?: GridPoint, selected?: boolean }) {
+function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
 
