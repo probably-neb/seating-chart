@@ -429,17 +429,20 @@ export function Canvas() {
             if (rect) {
                 const snapCoords = getSnapCoords(dropRef, e);
                 const currentRect = e.active.rect.current.translated;
-                if (snapCoords) {
-                    setSelectionDragOffset({
-                        x:
-                            snapCoords.gridX * gridCellPx -
-                            (rect.left + currentRect!.left) +
-                            9,
-                        y:
-                            snapCoords.gridY * gridCellPx -
-                            (rect.top + currentRect!.top) +
-                            4,
-                    });
+                if (snapCoords && currentRect) {
+                    setSelectionDragOffset(
+                        dbg(
+                            {
+                                x:
+                                    snapCoords.gridX * gridCellPx -
+                                    (currentRect!.left - rect.left),
+                                y:
+                                    snapCoords.gridY * gridCellPx -
+                                    (currentRect!.top - rect.top),
+                            },
+                            "dragOffset",
+                        ),
+                    );
                 }
             }
             return;
@@ -610,17 +613,19 @@ function getSnapCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent,
 ): GridPoint {
+    // FIXME: adjust snap coords so they are offset by the mouse position, so things don't snap to the top/left
+    // of the items bounding box
     const dzDims = dzRef.current?.getBoundingClientRect();
-
-    const state = seatStore.getState();
-    const gridCellPx = state.gridCellPx;
-    const gridW = state.gridW;
-    const gridH = state.gridH;
 
     if (!dzDims) {
         console.log("no dz dims");
         return { gridX: 0, gridY: 0 };
     }
+
+    const state = seatStore.getState();
+    const gridCellPx = state.gridCellPx;
+    const gridW = state.gridW;
+    const gridH = state.gridH;
 
     const { clientX, clientY } = dragEvent.activatorEvent as MouseEvent;
     const x = clientX - dzDims.left + dragEvent.delta.x;
@@ -629,28 +634,29 @@ function getSnapCoords(
     const gridX = Math.floor(x / gridCellPx);
     const gridY = Math.floor(y / gridCellPx);
 
-    const seats = seatStore.getState().seats;
-    const offsets = seatStore.getState().offsets;
+    const seats = state.seats;
+    const offsets = state.offsets;
     const activeSeatId = dragEvent.active.id;
 
     function isOverlapping(
-        x1: number,
-        y1: number,
-        x2: number,
-        y2: number,
+        gridX1: number,
+        gridY1: number,
+        gridX2: number,
+        gridY2: number,
     ): boolean {
         return (
-            Math.abs(x1 - x2) < SEAT_GRID_W && Math.abs(y1 - y2) < SEAT_GRID_H
+            Math.abs(gridX1 - gridX2) < SEAT_GRID_W &&
+            Math.abs(gridY1 - gridY2) < SEAT_GRID_H
         );
     }
 
-    function isValidPosition(x: number, y: number): boolean {
+    function isValidPosition(gridX: number, gridY: number): boolean {
         for (const seatId of seats) {
             if (seatId.toString() === activeSeatId) continue; // Skip the actively dragging seat
             const seatOffset = offsets.get(seatId);
             if (
                 seatOffset &&
-                isOverlapping(x, y, seatOffset.gridX, seatOffset.gridY)
+                isOverlapping(gridX, gridY, seatOffset.gridX, seatOffset.gridY)
             ) {
                 return false;
             }
