@@ -38,7 +38,6 @@ type SeatsData = {
     seats: id[];
     offsets: Map<id, GridPoint>;
     refs: Map<newId, HTMLElement | null>;
-    centroids: Map<newId, Point>;
     nextId: id;
     gridCellPx: number;
     gridW: number;
@@ -71,7 +70,6 @@ const seatStore = create<SeatStore>()(
         seats: [],
         offsets: new Map(),
         refs: new Map(),
-        centroids: new Map(),
         nextId: 0,
         active: null,
         preview: null,
@@ -128,7 +126,6 @@ const seatStore = create<SeatStore>()(
                 }
                 state.active = active;
                 if (active === null) {
-                    state.centroids.delete("new");
                     state.preview = null;
                     return;
                 }
@@ -156,7 +153,6 @@ const seatStore = create<SeatStore>()(
             set((state) => {
                 state.active = null;
                 state.preview = null;
-                state.centroids.delete("new");
             });
         },
     })),
