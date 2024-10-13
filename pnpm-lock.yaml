@@ -22,6 +22,9 @@ importers:
       immer:
         specifier: ^10.0.3
         version: 10.1.1
+      lucide-react:
+        specifier: ^0.452.0
+        version: 0.452.0(react@18.2.0)
       nanoid:
         specifier: ^5.0.4
         version: 5.0.7
@@ -1534,6 +1537,11 @@ packages:
 
   lru-queue@0.1.0:
     resolution: {integrity: sha512-BpdYkt9EvGl8OfWHDQPISVpcl5xZthb+XPsbELj5AQXxIC8IriDZIQYjBJPEm5rS420sjZ0TLEzRcq5KdBhYrQ==}
+
+  lucide-react@0.452.0:
+    resolution: {integrity: sha512-kNefjOUOGm+Mu3KDiryONyPba9r+nhcrz5oJs3N6JDzGboQNEXw5GB3yB8rnV9/FA4bPyggNU6CRSihZm9MvSw==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
 
   memoizee@0.4.17:
     resolution: {integrity: sha512-DGqD7Hjpi/1or4F/aYAspXKNm5Yili0QDAFAY4QYvpqpgiY6+1jOfqpmByzjxbWd/T9mChbCArXAbDAsTm5oXA==}
@@ -3799,6 +3807,10 @@ snapshots:
   lru-queue@0.1.0:
     dependencies:
       es5-ext: 0.10.64
+
+  lucide-react@0.452.0(react@18.2.0):
+    dependencies:
+      react: 18.2.0
 
   memoizee@0.4.17:
     dependencies:
