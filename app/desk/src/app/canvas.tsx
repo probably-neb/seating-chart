@@ -444,24 +444,22 @@ export function Canvas() {
     function handleDragMove(e: Dnd.DragMoveEvent) {
         if (e.active.id === SELECTION_DRAGGABLE_ID) {
             const rect = dropRef.current?.getBoundingClientRect();
-            if (rect) {
-                const snapCoords = getSnapCoords(dropRef, e);
-                const currentRect = e.active.rect.current.translated;
-                if (snapCoords && currentRect) {
-                    setSelectionDragOffset(
-                        dbg(
-                            {
-                                x:
-                                    snapCoords.gridX * gridCellPx -
-                                    (currentRect!.left - rect.left),
-                                y:
-                                    snapCoords.gridY * gridCellPx -
-                                    (currentRect!.top - rect.top),
-                            },
-                            "dragOffset",
-                        ),
-                    );
-                }
+            const currentRect = e.active.rect.current.translated;
+            if (rect && currentRect) {
+                const rectAdjustedLeft = currentRect.left - rect.left;
+                const rectAdjustedTop = currentRect.top - rect.top;
+
+                const snapX =
+                    Math.floor(rectAdjustedLeft / gridCellPx) * gridCellPx;
+                const snapY =
+                    Math.floor(rectAdjustedTop / gridCellPx) * gridCellPx;
+
+                const offset = {
+                    x: snapX - rectAdjustedLeft,
+                    y: snapY - rectAdjustedTop,
+                };
+
+                setSelectionDragOffset(offset);
             }
             return;
         }
@@ -473,7 +471,7 @@ export function Canvas() {
             setActive(null);
             return;
         }
-        const snapCoords = getSnapCoords(dropRef, e);
+        const snapCoords = getSeatSnapCoords(dropRef, e);
         if (snapCoords === null) {
             return;
         }
@@ -526,7 +524,7 @@ export function Canvas() {
             return;
         }
         const id = parseId(e.active.id);
-        const snapCoords = getSnapCoords(dropRef, e);
+        const snapCoords = getSeatSnapCoords(dropRef, e);
         if (snapCoords == null) {
             console.error("no snap coords");
             return;
@@ -629,7 +627,7 @@ function parseId(id: number | string): newId {
     return idInt;
 }
 
-function getSnapCoords(
+function getSeatSnapCoords(
     dzRef: RefObject<HTMLDivElement>,
     dragEvent: Dnd.DragEvent,
 ): GridPoint {
@@ -776,7 +774,7 @@ function NonDraggableSeat(props: { seatId: id; selected?: boolean }) {
             top: offset.gridY * gridCellPx,
             left: offset.gridX * gridCellPx,
         };
-    }, [offset,  gridCellPx]);
+    }, [offset, gridCellPx]);
     return (
         <div style={style}>
             <Seat id={id} offset={id == active?.id ? active : offset} />
@@ -797,11 +795,7 @@ function SelectedSeat(props: { seatId: id; offset: GridPoint }) {
             top: relativeY,
             left: relativeX,
         };
-    }, [
-        gridCellPx,
-        props.offset.gridX,
-        props.offset.gridY,
-    ]);
+    }, [gridCellPx, props.offset.gridX, props.offset.gridY]);
 
     return (
         <div style={style}>
