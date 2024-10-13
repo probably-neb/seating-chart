@@ -211,6 +211,10 @@ export function Canvas() {
         [gridCellPx, gridH, gridW],
     );
 
+    const [draggingStudentName, setDraggingStudentName] = React.useState<
+        string | null
+    >(null);
+
     return (
         <div className="w-xs lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
             <Dnd.Context
@@ -220,7 +224,7 @@ export function Canvas() {
             >
                 <Dnd.Droppable
                     id={SEATING_CHART_DROPPABLE_ID}
-                    className="relative z-auto overflow-auto border-2 border-red-800 bg-white"
+                    className="relative overflow-auto border-2 border-red-800 bg-white"
                     style={droppableStyle}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
@@ -261,38 +265,42 @@ export function Canvas() {
                             <DraggableSeat seatId={id} key={id} />
                         ),
                     )}
-                    <DragOverlay
-                        dropAnimation={{
-                            duration: 250,
-                            easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
-                        }}
-                    >
-                        {persistentSelection ? (
-                            <div
-                                className="relative h-full w-full"
-                                style={{
-                                    transform: selectionDragOffset
-                                        ? `translate(${selectionDragOffset.x}px, ${selectionDragOffset.y}px)`
-                                        : undefined,
-                                }}
-                            >
-                                <Selection>
-                                    {Array.from(selectedSeats.entries()).map(
-                                        ([id, offset]) => (
-                                            <SelectedSeat
-                                                seatId={id}
-                                                key={id}
-                                                offset={offset}
-                                            />
-                                        ),
-                                    )}
-                                </Selection>
-                            </div>
-                        ) : active ? (
-                            <Seat id={active.id} />
-                        ) : null}
-                    </DragOverlay>
                 </Dnd.Droppable>
+                <DragOverlay
+                    dropAnimation={{
+                        duration: 250,
+                        easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+                    }}
+                >
+                    {persistentSelection ? (
+                        <div
+                            className="relative h-full w-full"
+                            style={{
+                                transform: selectionDragOffset
+                                    ? `translate(${selectionDragOffset.x}px, ${selectionDragOffset.y}px)`
+                                    : undefined,
+                            }}
+                        >
+                            <Selection>
+                                {Array.from(selectedSeats.entries()).map(
+                                    ([id, offset]) => (
+                                        <SelectedSeat
+                                            seatId={id}
+                                            key={id}
+                                            offset={offset}
+                                        />
+                                    ),
+                                )}
+                            </Selection>
+                        </div>
+                    ) : active ? (
+                        <Seat id={active.id} />
+                    ) : draggingStudentName ? (
+                        <span className="rounded border bg-white px-3 py-2 text-lg font-bold leading-tight text-gray-700 shadow">
+                            {draggingStudentName}
+                        </span>
+                    ) : null}
+                </DragOverlay>
                 <div
                     className="border-l-2 border-l-black bg-white p-4"
                     style={{
@@ -457,6 +465,7 @@ export function Canvas() {
         }
         if (e.active.id.toString().startsWith("student-")) {
             console.log("dragging student", e.active.id);
+            setDraggingStudentName(e.active.data.current!.name);
             return;
         }
         const offset = offsets.get(e.active.id as id);
@@ -492,6 +501,7 @@ export function Canvas() {
         }
 
         if (e.active.id.toString().startsWith("student-")) {
+            setDraggingStudentName(e.active.data.current!.name);
             return;
         }
 
@@ -560,30 +570,45 @@ export function Canvas() {
 
         if (e.active.id.toString().startsWith("student-")) {
             if (e.over != null && e.over.id.toString().startsWith("seat-")) {
-                seatStore.setState(s => {
-                    const originalSeatID = Number.parseInt(e.active.data.current!.seatID);
-                    const overSeatID = Number.parseInt(e.over!.id.toString().slice("seat-".length));
+                seatStore.setState((s) => {
+                    const originalSeatID = Number.parseInt(
+                        e.active.data.current!.seatID,
+                    );
+                    const overSeatID = Number.parseInt(
+                        e.over!.id.toString().slice("seat-".length),
+                    );
 
-                    assert(Number.isSafeInteger(originalSeatID))
-                    assert(Number.isSafeInteger(overSeatID))
+                    assert(Number.isSafeInteger(originalSeatID));
+                    assert(Number.isSafeInteger(overSeatID));
 
-                    assert(s.students.get(originalSeatID), "original seat not found")
+                    assert(
+                        s.students.get(originalSeatID),
+                        "original seat not found",
+                    );
 
                     if (originalSeatID === overSeatID) {
+                        setDraggingStudentName(null);
                         return;
                     }
 
-                    const studentInOverSeat = s.students.get(overSeatID)
+                    const studentInOverSeat = s.students.get(overSeatID);
                     if (!studentInOverSeat) {
-                        s.students.set(overSeatID, s.students.get(originalSeatID)!);
+                        s.students.set(
+                            overSeatID,
+                            s.students.get(originalSeatID)!,
+                        );
                         s.students.set(originalSeatID, "");
                     } else {
                         // swap
-                        s.students.set(overSeatID, s.students.get(originalSeatID)!);
+                        s.students.set(
+                            overSeatID,
+                            s.students.get(originalSeatID)!,
+                        );
                         s.students.set(originalSeatID, studentInOverSeat);
                     }
-                })
+                });
             }
+            setDraggingStudentName(null);
             return;
         }
 
@@ -927,8 +952,11 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
                             {studentName ? (
                                 <Dnd.DraggableDIV
                                     id={"student-" + props.id}
-                                    className="z-50"
-                                    data={{ seatID: props.id }}
+                                    className="z-50 h-full w-full bg-white"
+                                    data={{
+                                        seatID: props.id,
+                                        name: studentName,
+                                    }}
                                 >
                                     <div className="rounded border px-3 py-2 text-sm leading-tight text-gray-700 shadow">
                                         <span className=" font-semibold">
@@ -942,7 +970,7 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
                                                 e.stopPropagation()
                                             }
                                         >
-                                            <EditIcon />
+                                            <EditIcon size={16} className="w-min" />
                                         </div>
                                     </div>
                                 </Dnd.DraggableDIV>

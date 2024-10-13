@@ -129,7 +129,7 @@ export function DraggableDIV(
 
     return (
         <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={props.className} role="button">
-            {props.children}
+            {isDragging ? null : props.children}
         </div>
     );
 }
