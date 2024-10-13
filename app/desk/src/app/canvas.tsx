@@ -410,7 +410,7 @@ export function Canvas() {
             const endY =
                 Math.max(selectionStart.y, selectionEnd.y) / gridCellPx;
 
-            let newSelectedSeats: typeof selectedSeats = new Map();
+            const newSelectedSeats: typeof selectedSeats = new Map();
 
             const state = seatStore.getState();
 
@@ -420,11 +420,23 @@ export function Canvas() {
                 if (offset == null) {
                     continue;
                 }
-                const isInSelection =
-                    offset.gridX >= startX &&
-                    offset.gridX <= endX &&
-                    offset.gridY >= startY &&
-                    offset.gridY <= endY;
+                const seatLeft = offset.gridX;
+                const seatTop = offset.gridY;
+                const seatRight = offset.gridX + SEAT_GRID_W;
+                const seatBottom = offset.gridY + SEAT_GRID_H;
+                const corners: Array<[number, number]> = [
+                    [seatLeft, seatTop],
+                    [seatRight, seatTop],
+                    [seatLeft, seatBottom],
+                    [seatRight, seatBottom],
+                ]
+                let isInSelection = false;
+                for (let i = 0; i < corners.length && !isInSelection; i++) {
+                    const [seatX, seatY] = corners[i]!;
+                    isInSelection ||=
+                        (startX <= seatX && startY <= seatY) &&
+                        (endX >= seatX && endY >= seatY)
+                }
                 if (isInSelection) {
                     const seatSelectionOffset = {
                         gridX: offset.gridX - startX,
@@ -436,6 +448,7 @@ export function Canvas() {
 
             if (newSelectedSeats.size === 0) {
                 console.log("empty selection");
+                setIsDraggingSelection(false);
                 setSelectionStart(null);
                 setSelectionEnd(null);
                 return;
@@ -454,6 +467,7 @@ export function Canvas() {
                 end: selectionEnd,
             });
         }
+        setIsDraggingSelection(false);
         setSelectionStart(null);
         setSelectionEnd(null);
     }
