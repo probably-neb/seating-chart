@@ -9,6 +9,7 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import React from "react";
 import { useMap } from "@uidotdev/usehooks";
+import { assert } from "@/lib/assert";
 
 enableMapSet();
 
@@ -42,6 +43,7 @@ type SeatsData = {
     gridCellPx: number;
     gridW: number;
     gridH: number;
+    students: Map<id, string>;
 } & (
     | {
           active: Active;
@@ -76,6 +78,7 @@ const seatStore = create<SeatStore>()(
         gridCellPx: DEFAULT_GRID_CELL_PX,
         gridW: DEFAULT_GRID_W,
         gridH: DEFAULT_GRID_H,
+        students: new Map(),
         addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
@@ -813,6 +816,17 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
     const gridCellPx = seatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
 
+    const studentName = seatStore((s) => {
+        if (props.id === "new") return "";
+        return s.students.get(props.id) ?? "";
+    });
+    const setStudentName = (name: string) => {
+        seatStore.setState((s) => {
+            assert(props.id !== "new");
+            s.students.set(props.id, name);
+        });
+    };
+
     const style = {
         height: SEAT_GRID_H * gridCellPx,
         width: SEAT_GRID_W * gridCellPx,
@@ -822,10 +836,18 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
             ref={setSeatRef}
             id={props.id + ""}
             data-selected={props.selected === true ? "" : null}
-            className="align-center border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
+            className="flex items-center justify-center rounded-md border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
             style={style}
         >
-            {props.id}
+            {props.id !== "new" ? (
+                <input
+                    className="w-[90%] shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                />
+            ) : (
+                props.id
+            )}
         </div>
     );
 }
