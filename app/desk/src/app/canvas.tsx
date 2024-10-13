@@ -10,6 +10,7 @@ import { immer } from "zustand/middleware/immer";
 import React from "react";
 import { useMap } from "@uidotdev/usehooks";
 import { assert } from "@/lib/assert";
+import { EditIcon } from "lucide-react";
 
 enableMapSet();
 
@@ -454,6 +455,10 @@ export function Canvas() {
             setIsDraggingSelection(true);
             return;
         }
+        if (e.active.id.toString().startsWith("student-")) {
+            console.log("dragging student", e.active.id);
+            return;
+        }
         const offset = offsets.get(e.active.id as id);
         if (!offset) {
             return;
@@ -483,6 +488,10 @@ export function Canvas() {
 
                 setSelectionDragOffset(offset);
             }
+            return;
+        }
+
+        if (e.active.id.toString().startsWith("student-")) {
             return;
         }
 
@@ -548,6 +557,36 @@ export function Canvas() {
             }
             return;
         }
+
+        if (e.active.id.toString().startsWith("student-")) {
+            if (e.over != null && e.over.id.toString().startsWith("seat-")) {
+                seatStore.setState(s => {
+                    const originalSeatID = Number.parseInt(e.active.data.current!.seatID);
+                    const overSeatID = Number.parseInt(e.over!.id.toString().slice("seat-".length));
+
+                    assert(Number.isSafeInteger(originalSeatID))
+                    assert(Number.isSafeInteger(overSeatID))
+
+                    assert(s.students.get(originalSeatID), "original seat not found")
+
+                    if (originalSeatID === overSeatID) {
+                        return;
+                    }
+
+                    const studentInOverSeat = s.students.get(overSeatID)
+                    if (!studentInOverSeat) {
+                        s.students.set(overSeatID, s.students.get(originalSeatID)!);
+                        s.students.set(originalSeatID, "");
+                    } else {
+                        // swap
+                        s.students.set(overSeatID, s.students.get(originalSeatID)!);
+                        s.students.set(originalSeatID, studentInOverSeat);
+                    }
+                })
+            }
+            return;
+        }
+
         const id = parseId(e.active.id);
         const snapCoords = getSeatSnapCoords(dropRef, e);
         if (snapCoords == null) {
@@ -849,24 +888,77 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
         });
     };
 
+    const [isEditing, setIsEditing] = React.useState(false);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleEditClick = () => {
+        setIsEditing(true);
+        setTimeout(() => {
+            inputRef.current?.focus();
+        }, 0);
+    };
+
     const style = {
         height: SEAT_GRID_H * gridCellPx,
         width: SEAT_GRID_W * gridCellPx,
     };
+
     return (
         <div
             ref={setSeatRef}
             id={props.id + ""}
             data-selected={props.selected === true ? "" : null}
-            className="flex items-center justify-center rounded-md border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
+            className="flex flex-col items-center justify-center rounded-md border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
             style={style}
         >
             {props.id !== "new" ? (
-                <input
-                    className="w-[90%] shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                />
+                <Dnd.Droppable id={"seat-" + props.id}>
+                    {isEditing ? (
+                        <input
+                            ref={inputRef}
+                            className="focus:shadow-outline w-[90%] appearance-none rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none"
+                            value={studentName}
+                            onChange={(e) => setStudentName(e.target.value)}
+                            onBlur={() => setIsEditing(false)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        />
+                    ) : (
+                        <>
+                            {studentName ? (
+                                <Dnd.DraggableDIV
+                                    id={"student-" + props.id}
+                                    className="z-50"
+                                    data={{ seatID: props.id }}
+                                >
+                                    <div className="rounded border px-3 py-2 text-sm leading-tight text-gray-700 shadow">
+                                        <span className=" font-semibold">
+                                            {studentName}
+                                        </span>
+                                        <div
+                                            role="button"
+                                            className="mt-2 rounded bg-blue-500 px-2 py-1 text-white"
+                                            onClick={handleEditClick}
+                                            onMouseDown={(e) =>
+                                                e.stopPropagation()
+                                            }
+                                        >
+                                            <EditIcon />
+                                        </div>
+                                    </div>
+                                </Dnd.DraggableDIV>
+                            ) : (
+                                <div
+                                    role="button"
+                                    className="rounded bg-blue-500 px-2 py-1 text-white"
+                                    onClick={handleEditClick}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                >
+                                    <EditIcon />
+                                </div>
+                            )}
+                        </>
+                    )}
+                </Dnd.Droppable>
             ) : (
                 props.id
             )}

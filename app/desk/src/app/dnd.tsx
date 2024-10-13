@@ -106,3 +106,30 @@ export function Draggable(
         </button>
     );
 }
+
+export function DraggableDIV(
+    props: PropsWithChildren<{
+        id: string;
+        data?: Data;
+        className?: string;
+        style?: React.CSSProperties;
+    }>,
+) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } =
+        useDraggable({
+            id: props.id,
+            data: props.data,
+        });
+    const style: React.CSSProperties = {
+        transform: CSS.Translate.toString(transform),
+        zIndex: isDragging ? 10 : 0,
+        touchAction: "manipulation",
+        ...props.style,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={props.className} role="button">
+            {props.children}
+        </div>
+    );
+}
