@@ -313,30 +313,49 @@ export function Canvas() {
         if (isDraggingSelection) {
             return; // Don't create new selections while dragging an existing one
         }
-        if (persistentSelection) {
-            const rect = dropRef.current?.getBoundingClientRect();
-            if (rect) {
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const isClickInSelection =
-                    x >= persistentSelection.start.x &&
-                    x <= persistentSelection.end.x &&
-                    y >= persistentSelection.start.y &&
-                    y <= persistentSelection.end.y;
-                if (isClickInSelection) {
-                    return; // Click is within the persistent selection, don't start a new selection
+
+        const rect = dropRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Check if the click is within any existing seat
+        const state = seatStore.getState();
+        for (const seatId of state.seats) {
+            const offset = state.offsets.get(seatId);
+            if (offset) {
+                const seatLeft = offset.gridX * gridCellPx;
+                const seatTop = offset.gridY * gridCellPx;
+                const seatRight = seatLeft + SEAT_GRID_W * gridCellPx;
+                const seatBottom = seatTop + SEAT_GRID_H * gridCellPx;
+
+                if (
+                    x >= seatLeft &&
+                    x <= seatRight &&
+                    y >= seatTop &&
+                    y <= seatBottom
+                ) {
+                    return; // Click is within an existing seat, return early
                 }
             }
         }
-        const rect = dropRef.current?.getBoundingClientRect();
-        if (rect) {
-            const x =
-                Math.floor((e.clientX - rect.left) / gridCellPx) * gridCellPx;
-            const y =
-                Math.floor((e.clientY - rect.top) / gridCellPx) * gridCellPx;
-            setSelectionStart({ x, y });
-            clearPersistentSelection();
+        if (persistentSelection) {
+            const isClickInSelection =
+                x >= persistentSelection.start.x &&
+                x <= persistentSelection.end.x &&
+                y >= persistentSelection.start.y &&
+                y <= persistentSelection.end.y;
+            if (isClickInSelection) {
+                return; // Click is within the persistent selection, don't start a new selection
+            }
         }
+
+        const snapX = Math.floor(x / gridCellPx) * gridCellPx;
+        const snapY = Math.floor(y / gridCellPx) * gridCellPx;
+        console.log({ x: snapX, y: snapY });
+        setSelectionStart({ x: snapX, y: snapY });
+        clearPersistentSelection();
     }
 
     function handleMouseMove(e: React.MouseEvent) {
@@ -483,6 +502,9 @@ export function Canvas() {
     }
 
     function handleDragEnd(e: Dnd.DragEndEvent) {
+        if (e.delta.x == 0 && e.delta.y == 0) {
+            return;
+        }
         if (e.active.id === SELECTION_DRAGGABLE_ID) {
             setIsDraggingSelection(false);
             setSelectionDragOffset(null);
