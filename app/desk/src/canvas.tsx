@@ -7,7 +7,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import React from "react";
-import { assert } from "./lib/assert";
+import { assert } from "@/lib/assert";
 import { EditIcon } from "lucide-react";
 
 enableMapSet();
