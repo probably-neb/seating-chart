@@ -775,7 +775,7 @@ function CanvasDragOverlay(props: {
             );
         }
         return null;
-    }, [useSelection(), props.active]);
+    }, [useSelection(), props.active, props.draggingStudentName]);
     return (
         <DragOverlay
             dropAnimation={{
