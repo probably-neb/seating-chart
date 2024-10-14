@@ -4,7 +4,7 @@ export default $config({
     app(input) {
         return {
             name: "deskribe",
-            removal: input?.stage === "production" ? "retain" : "remove",
+            removal: input?.stage === "prod" ? "retain" : "remove",
             home: "aws",
             providers: {
                 aws: {
@@ -28,7 +28,7 @@ export default $config({
 
         const desk = new sst.aws.StaticSite("desk", {
             path: "app/desk",
-            domain: "desk." + domain,
+            domain: "seating." + domain,
             dev: {
                 command: "bun dev",
                 url: "http://localhost:3001",
