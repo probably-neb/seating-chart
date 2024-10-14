@@ -9,5 +9,9 @@ declare module "sst" {
       "type": "sst.aws.Nextjs"
       "url": string
     }
+    "desk-static": {
+      "type": "sst.aws.StaticSite"
+      "url": string
+    }
   }
 }

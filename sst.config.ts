@@ -33,5 +33,13 @@ export default $config({
                 command: "bun dev",
             }
         })
+
+        const deskStatic = new sst.aws.StaticSite("desk-static", {
+            path: "app/desk-tstack",
+            domain: "desk-static." + domain,
+            dev: {
+                command: "bun dev",
+            }
+        })
     },
 });
