@@ -1,0 +1,123 @@
+---
+
+import { Button } from "@/components/ui/button"
+import { Pencil, Users, Zap, Heart } from "lucide-react"
+import SeatingChartAnimation from '@/components/seating-animation'
+
+import '../styles/globals.css'
+
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Astro</title>
+	</head>
+	<body>
+    <div class="min-h-screen bg-yellow-50">
+      <header class="bg-blue-500 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+          <a href="/" class="text-2xl font-bold">TeacherSeats</a>
+          <nav>
+            <ul class="flex space-x-4">
+              <li><a href="#features" class="hover:underline">Features</a></li>
+              <li><a href="#testimonials" class="hover:underline">Testimonials</a></li>
+              <li><a href="/login" class="hover:underline">Login</a></li>
+            </ul>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section class="py-20 text-center">
+          <h1 class="text-4xl md:text-6xl font-bold text-blue-600 mb-4">Seating Charts Made Fun!</h1>
+          <p class="text-xl text-gray-600 mb-8">Create, manage, and optimize your classroom seating arrangements with ease.</p>
+          <Button class="bg-green-500 hover:bg-green-600 text-white text-lg px-8 py-3 rounded-full transition duration-300">
+            Get Started Free
+          </Button>
+        </section>
+
+        <section class="py-20 bg-white">
+          <div class="container mx-auto">
+            <div class="flex flex-col md:flex-row items-center justify-center">
+              <div class="w-full md:w-1/2 mb-10 md:mb-0">
+                <div class="relative w-64 h-64 mx-auto">
+                    <SeatingChartAnimation client:idle />
+                </div>
+              </div>
+              <div class="w-full md:w-1/2 text-center md:text-left">
+                <h2 class="text-3xl font-bold text-blue-600 mb-4">Watch Your Classroom Come to Life!</h2>
+                <p class="text-xl text-gray-600 mb-4">Our intuitive drag-and-drop interface makes creating seating charts a breeze. Customize, optimize, and visualize your classroom setup in minutes!</p>
+                <Button class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-full transition duration-300">
+                  Try It Now
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="features" class="py-20 bg-blue-100">
+          <div class="container mx-auto">
+            <h2 class="text-3xl font-bold text-center text-blue-600 mb-12">Features That Make Teaching Easier</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                <Pencil class="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <h3 class="text-xl font-semibold mb-2">Easy Customization</h3>
+                <p class="text-gray-600">Tailor seating arrangements to your classroom's unique needs.</p>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                <Users class="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                <h3 class="text-xl font-semibold mb-2">Student Profiles</h3>
+                <p class="text-gray-600">Keep track of student information and preferences.</p>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                <Zap class="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                <h3 class="text-xl font-semibold mb-2">Quick Shuffle</h3>
+                <p class="text-gray-600">Instantly generate new seating arrangements with a click.</p>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                <Heart class="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 class="text-xl font-semibold mb-2">Behavior Management</h3>
+                <p class="text-gray-600">Optimize seating based on student behavior and interactions.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="testimonials" class="py-20 bg-purple-100">
+          <div class="container mx-auto">
+            <h2 class="text-3xl font-bold text-center text-purple-600 mb-12">What Teachers Are Saying</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-gray-600 mb-4">"TeacherSeats has revolutionized how I manage my classroom. It's so easy to use and saves me hours of work!"</p>
+                <p class="font-semibold">- Sarah Johnson, 3rd Grade Teacher</p>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-gray-600 mb-4">"I love how I can quickly shuffle seats for group activities. It's made my lessons more dynamic and engaging."</p>
+                <p class="font-semibold">- Michael Lee, High School Math Teacher</p>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-gray-600 mb-4">"The behavior management feature has been a game-changer. My classroom is more harmonious than ever!"</p>
+                <p class="font-semibold">- Emily Davis, Middle School English Teacher</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="bg-blue-500 text-white py-8">
+        <div class="container mx-auto text-center">
+          <p>&copy; 2024 TeacherSeats. All rights reserved.</p>
+          <div class="mt-4">
+            <a href="/privacy" class="hover:underline mr-4">Privacy Policy</a>
+            <a href="/terms" class="hover:underline mr-4">Terms of Service</a>
+            <a href="/contact" class="hover:underline">Contact Us</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+	</body>
+</html>

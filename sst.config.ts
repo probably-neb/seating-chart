@@ -41,5 +41,13 @@ export default $config({
                 command: "bun dev",
             }
         })
+
+        const landing = new sst.aws.Astro("landing", {
+            path: "app/landing",
+            domain: domain,
+            dev: {
+                command: "bun dev",
+            }
+        })
     },
 });

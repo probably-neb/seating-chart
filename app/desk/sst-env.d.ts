@@ -13,5 +13,9 @@ declare module "sst" {
       "type": "sst.aws.StaticSite"
       "url": string
     }
+    "landing": {
+      "type": "sst.aws.Astro"
+      "url": string
+    }
   }
 }
