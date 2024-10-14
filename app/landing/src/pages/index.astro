@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Pencil, Users, Zap, Heart } from "lucide-react"
 import SeatingChartAnimation from '@/components/seating-animation'
+import {Resource} from "sst"
 
 import '../styles/globals.css'
 
@@ -20,7 +21,7 @@ import '../styles/globals.css'
     <div class="min-h-screen bg-yellow-50">
       <header class="bg-blue-500 text-white p-4">
         <div class="container mx-auto flex justify-between items-center">
-          <a href="/" class="text-2xl font-bold">TeacherSeats</a>
+          <a href="/" class="text-2xl font-bold">Deskribe</a>
           <nav>
             <ul class="flex space-x-4">
               <li><a href="#features" class="hover:underline">Features</a></li>
@@ -35,7 +36,7 @@ import '../styles/globals.css'
         <section class="py-20 text-center">
           <h1 class="text-4xl md:text-6xl font-bold text-blue-600 mb-4">Seating Charts Made Fun!</h1>
           <p class="text-xl text-gray-600 mb-8">Create, manage, and optimize your classroom seating arrangements with ease.</p>
-          <Button class="bg-green-500 hover:bg-green-600 text-white text-lg px-8 py-3 rounded-full transition duration-300">
+          <Button className="bg-green-500 hover:bg-green-600 text-white text-lg px-8 py-3 rounded-full transition duration-300">
             Get Started Free
           </Button>
         </section>
@@ -51,9 +52,9 @@ import '../styles/globals.css'
               <div class="w-full md:w-1/2 text-center md:text-left">
                 <h2 class="text-3xl font-bold text-blue-600 mb-4">Watch Your Classroom Come to Life!</h2>
                 <p class="text-xl text-gray-600 mb-4">Our intuitive drag-and-drop interface makes creating seating charts a breeze. Customize, optimize, and visualize your classroom setup in minutes!</p>
-                <Button class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-full transition duration-300">
+                <a href={Resource.desk.url} class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-full transition duration-300">
                   Try It Now
-                </Button>
+                </a>
               </div>
             </div>
           </div>
@@ -92,7 +93,7 @@ import '../styles/globals.css'
             <h2 class="text-3xl font-bold text-center text-purple-600 mb-12">What Teachers Are Saying</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               <div class="bg-white p-6 rounded-lg shadow-md">
-                <p class="text-gray-600 mb-4">"TeacherSeats has revolutionized how I manage my classroom. It's so easy to use and saves me hours of work!"</p>
+                <p class="text-gray-600 mb-4">"Deskribe has revolutionized how I manage my classroom. It's so easy to use and saves me hours of work!"</p>
                 <p class="font-semibold">- Sarah Johnson, 3rd Grade Teacher</p>
               </div>
               <div class="bg-white p-6 rounded-lg shadow-md">
@@ -110,7 +111,7 @@ import '../styles/globals.css'
 
       <footer class="bg-blue-500 text-white py-8">
         <div class="container mx-auto text-center">
-          <p>&copy; 2024 TeacherSeats. All rights reserved.</p>
+          <p>&copy; 2024 Deskribe. All rights reserved.</p>
           <div class="mt-4">
             <a href="/privacy" class="hover:underline mr-4">Privacy Policy</a>
             <a href="/terms" class="hover:underline mr-4">Terms of Service</a>
