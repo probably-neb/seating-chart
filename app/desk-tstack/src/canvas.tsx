@@ -624,9 +624,6 @@ export function Canvas() {
     }
 
     function handleDragEnd(e: Dnd.DragEndEvent) {
-        if (e.delta.x == 0 && e.delta.y == 0) {
-            return;
-        }
         if (e.active.id === SELECTION_DRAGGABLE_ID) {
             // Update the persistent selection position
 
@@ -672,6 +669,10 @@ export function Canvas() {
                     }
                 });
             }
+            return;
+        }
+
+        if (e.delta.x == 0 && e.delta.y == 0) {
             return;
         }
 
