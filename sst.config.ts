@@ -31,12 +31,14 @@ export default $config({
             domain: "desk." + domain,
             dev: {
                 command: "bun dev",
+                url: "http://localhost:3001",
             }
         })
 
         const landing = new sst.aws.Astro("landing", {
             path: "app/landing",
             domain: domain,
+            link: [desk],
             dev: {
                 command: "bun dev",
             }

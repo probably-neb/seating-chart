@@ -6,10 +6,6 @@ export {}
 declare module "sst" {
   export interface Resource {
     "desk": {
-      "type": "sst.aws.Nextjs"
-      "url": string
-    }
-    "desk-static": {
       "type": "sst.aws.StaticSite"
       "url": string
     }
