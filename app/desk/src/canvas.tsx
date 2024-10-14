@@ -2,13 +2,19 @@ import { useRef, useMemo, useCallback } from "react";
 import type { RefObject } from "react";
 import { enableMapSet } from "immer";
 import type { Draft } from "immer";
-import { Dnd, DragOverlay } from "./dnd";
+import { Dnd, DragOverlay } from "@/dnd";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import React from "react";
 import { assert } from "@/lib/assert";
 import { EditIcon } from "lucide-react";
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import For from "./components/util/for";
 
 enableMapSet();
 
@@ -29,6 +35,8 @@ type id = number;
 type newId = id | typeof NEW_ID;
 
 type Point = { x: number; y: number };
+
+type studentId = number;
 
 type GridPoint = { gridX: number; gridY: number };
 
@@ -63,7 +71,6 @@ type SeatsFns = {
     setPreview(p: GridPoint | null): void;
     stopDrag(): void;
 };
-
 type SeatStore = SeatsData & SeatsFns;
 
 const useSeatStore = create<SeatStore>()(
@@ -154,6 +161,43 @@ const useSeatStore = create<SeatStore>()(
             set((state) => {
                 state.active = null;
                 state.preview = null;
+            });
+        },
+    })),
+);
+
+type StudentData = {
+    students: Map<studentId, string>;
+    nextStudentId: studentId;
+};
+
+type StudentFns = {
+    addStudent(name: string): void;
+    removeStudent(id: studentId): void;
+    updateStudentName(id: studentId, name: string): void;
+};
+
+type StudentStore = StudentData & StudentFns;
+
+const useStudentStore = create<StudentStore>()(
+    immer((set) => ({
+        students: new Map(),
+        nextStudentId: 0,
+        addStudent(name: string) {
+            set((state) => {
+                const id = state.nextStudentId;
+                state.students.set(id, name);
+                state.nextStudentId += 1;
+            });
+        },
+        removeStudent(id: studentId) {
+            set((state) => {
+                state.students.delete(id);
+            });
+        },
+        updateStudentName(id: studentId, name: string) {
+            set((state) => {
+                state.students.set(id, name);
             });
         },
     })),
@@ -382,44 +426,54 @@ export function Canvas() {
     }, [useSelection(), gridCellPx, active]);
 
     return (
-        <div className="w-xs lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
-            <Dnd.Context
-                onDragEnd={handleDragEnd}
-                onDragStart={handleDragStart}
-                onDragMove={handleDragMove}
-            >
-                <Dnd.Droppable
-                    id={SEATING_CHART_DROPPABLE_ID}
-                    className="relative overflow-auto border-2 border-red-800 bg-white"
-                    style={droppableStyle}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                >
-                    <div ref={dropRef} className="z-0">
-                        {selection}
-                    </div>
-                    <DropPreview />
-                    {seats.map((id) =>
-                        id == active?.id || selectedSeats?.has(id) ? null : (
-                            <DraggableSeat seatId={id} key={id} />
-                        ),
-                    )}
-                </Dnd.Droppable>
-                <CanvasDragOverlay
-                    active={active}
-                    draggingStudentName={draggingStudentName}
-                />
-                <div
-                    className="border-l-2 border-l-black bg-white p-4"
-                    style={{
-                        minHeight: gridCellPx * (SEAT_GRID_H + 2),
-                    }}
-                >
-                    <DraggableSeat />
+        <Dnd.Context
+            onDragEnd={handleDragEnd}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+        >
+            <div className="flex flex-row">
+                <div className="w-xs lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
+                    <Dnd.Droppable
+                        id={SEATING_CHART_DROPPABLE_ID}
+                        className="relative overflow-auto border-2 border-red-800 bg-white"
+                        style={droppableStyle}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                    >
+                        <div ref={dropRef} className="z-0">
+                            {selection}
+                        </div>
+                        <DropPreview />
+                        {seats.map((id) =>
+                            id == active?.id ||
+                            selectedSeats?.has(id) ? null : (
+                                <DraggableSeat seatId={id} key={id} />
+                            ),
+                        )}
+                    </Dnd.Droppable>
+                    <CanvasDragOverlay
+                        active={active}
+                        draggingStudentName={draggingStudentName}
+                    />
                 </div>
-            </Dnd.Context>
-        </div>
+                <div className="h-full border-l-2 border-l-black bg-white p-4">
+                    <span className="text-lg font-bold leading-tight text-gray-700">
+                        Add a seat
+                    </span>
+                    <div
+                        style={{
+                            minHeight: SEAT_GRID_H * gridCellPx + 4,
+                        }}
+                    >
+                        <DraggableSeat />
+                    </div>
+
+                    <div>
+                    </div>
+                </div>
+            </div>
+        </Dnd.Context>
     );
 
     function handleMouseDown(e: React.MouseEvent) {
