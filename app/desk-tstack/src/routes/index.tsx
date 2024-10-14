@@ -9,7 +9,9 @@ export const Route = createFileRoute("/")({
 function CanvasComponent() {
     return (
         <main className="flex min-h-screen flex-col bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-            <Canvas />
+            <div className="flex justify-center items-center">
+                <Canvas />
+            </div>
         </main>
     );
 }
