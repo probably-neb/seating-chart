@@ -26,17 +26,9 @@ export default $config({
             domain = $app.stage + ".dev.deskribe.cc"
         }
 
-        const desk = new sst.aws.Nextjs("desk", {
+        const desk = new sst.aws.StaticSite("desk", {
             path: "app/desk",
             domain: "desk." + domain,
-            dev: {
-                command: "bun dev",
-            }
-        })
-
-        const deskStatic = new sst.aws.StaticSite("desk-static", {
-            path: "app/desk-tstack",
-            domain: "desk-static." + domain,
             dev: {
                 command: "bun dev",
             }

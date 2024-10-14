@@ -20,7 +20,6 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",
-    "plugins": [{ "name": "next" }],
     "incremental": true,
 
     /* Path Aliases */
@@ -35,8 +34,7 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.cjs",
-    "**/*.js",
-    ".next/types/**/*.ts"
+    "**/*.js"
   ],
   "exclude": ["node_modules"]
 }
