@@ -88,64 +88,6 @@ importers:
         specifier: ^5.4.8
         version: 5.4.8(@types/node@18.19.55)
 
-  app/desk-tstack:
-    dependencies:
-      '@dnd-kit/core':
-        specifier: ^6.1.0
-        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@dnd-kit/utilities':
-        specifier: ^3.2.2
-        version: 3.2.2(react@18.3.1)
-      '@tanstack/react-router':
-        specifier: ^1.65.0
-        version: 1.65.0(@tanstack/router-generator@1.65.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@tanstack/router-devtools':
-        specifier: ^1.65.0
-        version: 1.65.0(@tanstack/react-router@1.65.0(@tanstack/router-generator@1.65.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(csstype@3.1.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@uidotdev/usehooks':
-        specifier: ^2.4.1
-        version: 2.4.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      immer:
-        specifier: ^10.0.3
-        version: 10.1.1
-      lucide-react:
-        specifier: ^0.452.0
-        version: 0.452.0(react@18.3.1)
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@18.3.1)
-      zustand:
-        specifier: ^4.5.0
-        version: 4.5.5(@types/react@18.3.11)(immer@10.1.1)(react@18.3.1)
-    devDependencies:
-      '@tanstack/router-plugin':
-        specifier: ^1.65.0
-        version: 1.65.0(vite@5.4.8(@types/node@18.19.55))
-      '@types/react':
-        specifier: ^18.3.3
-        version: 18.3.11
-      '@types/react-dom':
-        specifier: ^18.3.0
-        version: 18.3.0
-      '@vitejs/plugin-react':
-        specifier: ^4.3.2
-        version: 4.3.2(vite@5.4.8(@types/node@18.19.55))
-      autoprefixer:
-        specifier: ^10.4.14
-        version: 10.4.20(postcss@8.4.47)
-      postcss:
-        specifier: ^8.4.31
-        version: 8.4.47
-      tailwindcss:
-        specifier: ^3.3.5
-        version: 3.4.13
-      vite:
-        specifier: ^5.4.8
-        version: 5.4.8(@types/node@18.19.55)
-
   app/landing:
     dependencies:
       '@astrojs/check':
@@ -172,6 +114,9 @@ importers:
       astro:
         specifier: ^4.16.3
         version: 4.16.3(@types/node@18.19.55)(rollup@4.24.0)(typescript@5.6.3)
+      astro-sst:
+        specifier: ^2.43.5
+        version: 2.43.5
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.0
@@ -259,6 +204,10 @@ packages:
   '@astrojs/telemetry@3.1.0':
     resolution: {integrity: sha512-/ca/+D8MIKEC8/A9cSaPUqQNZm+Es/ZinRv0ZAzvu2ios7POQSsVD+VOj7/hypWNsNM3T7RpfgNq7H2TU1KEHA==}
     engines: {node: ^18.17.1 || ^20.3.0 || >=21.0.0}
+
+  '@astrojs/webapi@3.0.0':
+    resolution: {integrity: sha512-+/Wruju2Ho99z0jI8zxMFGBkKKG97RzR/srSaColejUDrczkAjR3HjULKTVfDdIpvtvFZLyl7OMBmHKQazfeZg==}
+    deprecated: This package is not used by Astro any more and is no longer maintained. In Astro 3.0 polyfills are part of a core module.
 
   '@astrojs/yaml2ts@0.2.1':
     resolution: {integrity: sha512-CBaNwDQJz20E5WxzQh4thLVfhB3JEEGz72wRA+oJp6fQR37QLAqXZJU0mHC+yqMOQ6oj0GfRPJrz6hjf+zm6zA==}
@@ -693,6 +642,10 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fastify/busboy@2.1.1':
+    resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
+    engines: {node: '>=14'}
 
   '@img/sharp-darwin-arm64@0.33.5':
     resolution: {integrity: sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==}
@@ -1168,6 +1121,9 @@ packages:
 
   array-iterate@2.0.1:
     resolution: {integrity: sha512-I1jXZMjAgCMmxT4qxXfPXa6SthSoE8h6gkSI9BGGNv8mP8G/v0blc+qFnZu6K42vTOiuME596QaLO0TP3Lk0xg==}
+
+  astro-sst@2.43.5:
+    resolution: {integrity: sha512-CWSJO5Kdn7B6CI+qvd82T+ldqaI8y5HeQm4U9dGSSZe+v2KtArac94s2PaE27nxMTLy1JNG101cmyZj+1LhdjA==}
 
   astro@4.16.3:
     resolution: {integrity: sha512-0IrnbCUprAyfeZ8Au/d/d0ssrYGMAZOZ1K3fX7GxI0OwUhkA9bSex0+ywiyVNiVZE5uRlTKRSkvLNKYQWdtHqw==}
@@ -2255,6 +2211,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  set-cookie-parser@2.7.0:
+    resolution: {integrity: sha512-lXLOiqpkUumhRdFF3k1osNXCy9akgx/dyPZ5p8qAg9seJzXr5ZrlqZuWIMuY6ejOsVLE6flJ5/h3lsn57fQ/PQ==}
+
   sharp@0.33.5:
     resolution: {integrity: sha512-haPVm1EkS9pgvHrQ/F3Xy+hgcuMV0Wm9vfIBSiwZ05k+xgb0PkBQpGsAA/oWdDobNaZTH5ppvHtzCFbnSEwHVw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -2459,6 +2418,10 @@ packages:
 
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
+
+  undici@5.28.4:
+    resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
+    engines: {node: '>=14.0'}
 
   unified@11.0.5:
     resolution: {integrity: sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA==}
@@ -2885,6 +2848,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@astrojs/webapi@3.0.0':
+    dependencies:
+      undici: 5.28.4
+
   '@astrojs/yaml2ts@0.2.1':
     dependencies:
       yaml: 2.5.1
@@ -3224,6 +3191,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.23.1':
     optional: true
+
+  '@fastify/busboy@2.1.1': {}
 
   '@img/sharp-darwin-arm64@0.33.5':
     optionalDependencies:
@@ -3688,6 +3657,11 @@ snapshots:
   aria-query@5.3.2: {}
 
   array-iterate@2.0.1: {}
+
+  astro-sst@2.43.5:
+    dependencies:
+      '@astrojs/webapi': 3.0.0
+      set-cookie-parser: 2.7.0
 
   astro@4.16.3(@types/node@18.19.55)(rollup@4.24.0)(typescript@5.6.3):
     dependencies:
@@ -5080,6 +5054,8 @@ snapshots:
 
   semver@7.6.3: {}
 
+  set-cookie-parser@2.7.0: {}
+
   sharp@0.33.5:
     dependencies:
       color: 4.2.3
@@ -5304,6 +5280,10 @@ snapshots:
 
   undici-types@5.26.5:
     optional: true
+
+  undici@5.28.4:
+    dependencies:
+      '@fastify/busboy': 2.1.1
 
   unified@11.0.5:
     dependencies:

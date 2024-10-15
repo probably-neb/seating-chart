@@ -29,6 +29,10 @@ export default $config({
         const desk = new sst.aws.StaticSite("desk", {
             path: "app/desk",
             domain: "seating." + domain,
+            build: {
+                command: "bun run build",
+                output: "dist",
+            },
             dev: {
                 command: "bun dev",
                 url: "http://localhost:3001",
