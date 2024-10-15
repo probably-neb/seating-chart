@@ -725,6 +725,9 @@ export function Canvas() {
 
         if (e.active.id.toString().startsWith("student-")) {
             setDraggingStudentName(e.active.data.current!.name);
+            if (e.over) {
+                console.log("over:", e.over.id);
+            }
             return;
         }
 
@@ -1187,24 +1190,15 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
             : updateStudentNameInSeat.bind(null, props.id);
 
     const studentID = useStudentStore((s) => {
-        if (props.id === "new") return "";
+        if (props.id === "new") return null;
         return s.seats.get(props.id) ?? null;
     });
 
     const studentName = useStudentStore((s) => {
-        if (props.id === "new") return "";
-        return s.studentNames.get(studentID) ?? "";
+        if (props.id === "new") return null;
+        if (studentID == null) return null;
+        return s.studentNames.get(studentID) ?? null;
     });
-
-    const [isEditing, setIsEditing] = React.useState(false);
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    const handleEditClick = () => {
-        setIsEditing(true);
-        setTimeout(() => {
-            inputRef.current?.focus();
-        }, 0);
-    };
 
     const style = {
         height: SEAT_GRID_H * gridCellPx,
@@ -1219,63 +1213,33 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
             className="flex flex-col items-center justify-center rounded-md border-2 border-black bg-white text-center text-black data-[selected]:border-blue-400"
             style={style}
         >
-            {props.id !== "new" ? (
-                <Dnd.Droppable id={"seat-" + props.id}>
-                    {isEditing ? (
-                        <input
-                            ref={inputRef}
-                            className="focus:shadow-outline w-[90%] appearance-none rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none"
-                            value={studentName}
-                            onChange={(e) => setStudentName(e.target.value)}
-                            onBlur={() => setIsEditing(false)}
-                            onMouseDown={(e) => e.stopPropagation()}
-                        />
+            {props.id === "new" ? (
+                "new"
+            ) : (
+                <Dnd.Droppable
+                    id={"seat-" + props.id}
+                    className="h-full w-full"
+                >
+                    {studentName ? (
+                        <Dnd.DraggableDIV
+                            id={"student-" + studentID}
+                            className="z-50 h-full w-full bg-white flex flex-col items-center justify-center"
+                            data={{
+                                studentID,
+                                seatID: props.id,
+                                name: studentName,
+                            }}
+                        >
+                            <div className="rounded border px-3 py-2 leading-tight text-gray-700 shadow">
+                                <span className=" font-semibold">
+                                    {studentName}
+                                </span>
+                            </div>
+                        </Dnd.DraggableDIV>
                     ) : (
-                        <>
-                            {studentName ? (
-                                <Dnd.DraggableDIV
-                                    id={"student-" + studentID}
-                                    className="z-50 h-full w-full bg-white"
-                                    data={{
-                                        studentID,
-                                        seatID: props.id,
-                                        name: studentName,
-                                    }}
-                                >
-                                    <div className="rounded border px-3 py-2 text-sm leading-tight text-gray-700 shadow">
-                                        <span className=" font-semibold">
-                                            {studentName}
-                                        </span>
-                                        <div
-                                            role="button"
-                                            className="mt-2 rounded bg-blue-500 px-2 py-1 text-white"
-                                            onClick={handleEditClick}
-                                            onMouseDown={(e) =>
-                                                e.stopPropagation()
-                                            }
-                                        >
-                                            <EditIcon
-                                                size={16}
-                                                className="w-min"
-                                            />
-                                        </div>
-                                    </div>
-                                </Dnd.DraggableDIV>
-                            ) : (
-                                <div
-                                    role="button"
-                                    className="rounded bg-blue-500 px-2 py-1 text-white"
-                                    onClick={handleEditClick}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                >
-                                    <EditIcon />
-                                </div>
-                            )}
-                        </>
+                        props.id
                     )}
                 </Dnd.Droppable>
-            ) : (
-                props.id
             )}
         </div>
     );
