@@ -322,7 +322,7 @@ const useSelection = create<SelectionStore>()(
                         state.mode === "creating",
                         "Expected mode to be 'creating'",
                     );
-                    return { end, seats };
+                    return { end, seats: seats };
                 }, false);
             },
             stopCreation(seats) {
@@ -460,15 +460,15 @@ export function Canvas() {
                 </DraggableSelection>
             );
         } else if (state.mode === "creating" && state.end != null) {
-            const seats = Array.from(state.seats.keys());
+            const seats = Array.from(state.seats.entries());
             return (
                 <SelectionPreview
                     selectionStart={state.start}
                     selectionEnd={state.end}
                     gridCellPx={gridCellPx}
                 >
-                    {seats.map((id) => (
-                        <NonDraggableSeat seatId={id} key={id} selected />
+                    {seats.map(([id, offset]) => (
+                        <SelectedSeat seatId={id} offset={offset} key={id} />
                     ))}
                 </SelectionPreview>
             );
@@ -593,20 +593,26 @@ export function Canvas() {
     }
 
     function handleMouseMove(e: React.MouseEvent) {
-        const mode = useSelection.getState().mode;
+        const state = useSelection.getState();
+        const mode = state.mode;
 
-        if (mode === "creating") {
-            const rect = dropRef.current?.getBoundingClientRect();
-            if (rect) {
-                const x =
-                    Math.floor((e.clientX - rect.left) / gridCellPx) *
-                    gridCellPx;
-                const y =
-                    Math.floor((e.clientY - rect.top) / gridCellPx) *
-                    gridCellPx;
-                // TODO: calculate selected seats  as drag occurs
-                updateSelectionEnd?.({ x, y }, new Map());
-            }
+        if (mode !== "creating") {
+            return;
+        }
+        const rect = dropRef.current?.getBoundingClientRect();
+        if (rect) {
+            const x =
+                Math.floor((e.clientX - rect.left) / gridCellPx) * gridCellPx;
+            const y =
+                Math.floor((e.clientY - rect.top) / gridCellPx) * gridCellPx;
+            // TODO: calculate selected seats  as drag occurs
+
+            const start = state.start;
+            const end = { x, y };
+
+            const selectedSeats = getSelectedSeats(start, end, gridCellPx);
+
+            updateSelectionEnd(end, selectedSeats);
         }
     }
 
@@ -629,48 +635,11 @@ export function Canvas() {
         }
         const selectionStart = selectionState.start;
         const selectionEnd = selectionState.end;
-        const startX = Math.min(selectionStart.x, selectionEnd.x) / gridCellPx;
-        const startY = Math.min(selectionStart.y, selectionEnd.y) / gridCellPx;
-        const endX = Math.max(selectionStart.x, selectionEnd.x) / gridCellPx;
-        const endY = Math.max(selectionStart.y, selectionEnd.y) / gridCellPx;
-
-        const newSelectedSeats: SelectedSeats = new Map();
-
-        const state = useSeatStore.getState();
-
-        for (let i = 0; i < state.seats.length; i++) {
-            const seatId = state.seats[i]!;
-            const offset = state.offsets.get(seatId);
-            if (offset == null) {
-                continue;
-            }
-            const seatLeft = offset.gridX;
-            const seatTop = offset.gridY;
-            const seatRight = offset.gridX + SEAT_GRID_W - 1;
-            const seatBottom = offset.gridY + SEAT_GRID_H - 1;
-            const corners: Array<[number, number]> = [
-                [seatLeft, seatTop],
-                [seatRight, seatTop],
-                [seatLeft, seatBottom],
-                [seatRight, seatBottom],
-            ];
-            let isInSelection = false;
-            for (let i = 0; i < corners.length && !isInSelection; i++) {
-                const [seatX, seatY] = corners[i]!;
-                isInSelection ||=
-                    startX <= seatX &&
-                    startY <= seatY &&
-                    endX >= seatX &&
-                    endY >= seatY;
-            }
-            if (isInSelection) {
-                const seatSelectionOffset = {
-                    gridX: offset.gridX - startX,
-                    gridY: offset.gridY - startY,
-                };
-                newSelectedSeats.set(seatId, seatSelectionOffset);
-            }
-        }
+        const newSelectedSeats = getSelectedSeats(
+            selectionStart,
+            selectionEnd,
+            gridCellPx,
+        );
 
         if (newSelectedSeats.size === 0) {
             console.log("empty selection");
@@ -700,6 +669,7 @@ export function Canvas() {
         setActive(active);
         clearSelection();
     }
+
     function handleDragMove(e: Dnd.DragMoveEvent) {
         if (e.active.id === SELECTION_DRAGGABLE_ID) {
             const rect = dropRef.current?.getBoundingClientRect();
@@ -927,7 +897,7 @@ function DraggableSelection({
     return (
         <Dnd.Draggable
             id={SELECTION_DRAGGABLE_ID}
-            className="absolute z-0 border-2 "
+            className="absolute z-0"
             style={{
                 left: Math.min(startX, endX),
                 top: Math.min(startY, endY),
@@ -960,7 +930,7 @@ function SelectionPreview({
 
     return (
         <div
-            className="absolute z-0 border-2 "
+            className="absolute z-0"
             style={{
                 left: Math.min(startX, endX),
                 top: Math.min(startY, endY),
@@ -968,7 +938,9 @@ function SelectionPreview({
                 height: Math.abs(endY - startY) + gridCellPx,
             }}
         >
-            <Selection>{children}</Selection>
+            <div className="relative w-full h-full">
+                <Selection>{children}</Selection>
+            </div>
         </div>
     );
 }
@@ -1330,4 +1302,55 @@ function StudentEntry(props: { id: number }) {
             <EditIcon />
         </button>
     );
+}
+
+function getSelectedSeats(
+    selectionStart: Point,
+    selectionEnd: Point,
+    gridCellPx: number,
+): SelectedSeats {
+    const startX = Math.min(selectionStart.x, selectionEnd.x) / gridCellPx;
+    const startY = Math.min(selectionStart.y, selectionEnd.y) / gridCellPx;
+    const endX = Math.max(selectionStart.x, selectionEnd.x) / gridCellPx;
+    const endY = Math.max(selectionStart.y, selectionEnd.y) / gridCellPx;
+
+    const selectedSeats: SelectedSeats = new Map();
+
+    const state = useSeatStore.getState();
+
+    for (let i = 0; i < state.seats.length; i++) {
+        const seatId = state.seats[i]!;
+        const offset = state.offsets.get(seatId);
+        if (offset == null) {
+            continue;
+        }
+        const seatLeft = offset.gridX;
+        const seatTop = offset.gridY;
+        const seatRight = offset.gridX + SEAT_GRID_W - 1;
+        const seatBottom = offset.gridY + SEAT_GRID_H - 1;
+        const corners: Array<[number, number]> = [
+            [seatLeft, seatTop],
+            [seatRight, seatTop],
+            [seatLeft, seatBottom],
+            [seatRight, seatBottom],
+        ];
+        let isInSelection = false;
+        for (let i = 0; i < corners.length && !isInSelection; i++) {
+            const [seatX, seatY] = corners[i]!;
+            isInSelection ||=
+                startX <= seatX &&
+                startY <= seatY &&
+                endX >= seatX &&
+                endY >= seatY;
+        }
+        if (isInSelection) {
+            const seatSelectionOffset = {
+                gridX: offset.gridX - startX,
+                gridY: offset.gridY - startY,
+            };
+            selectedSeats.set(seatId, seatSelectionOffset);
+        }
+    }
+
+    return selectedSeats;
 }
