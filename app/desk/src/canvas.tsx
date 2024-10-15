@@ -828,11 +828,6 @@ export function Canvas() {
                     );
                     studentsState.setSeat(studentID, overSeatID);
                 } else {
-                    assert(
-                        studentsState.seats.get(originalSeatID),
-                        "original seat not found",
-                    );
-
                     if (originalSeatID === overSeatID) {
                         setDraggingStudentName(null);
                         return;
@@ -895,9 +890,11 @@ function CanvasDragOverlay(props: {
             return <Seat id={props.active.id} />;
         } else if (props.draggingStudentName) {
             return (
-                <span className="rounded border bg-white px-3 py-2 text-lg font-bold leading-tight text-gray-700 shadow">
-                    {props.draggingStudentName}
-                </span>
+                <div className="rounded border px-3 py-2 leading-tight text-gray-700 shadow text-center bg-white">
+                    <span className="font-semibold">
+                        {props.draggingStudentName}
+                    </span>
+                </div>
             );
         }
         return null;
@@ -1181,13 +1178,6 @@ function dbg<T>(v: T, msg: string): T {
 function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
     const gridCellPx = useSeatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
-    const updateStudentNameInSeat = useStudentStore(
-        (s) => s.updateStudentNameInSeat,
-    );
-    const setStudentName =
-        props.id === "new"
-            ? () => {}
-            : updateStudentNameInSeat.bind(null, props.id);
 
     const studentID = useStudentStore((s) => {
         if (props.id === "new") return null;
@@ -1218,12 +1208,12 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
             ) : (
                 <Dnd.Droppable
                     id={"seat-" + props.id}
-                    className="h-full w-full"
+                    className="h-full w-full flex flex-col items-center justify-center"
                 >
                     {studentName ? (
                         <Dnd.DraggableDIV
                             id={"student-" + studentID}
-                            className="z-50 h-full w-full bg-white flex flex-col items-center justify-center"
+                            className="z-50 bg-white flex flex-col items-center justify-center"
                             data={{
                                 studentID,
                                 seatID: props.id,
@@ -1313,17 +1303,19 @@ function StudentEntry(props: { id: number }) {
         );
         if (seatID == null) {
             return (
-                <Dnd.DraggableDIV
-                    id={"student-" + props.id}
-                    className="z-50 h-full w-full bg-white"
-                    data={{
-                        studentID: props.id,
-                        seatID: null,
-                        name: studentName,
-                    }}
-                >
-                    {inner}
-                </Dnd.DraggableDIV>
+                <div className="w-full h-full">
+                    <Dnd.DraggableDIV
+                        id={"student-" + props.id}
+                        className="z-50 bg-white"
+                        data={{
+                            studentID: props.id,
+                            seatID: null,
+                            name: studentName,
+                        }}
+                    >
+                        {inner}
+                    </Dnd.DraggableDIV>
+                </div>
             );
         }
         return <div className="hover:cursor-not-allowed">{inner}</div>;
