@@ -1,4 +1,4 @@
-import { assert } from "@/lib/utils";
+import { assert } from "@/lib/assert";
 import React from "react";
 // TODO: consider checking for key prop in dev mode
 // note, however, that is is not an easy check,
