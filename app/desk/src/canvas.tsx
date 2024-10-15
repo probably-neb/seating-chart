@@ -646,8 +646,8 @@ export function Canvas() {
             }
             const seatLeft = offset.gridX;
             const seatTop = offset.gridY;
-            const seatRight = offset.gridX + SEAT_GRID_W;
-            const seatBottom = offset.gridY + SEAT_GRID_H;
+            const seatRight = offset.gridX + SEAT_GRID_W - 1;
+            const seatBottom = offset.gridY + SEAT_GRID_H - 1;
             const corners: Array<[number, number]> = [
                 [seatLeft, seatTop],
                 [seatRight, seatTop],
