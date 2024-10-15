@@ -226,16 +226,16 @@ const useStudentStore = create<StudentStore>()(
                 get().studentNames.has(studentID),
                 "student not in studentNames",
                 studentID,
-                get().studentNames
+                get().studentNames,
             );
             assert(
                 !get().seats.has(studentID),
                 "cannot set seat for student already in seat",
             );
 
-            set(s => {
-                s.seats.set(studentID, seatID)
-            })
+            set((s) => {
+                s.seats.set(studentID, seatID);
+            });
         },
         swapSeats(from, to) {
             assert(from !== to, "from and to cannot be the same");
@@ -1319,6 +1319,8 @@ function StudentEntry(props: { id: number }) {
         }, 0);
     };
 
+    const seatID = useStudentStore((s) => s.seats.get(props.id) ?? null);
+
     if (isEditing) {
         return (
             <input
@@ -1332,29 +1334,35 @@ function StudentEntry(props: { id: number }) {
         );
     }
     if (studentName) {
-        return (
-            <Dnd.DraggableDIV
-                id={"student-" + props.id}
-                className="z-50 h-full w-full bg-white"
-                data={{
-                    studentID: props.id,
-                    seatID: null,
-                    name: studentName,
-                }}
-            >
-                <div className="flex flex-row items-center justify-between rounded border px-3 py-2 text-sm leading-tight text-gray-700 shadow">
-                    <span className=" font-semibold">{studentName}</span>
-                    <div
-                        role="button"
-                        className="mt-2 rounded bg-blue-500 px-2 py-1 text-white"
-                        onClick={handleEditClick}
-                        onMouseDown={(e) => e.stopPropagation()}
-                    >
-                        <EditIcon size={16} className="w-min" />
-                    </div>
+        const inner = (
+            <div className="flex flex-row items-center justify-between rounded border px-3 py-2 leading-tight text-gray-700 shadow">
+                <span className="font-semibold">{studentName}</span>
+                <div
+                    role="button"
+                    className="rounded bg-blue-500 px-2 py-1 text-white"
+                    onClick={handleEditClick}
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
+                    <EditIcon size={16} className="w-min" />
                 </div>
-            </Dnd.DraggableDIV>
+            </div>
         );
+        if (seatID == null) {
+            return (
+                <Dnd.DraggableDIV
+                    id={"student-" + props.id}
+                    className="z-50 h-full w-full bg-white"
+                    data={{
+                        studentID: props.id,
+                        seatID: null,
+                        name: studentName,
+                    }}
+                >
+                    {inner}
+                </Dnd.DraggableDIV>
+            );
+        }
+        return <div className="hover:cursor-not-allowed">{inner}</div>;
     }
 
     return (
