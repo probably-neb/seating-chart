@@ -14,7 +14,8 @@ import {
     ResizablePanel,
     ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import For from "./components/util/for";
+import For from "@/components/util/for";
+import { useShallow } from "zustand/react/shallow";
 
 enableMapSet();
 
@@ -174,6 +175,7 @@ type StudentFns = {
     updateStudentName(id: number, name: string): void;
     updateStudentNameInSeat(seatID: number, name: string): void;
     swapSeats(from: id, to: id): void;
+    setSeat(studentID: number, seatID: number): void;
     getStudentInSeat(seat: id): string | null;
 };
 
@@ -202,14 +204,14 @@ const useStudentStore = create<StudentStore>()(
             });
         },
         updateStudentNameInSeat(seatID, name) {
-            set(state => {
+            set((state) => {
                 const studentID = state.seats.get(seatID);
                 if (!studentID) {
                     console.error(`no student in seat ${seatID}`);
                     return;
                 }
                 state.updateStudentName(studentID, name);
-            })
+            });
         },
         getStudentInSeat(seatID) {
             const studentID = get().seats.get(seatID);
@@ -219,11 +221,27 @@ const useStudentStore = create<StudentStore>()(
             const studentName = get().studentNames.get(studentID);
             return studentName ?? null;
         },
+        setSeat(studentID, seatID) {
+            assert(
+                get().studentNames.has(studentID),
+                "student not in studentNames",
+                studentID,
+                get().studentNames
+            );
+            assert(
+                !get().seats.has(studentID),
+                "cannot set seat for student already in seat",
+            );
+
+            set(s => {
+                s.seats.set(studentID, seatID)
+            })
+        },
         swapSeats(from, to) {
             assert(from !== to, "from and to cannot be the same");
-            assert(from in get().seats, "from not in seats");
+            assert(get().seats.has(from), "from not in seats");
             set((state) => {
-                if (to in state.seats) {
+                if (state.seats.has(to)) {
                     const tmp = state.seats.get(to)!;
                     state.seats.set(to, state.seats.get(from)!);
                     state.seats.set(from, tmp);
@@ -458,6 +476,11 @@ export function Canvas() {
         return null;
     }, [useSelection(), gridCellPx, active]);
 
+    const studentIDs = useStudentStore(
+        useShallow((s) => Array.from(s.studentNames.keys())),
+    );
+    const addStudent = useStudentStore((s) => s.addStudent);
+
     return (
         <Dnd.Context
             onDragEnd={handleDragEnd}
@@ -501,7 +524,19 @@ export function Canvas() {
                     >
                         <DraggableSeat />
                     </div>
-                    <div></div>
+                    <div className="divide-y divide-gray-300 *:mt-2 flex flex-col gap-y-2">
+                        <button
+                            className="w-full bg-blue-500 rounded-md"
+                            onClick={() => {
+                                addStudent("");
+                            }}
+                        >
+                            Add Student
+                        </button>
+                        <For each={studentIDs}>
+                            {(id) => <StudentEntry id={id} key={id} />}
+                        </For>
+                    </div>
                 </div>
             </div>
         </Dnd.Context>
@@ -764,27 +799,44 @@ export function Canvas() {
         if (e.active.id.toString().startsWith("student-")) {
             if (e.over != null && e.over.id.toString().startsWith("seat-")) {
                 const studentsState = useStudentStore.getState();
-                const originalSeatID = Number.parseInt(
-                    e.active.data.current!.seatID,
+                const originalSeatID = e.active.data.current!.seatID as
+                    | number
+                    | null;
+                assert(
+                    originalSeatID == null ||
+                        Number.isSafeInteger(originalSeatID),
+                    "original seat id is null or integer",
+                    originalSeatID,
                 );
+
                 const overSeatID = Number.parseInt(
                     e.over!.id.toString().slice("seat-".length),
                 );
 
-                assert(Number.isSafeInteger(originalSeatID));
                 assert(Number.isSafeInteger(overSeatID));
 
-                assert(
-                    studentsState.seats.get(originalSeatID),
-                    "original seat not found",
-                );
+                if (originalSeatID == null) {
+                    const studentID = e.active.data.current!
+                        .studentID as number;
+                    assert(
+                        Number.isSafeInteger(studentID),
+                        "student id is integer",
+                        studentID,
+                    );
+                    studentsState.setSeat(studentID, overSeatID);
+                } else {
+                    assert(
+                        studentsState.seats.get(originalSeatID),
+                        "original seat not found",
+                    );
 
-                if (originalSeatID === overSeatID) {
-                    setDraggingStudentName(null);
-                    return;
+                    if (originalSeatID === overSeatID) {
+                        setDraggingStudentName(null);
+                        return;
+                    }
+
+                    studentsState.swapSeats(originalSeatID, overSeatID);
                 }
-
-                studentsState.swapSeats(originalSeatID, overSeatID);
             }
             setDraggingStudentName(null);
             return;
@@ -1126,12 +1178,22 @@ function dbg<T>(v: T, msg: string): T {
 function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
     const gridCellPx = useSeatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
-    const updateStudentNameInSeat = useStudentStore((s) => s.updateStudentNameInSeat);
-    const setStudentName = props.id === "new" ? () => {} : updateStudentNameInSeat.bind(null, props.id);
+    const updateStudentNameInSeat = useStudentStore(
+        (s) => s.updateStudentNameInSeat,
+    );
+    const setStudentName =
+        props.id === "new"
+            ? () => {}
+            : updateStudentNameInSeat.bind(null, props.id);
+
+    const studentID = useStudentStore((s) => {
+        if (props.id === "new") return "";
+        return s.seats.get(props.id) ?? null;
+    });
 
     const studentName = useStudentStore((s) => {
         if (props.id === "new") return "";
-        return s.seats.get(props.id) ?? "";
+        return s.studentNames.get(studentID) ?? "";
     });
 
     const [isEditing, setIsEditing] = React.useState(false);
@@ -1172,9 +1234,10 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
                         <>
                             {studentName ? (
                                 <Dnd.DraggableDIV
-                                    id={"student-" + props.id}
+                                    id={"student-" + studentID}
                                     className="z-50 h-full w-full bg-white"
                                     data={{
+                                        studentID,
                                         seatID: props.id,
                                         name: studentName,
                                     }}
@@ -1235,4 +1298,72 @@ function useSetSeatRef(id: newId) {
         [id, setSeatRefFn],
     );
     return setSeatRef;
+}
+
+function StudentEntry(props: { id: number }) {
+    const [isEditing, setIsEditing] = React.useState(false);
+
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    const studentName = useStudentStore((s) => s.studentNames.get(props.id));
+
+    const updateStudentName = React.useCallback(
+        useStudentStore((s) => s.updateStudentName).bind(null, props.id),
+        [props.id],
+    );
+
+    const handleEditClick = () => {
+        setIsEditing(true);
+        setTimeout(() => {
+            inputRef.current?.focus();
+        }, 0);
+    };
+
+    if (isEditing) {
+        return (
+            <input
+                ref={inputRef}
+                className="focus:shadow-outline w-[90%] appearance-none rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none"
+                value={studentName}
+                onChange={(e) => updateStudentName(e.target.value)}
+                onBlur={() => setIsEditing(false)}
+                onMouseDown={(e) => e.stopPropagation()}
+            />
+        );
+    }
+    if (studentName) {
+        return (
+            <Dnd.DraggableDIV
+                id={"student-" + props.id}
+                className="z-50 h-full w-full bg-white"
+                data={{
+                    studentID: props.id,
+                    seatID: null,
+                    name: studentName,
+                }}
+            >
+                <div className="flex flex-row items-center justify-between rounded border px-3 py-2 text-sm leading-tight text-gray-700 shadow">
+                    <span className=" font-semibold">{studentName}</span>
+                    <div
+                        role="button"
+                        className="mt-2 rounded bg-blue-500 px-2 py-1 text-white"
+                        onClick={handleEditClick}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <EditIcon size={16} className="w-min" />
+                    </div>
+                </div>
+            </Dnd.DraggableDIV>
+        );
+    }
+
+    return (
+        <button
+            className="rounded bg-blue-500 px-2 py-1 text-white flex items-center justify-center"
+            onClick={handleEditClick}
+            onMouseDown={(e) => e.stopPropagation()}
+        >
+            <EditIcon />
+        </button>
+    );
 }
