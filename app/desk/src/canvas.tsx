@@ -36,8 +36,6 @@ type newId = id | typeof NEW_ID;
 
 type Point = { x: number; y: number };
 
-type studentId = number;
-
 type GridPoint = { gridX: number; gridY: number };
 
 type Active = GridPoint & { id: newId };
@@ -50,7 +48,6 @@ type SeatsData = {
     gridCellPx: number;
     gridW: number;
     gridH: number;
-    students: Map<id, string>;
 } & (
     | {
           active: Active;
@@ -84,7 +81,6 @@ const useSeatStore = create<SeatStore>()(
         gridCellPx: DEFAULT_GRID_CELL_PX,
         gridW: DEFAULT_GRID_W,
         gridH: DEFAULT_GRID_H,
-        students: new Map(),
         addSeat(gridX, gridY) {
             set((state) => {
                 const id = state.nextId;
@@ -167,37 +163,74 @@ const useSeatStore = create<SeatStore>()(
 );
 
 type StudentData = {
-    students: Map<studentId, string>;
-    nextStudentId: studentId;
+    studentNames: Map<number, string>;
+    nextStudentId: number;
+    seats: Map<number, id>;
 };
 
 type StudentFns = {
     addStudent(name: string): void;
-    removeStudent(id: studentId): void;
-    updateStudentName(id: studentId, name: string): void;
+    removeStudent(id: number): void;
+    updateStudentName(id: number, name: string): void;
+    updateStudentNameInSeat(seatID: number, name: string): void;
+    swapSeats(from: id, to: id): void;
+    getStudentInSeat(seat: id): string | null;
 };
 
 type StudentStore = StudentData & StudentFns;
 
 const useStudentStore = create<StudentStore>()(
-    immer((set) => ({
-        students: new Map(),
+    immer((set, get) => ({
+        studentNames: new Map(),
         nextStudentId: 0,
-        addStudent(name: string) {
+        seats: new Map(),
+        addStudent(name) {
             set((state) => {
                 const id = state.nextStudentId;
-                state.students.set(id, name);
+                state.studentNames.set(id, name);
                 state.nextStudentId += 1;
             });
         },
-        removeStudent(id: studentId) {
+        removeStudent(id) {
             set((state) => {
-                state.students.delete(id);
+                state.studentNames.delete(id);
             });
         },
-        updateStudentName(id: studentId, name: string) {
+        updateStudentName(id, name) {
             set((state) => {
-                state.students.set(id, name);
+                state.studentNames.set(id, name);
+            });
+        },
+        updateStudentNameInSeat(seatID, name) {
+            set(state => {
+                const studentID = state.seats.get(seatID);
+                if (!studentID) {
+                    console.error(`no student in seat ${seatID}`);
+                    return;
+                }
+                state.updateStudentName(studentID, name);
+            })
+        },
+        getStudentInSeat(seatID) {
+            const studentID = get().seats.get(seatID);
+            if (!studentID) {
+                return null;
+            }
+            const studentName = get().studentNames.get(studentID);
+            return studentName ?? null;
+        },
+        swapSeats(from, to) {
+            assert(from !== to, "from and to cannot be the same");
+            assert(from in get().seats, "from not in seats");
+            set((state) => {
+                if (to in state.seats) {
+                    const tmp = state.seats.get(to)!;
+                    state.seats.set(to, state.seats.get(from)!);
+                    state.seats.set(from, tmp);
+                } else {
+                    state.seats.set(to, state.seats.get(from)!);
+                    state.seats.delete(from);
+                }
             });
         },
     })),
@@ -468,9 +501,7 @@ export function Canvas() {
                     >
                         <DraggableSeat />
                     </div>
-
-                    <div>
-                    </div>
+                    <div></div>
                 </div>
             </div>
         </Dnd.Context>
@@ -732,43 +763,28 @@ export function Canvas() {
 
         if (e.active.id.toString().startsWith("student-")) {
             if (e.over != null && e.over.id.toString().startsWith("seat-")) {
-                useSeatStore.setState((s) => {
-                    const originalSeatID = Number.parseInt(
-                        e.active.data.current!.seatID,
-                    );
-                    const overSeatID = Number.parseInt(
-                        e.over!.id.toString().slice("seat-".length),
-                    );
+                const studentsState = useStudentStore.getState();
+                const originalSeatID = Number.parseInt(
+                    e.active.data.current!.seatID,
+                );
+                const overSeatID = Number.parseInt(
+                    e.over!.id.toString().slice("seat-".length),
+                );
 
-                    assert(Number.isSafeInteger(originalSeatID));
-                    assert(Number.isSafeInteger(overSeatID));
+                assert(Number.isSafeInteger(originalSeatID));
+                assert(Number.isSafeInteger(overSeatID));
 
-                    assert(
-                        s.students.get(originalSeatID),
-                        "original seat not found",
-                    );
+                assert(
+                    studentsState.seats.get(originalSeatID),
+                    "original seat not found",
+                );
 
-                    if (originalSeatID === overSeatID) {
-                        setDraggingStudentName(null);
-                        return;
-                    }
+                if (originalSeatID === overSeatID) {
+                    setDraggingStudentName(null);
+                    return;
+                }
 
-                    const studentInOverSeat = s.students.get(overSeatID);
-                    if (!studentInOverSeat) {
-                        s.students.set(
-                            overSeatID,
-                            s.students.get(originalSeatID)!,
-                        );
-                        s.students.set(originalSeatID, "");
-                    } else {
-                        // swap
-                        s.students.set(
-                            overSeatID,
-                            s.students.get(originalSeatID)!,
-                        );
-                        s.students.set(originalSeatID, studentInOverSeat);
-                    }
-                });
+                studentsState.swapSeats(originalSeatID, overSeatID);
             }
             setDraggingStudentName(null);
             return;
@@ -1110,17 +1126,13 @@ function dbg<T>(v: T, msg: string): T {
 function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
     const gridCellPx = useSeatStore((s) => s.gridCellPx);
     const setSeatRef = useSetSeatRef(props.id);
+    const updateStudentNameInSeat = useStudentStore((s) => s.updateStudentNameInSeat);
+    const setStudentName = props.id === "new" ? () => {} : updateStudentNameInSeat.bind(null, props.id);
 
-    const studentName = useSeatStore((s) => {
+    const studentName = useStudentStore((s) => {
         if (props.id === "new") return "";
-        return s.students.get(props.id) ?? "";
+        return s.seats.get(props.id) ?? "";
     });
-    const setStudentName = (name: string) => {
-        useSeatStore.setState((s) => {
-            assert(props.id !== "new");
-            s.students.set(props.id, name);
-        });
-    };
 
     const [isEditing, setIsEditing] = React.useState(false);
     const inputRef = React.useRef<HTMLInputElement>(null);
