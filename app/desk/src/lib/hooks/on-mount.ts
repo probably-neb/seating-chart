@@ -1,5 +1,4 @@
-import {useEffect} from "react";
-import useIsomorphicLayoutEffect from "./use-isomorphic-layout-effect";
+import React from "react";
 
 /**
  * A wrapper around useEffect with an empty dependency array
@@ -7,8 +6,5 @@ import useIsomorphicLayoutEffect from "./use-isomorphic-layout-effect";
  * clearly
  */
 export default function onMount(callback: () => any) {
-    useIsomorphicLayoutEffect(() => {
-        // useEffect with no dependencies will run on mount
-        return callback();
-    }, [])
+    React.useEffect(callback, [])
 }
