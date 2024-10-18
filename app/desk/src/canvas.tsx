@@ -181,6 +181,7 @@ type StudentFns = {
     swapSeats(from: id, to: id): void;
     setSeat(studentID: number, seatID: number): void;
     getStudentInSeat(seat: id): string | null;
+    getStudentIDByName(name: string): number | null;
 };
 
 type StudentStore = StudentData & StudentFns;
@@ -254,6 +255,14 @@ const useStudentStore = create<StudentStore>()(
                     state.seats.delete(from);
                 }
             });
+        },
+        getStudentIDByName(name) {
+            for (const [id, n] of get().studentNames) {
+                if (n === name) {
+                    return id;
+                }
+            }
+            return null;
         },
     })),
 );
@@ -595,6 +604,19 @@ export function Canvas() {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
+        // check if the click was within the sheet
+        const sheetRect = sheetContentRef.current?.getBoundingClientRect();
+        if (isSettingsOpen && sheetRect != null) {
+            const clickIsInSheet =
+                x >= sheetRect.left &&
+                x <= sheetRect.right &&
+                y >= sheetRect.top &&
+                y <= sheetRect.bottom;
+            if (clickIsInSheet) {
+                return;
+            }
+        }
+
         // Check if the click is within any existing seat
         const state = useSeatStore.getState();
         for (const seatId of state.seats) {
@@ -696,7 +718,7 @@ export function Canvas() {
             startDragSelection({ x: 0, y: 0 });
             return;
         }
-        if (e.active.id.toString().startsWith("student-")) {
+
         const isDraggingStudent = e.active.id.toString().startsWith("student-");
         const isDraggingNewSeat = e.active.id === "new";
 
@@ -746,7 +768,6 @@ export function Canvas() {
         }
 
         if (e.active.id.toString().startsWith("student-")) {
-            setDraggingStudentName(e.active.data.current!.name);
             if (e.over) {
                 console.log("over:", e.over.id);
             }
@@ -831,9 +852,8 @@ export function Canvas() {
         if (isDraggingStudent) {
             if (e.over != null && e.over.id.toString().startsWith("seat-")) {
                 const studentsState = useStudentStore.getState();
-                const originalSeatID = e.active.data.current!.seatID as
-                    | number
-                    | null;
+                const originalSeatID =
+                    e.active.data.current?.seatID ?? (null as number | null);
                 assert(
                     originalSeatID == null ||
                         Number.isSafeInteger(originalSeatID),
@@ -848,8 +868,13 @@ export function Canvas() {
                 assert(Number.isSafeInteger(overSeatID));
 
                 if (originalSeatID == null) {
-                    const studentID = e.active.data.current!
-                        .studentID as number;
+                    const studentID =
+                        e.active.data.current?.studentID ??
+                        (useStudentStore
+                            .getState()
+                            .getStudentIDByName(
+                                draggingStudentName!,
+                            ) as number);
                     assert(
                         Number.isSafeInteger(studentID),
                         "student id is integer",
@@ -875,7 +900,7 @@ export function Canvas() {
             console.error("no snap coords");
             return;
         }
-        if (id == "new") {
+        if (id === "new") {
             const coords = snapCoords;
             addSeat(coords.gridX, coords.gridY);
             stopDrag();
