@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/resizable";
 import For from "@/components/util/for";
 import { useShallow } from "zustand/react/shallow";
+import onMount from "./lib/hooks/on-mount";
 
 enableMapSet();
 
@@ -389,6 +390,20 @@ const useSelection = create<SelectionStore>()(
 export function Canvas() {
     const dropRef = useRef<HTMLDivElement | null>(null);
 
+    onMount(() => {
+        function adjustGridScale() {
+            const windowWidth = window.innerWidth;
+            const state = useSeatStore.getState();
+            const gridW = state.gridW;
+            const gridCellPx = Math.floor(windowWidth / gridW);
+            console.log({ gridCellPx });
+            useSeatStore.setState({ gridCellPx });
+        }
+        adjustGridScale();
+        window.addEventListener("resize", adjustGridScale);
+        return () => window.removeEventListener("resize", adjustGridScale);
+    });
+
     const addSeat = useSeatStore((s) => s.addSeat);
     const addDelta = useSeatStore((s) => s.addDelta);
     const offsets = useSeatStore((s) => s.offsets);
@@ -487,8 +502,8 @@ export function Canvas() {
             onDragStart={handleDragStart}
             onDragMove={handleDragMove}
         >
-            <div className="flex flex-row">
-                <div className="w-xs lg:w-md md:w-sm xl:w-lg 2xl:w-xl">
+            <div className="flex flex-row w-full justify-center">
+                <div className="overflow-auto">
                     <Dnd.Droppable
                         id={SEATING_CHART_DROPPABLE_ID}
                         className="relative overflow-auto border-2 border-red-800 bg-white"
