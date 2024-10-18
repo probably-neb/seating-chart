@@ -9,14 +9,17 @@ import { immer } from "zustand/middleware/immer";
 import React from "react";
 import { assert } from "@/lib/assert";
 import { EditIcon } from "lucide-react";
-import {
-    ResizableHandle,
-    ResizablePanel,
-    ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import For from "@/components/util/for";
 import { useShallow } from "zustand/react/shallow";
 import onMount from "./lib/hooks/on-mount";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "./components/ui/sheet";
 
 enableMapSet();
 
@@ -496,6 +499,9 @@ export function Canvas() {
     );
     const addStudent = useStudentStore((s) => s.addStudent);
 
+    const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+    const wasSettingsOpenBeforeDrag = React.useRef(false);
+    let sheetContentRef = React.useRef<HTMLDivElement>(null);
     return (
         <Dnd.Context
             onDragEnd={handleDragEnd}
@@ -522,36 +528,56 @@ export function Canvas() {
                                 <DraggableSeat seatId={id} key={id} />
                             ),
                         )}
+                        <Sheet
+                            open={isSettingsOpen}
+                            onOpenChange={setIsSettingsOpen}
+                        >
+                            <SheetTrigger className="absolute top-4 right-4 bg-white text-foreground ring-2 ring-foreground rounded-lg px-3 py-2 text-xl">
+                                Controls
+                            </SheetTrigger>
+                            <SheetContent
+                                ref={sheetContentRef}
+                                className="h-full border-l-2 border-l-black bg-white p-4"
+                            >
+                                <SheetHeader>
+                                    <SheetTitle>Controls</SheetTitle>
+                                    <SheetDescription>
+                                        Drag a student or the new seat on to the
+                                        canvas to add them
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <span className="text-lg font-bold leading-tight text-gray-700">
+                                    Add a seat
+                                </span>
+                                <div
+                                    style={{
+                                        minHeight: SEAT_GRID_H * gridCellPx + 4,
+                                    }}
+                                >
+                                    <DraggableSeat />
+                                </div>
+                                <div className="divide-y divide-gray-300 *:mt-2 flex flex-col gap-y-2">
+                                    <button
+                                        className="w-full bg-blue-500 rounded-md"
+                                        onClick={() => {
+                                            addStudent("");
+                                        }}
+                                    >
+                                        Add Student
+                                    </button>
+                                    <For each={studentIDs}>
+                                        {(id) => (
+                                            <StudentEntry id={id} key={id} />
+                                        )}
+                                    </For>
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                     </Dnd.Droppable>
                     <CanvasDragOverlay
                         active={active}
                         draggingStudentName={draggingStudentName}
                     />
-                </div>
-                <div className="h-full border-l-2 border-l-black bg-white p-4">
-                    <span className="text-lg font-bold leading-tight text-gray-700">
-                        Add a seat
-                    </span>
-                    <div
-                        style={{
-                            minHeight: SEAT_GRID_H * gridCellPx + 4,
-                        }}
-                    >
-                        <DraggableSeat />
-                    </div>
-                    <div className="divide-y divide-gray-300 *:mt-2 flex flex-col gap-y-2">
-                        <button
-                            className="w-full bg-blue-500 rounded-md"
-                            onClick={() => {
-                                addStudent("");
-                            }}
-                        >
-                            Add Student
-                        </button>
-                        <For each={studentIDs}>
-                            {(id) => <StudentEntry id={id} key={id} />}
-                        </For>
-                    </div>
                 </div>
             </div>
         </Dnd.Context>
@@ -671,10 +697,21 @@ export function Canvas() {
             return;
         }
         if (e.active.id.toString().startsWith("student-")) {
+        const isDraggingStudent = e.active.id.toString().startsWith("student-");
+        const isDraggingNewSeat = e.active.id === "new";
+
+        if (isDraggingStudent || isDraggingNewSeat) {
+            wasSettingsOpenBeforeDrag.current = isSettingsOpen;
+            setIsSettingsOpen(false);
+        }
+
+        if (isDraggingStudent) {
+            // dragging student
             console.log("dragging student", e.active.id);
             setDraggingStudentName(e.active.data.current!.name);
             return;
         }
+        // dragging seat
         const offset = offsets.get(e.active.id as id);
         if (!offset) {
             return;
@@ -780,11 +817,18 @@ export function Canvas() {
             return;
         }
 
+        const isDraggingStudent = e.active.id.toString().startsWith("student-");
+        const isDraggingNewSeat = e.active.id === "new";
+
+        if (isDraggingStudent || isDraggingNewSeat) {
+            setIsSettingsOpen(wasSettingsOpenBeforeDrag.current);
+        }
         if (e.delta.x == 0 && e.delta.y == 0) {
+            setDraggingStudentName(null);
             return;
         }
 
-        if (e.active.id.toString().startsWith("student-")) {
+        if (isDraggingStudent) {
             if (e.over != null && e.over.id.toString().startsWith("seat-")) {
                 const studentsState = useStudentStore.getState();
                 const originalSeatID = e.active.data.current!.seatID as
