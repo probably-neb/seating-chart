@@ -170,17 +170,16 @@ const useSeatStore = create<SeatStore>()(
 type StudentData = {
     studentNames: Map<number, string>;
     nextStudentId: number;
-    seats: Map<number, id>;
+    studToSeat: Map<number, id>;
+    seatToStud: Map<id, number>;
 };
 
 type StudentFns = {
     addStudent(name: string): void;
     removeStudent(id: number): void;
     updateStudentName(id: number, name: string): void;
-    updateStudentNameInSeat(seatID: number, name: string): void;
     swapSeats(from: id, to: id): void;
     setSeat(studentID: number, seatID: number): void;
-    getStudentInSeat(seat: id): string | null;
     getStudentIDByName(name: string): number | null;
 };
 
@@ -190,7 +189,8 @@ const useStudentStore = create<StudentStore>()(
     immer((set, get) => ({
         studentNames: new Map(),
         nextStudentId: 0,
-        seats: new Map(),
+        studToSeat: new Map(),
+        seatToStud: new Map(),
         addStudent(name) {
             set((state) => {
                 const id = state.nextStudentId;
@@ -208,24 +208,6 @@ const useStudentStore = create<StudentStore>()(
                 state.studentNames.set(id, name);
             });
         },
-        updateStudentNameInSeat(seatID, name) {
-            set((state) => {
-                const studentID = state.seats.get(seatID);
-                if (!studentID) {
-                    console.error(`no student in seat ${seatID}`);
-                    return;
-                }
-                state.updateStudentName(studentID, name);
-            });
-        },
-        getStudentInSeat(seatID) {
-            const studentID = get().seats.get(seatID);
-            if (!studentID) {
-                return null;
-            }
-            const studentName = get().studentNames.get(studentID);
-            return studentName ?? null;
-        },
         setSeat(studentID, seatID) {
             assert(
                 get().studentNames.has(studentID),
@@ -234,25 +216,40 @@ const useStudentStore = create<StudentStore>()(
                 get().studentNames,
             );
             assert(
-                !get().seats.has(studentID),
+                !get().studToSeat.has(studentID),
                 "cannot set seat for student already in seat",
             );
 
             set((s) => {
-                s.seats.set(studentID, seatID);
+                const studentIDInSeat = s.seatToStud.get(seatID);
+                if (studentIDInSeat != null) {
+                    // clear existing student
+                    s.studToSeat.delete(studentIDInSeat);
+                    s.seatToStud.delete(seatID);
+                }
+                s.studToSeat.set(studentID, seatID);
+                s.seatToStud.set(seatID, studentID);
             });
         },
-        swapSeats(from, to) {
-            assert(from !== to, "from and to cannot be the same");
-            assert(get().seats.has(from), "from not in seats");
+        swapSeats(seatFrom, seatTo) {
+            assert(seatFrom !== seatTo, "from and to cannot be the same");
             set((state) => {
-                if (state.seats.has(to)) {
-                    const tmp = state.seats.get(to)!;
-                    state.seats.set(to, state.seats.get(from)!);
-                    state.seats.set(from, tmp);
+                const studentInFrom = state.seatToStud.get(seatFrom);
+                assert(studentInFrom != null, "from not in seats");
+                const studentInTo = state.seatToStud.get(seatTo);
+
+                if (studentInTo != null) {
+                    state.seatToStud.set(seatTo, studentInFrom);
+                    state.studToSeat.set(studentInFrom, seatTo);
+
+                    state.seatToStud.set(seatFrom, studentInTo);
+                    state.studToSeat.set(studentInTo, seatFrom);
                 } else {
-                    state.seats.set(to, state.seats.get(from)!);
-                    state.seats.delete(from);
+                    state.seatToStud.set(seatTo, studentInFrom);
+                    state.studToSeat.set(studentInFrom, seatTo);
+
+                    state.seatToStud.delete(seatFrom);
+                    state.studToSeat.delete(studentInFrom);
                 }
             });
         },
@@ -511,6 +508,7 @@ export function Canvas() {
     const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
     const wasSettingsOpenBeforeDrag = React.useRef(false);
     let sheetContentRef = React.useRef<HTMLDivElement>(null);
+
     return (
         <Dnd.Context
             onDragEnd={handleDragEnd}
@@ -733,6 +731,7 @@ export function Canvas() {
             setDraggingStudentName(e.active.data.current!.name);
             return;
         }
+
         // dragging seat
         const offset = offsets.get(e.active.id as id);
         if (!offset) {
@@ -768,6 +767,18 @@ export function Canvas() {
         }
 
         if (e.active.id.toString().startsWith("student-")) {
+            console.log({
+                draggingStudentName,
+                activeName: e.active.data.current!.name,
+            });
+            // assert(
+            //     draggingStudentName === e.active.data.current!.name,
+            //     "Dragging student name",
+            //     draggingStudentName,
+            //     "is same as active student name",
+            //     e.active.data.current!.name,
+            // );
+            // setDraggingStudentName(e.active.data.current!.name);
             if (e.over) {
                 console.log("over:", e.over.id);
             }
@@ -844,6 +855,7 @@ export function Canvas() {
         if (isDraggingStudent || isDraggingNewSeat) {
             setIsSettingsOpen(wasSettingsOpenBeforeDrag.current);
         }
+
         if (e.delta.x == 0 && e.delta.y == 0) {
             setDraggingStudentName(null);
             return;
@@ -895,6 +907,7 @@ export function Canvas() {
         }
 
         const id = parseId(e.active.id);
+
         const snapCoords = getSeatSnapCoords(dropRef, e);
         if (snapCoords == null) {
             console.error("no snap coords");
@@ -1237,7 +1250,7 @@ function Seat(props: { id: newId; offset?: GridPoint; selected?: boolean }) {
 
     const studentID = useStudentStore((s) => {
         if (props.id === "new") return null;
-        return s.seats.get(props.id) ?? null;
+        return s.seatToStud.get(props.id) ?? null;
     });
 
     const studentName = useStudentStore((s) => {
@@ -1329,7 +1342,7 @@ function StudentEntry(props: { id: number }) {
         }, 0);
     };
 
-    const seatID = useStudentStore((s) => s.seats.get(props.id) ?? null);
+    const seatID = useStudentStore((s) => s.studToSeat.get(props.id) ?? null);
 
     if (isEditing) {
         return (
