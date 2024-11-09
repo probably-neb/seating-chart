@@ -61,6 +61,15 @@ function assert_init(): Rep {
     return window.replicache
 }
 
+// {{{ ID
+const ID_LENGTH = 32;
+const ID_ENTITY_PREFIX_LENGTH = 4;
+const ID_PREFIX_LENGTH = ID_ENTITY_PREFIX_LENGTH + "_".length;
+const ID_SUFFIX_LENGTH = ID_LENGTH - ID_PREFIX_LENGTH;
+
+import {customAlphabet} from "nanoid"
+
+const generate_nano_id = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ").bind(null, ID_SUFFIX_LENGTH)
 
 const ID_PREFIXES = {
     seat: "seat",
@@ -68,9 +77,14 @@ const ID_PREFIXES = {
     chart: "chrt",
 } as const
 
-function generate_id(forEntity: keyof typeof ID_PREFIXES) {
-    return ID_PREFIXES[forEntity] + "_" + Date.now(); // FIXME: use nanoid
+for (const prefix of Object.values(ID_PREFIXES)) {
+    assert(prefix.length == ID_ENTITY_PREFIX_LENGTH, "prefix is length", ID_ENTITY_PREFIX_LENGTH);
 }
+
+function generate_id(forEntity: keyof typeof ID_PREFIXES) {
+    return ID_PREFIXES[forEntity] + "_" + generate_nano_id(); // FIXME: use nanoid
+}
+// }}
 
 async function seating_chart_save_inner(
     tx: WriteTransaction,
