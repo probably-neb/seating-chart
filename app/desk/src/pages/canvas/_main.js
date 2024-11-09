@@ -1,7 +1,10 @@
 // vim: foldmethod=marker
 
+import * as Replicache from "@/scripts/rep";
 const app = document.getElementById("app");
 assert(app != null, "app not null");
+
+const AUTOSAVE_INTERVAL_MS = 30 * 1000; // 30s
 
 // grid
 const gridW_initial = 60;
@@ -646,12 +649,17 @@ function seat_student_drop_indication_disable(seat_ref) {
     }
 }
 
+function unseated_students_get() {
+    const students = sidebar_student_list_ref.querySelectorAll("[data-student]") // TODO: constantt
+    return students;
+}
+
 /**
  * @param {HTMLElement} seat_ref
  * @returns {HTMLElement | null}
  */
 function seat_student_get(seat_ref) {
-    const students = seat_ref.querySelectorAll("[data-student]");
+    const students = seat_ref.querySelectorAll("[data-student]"); // TODO: constant
     // FIXME: uncomment once swap implemented
     // assert(students.length <= 1, "no more than 1 student per seat", students)
     if (students.length === 0) {
@@ -1352,6 +1360,55 @@ function grid_dims_get() {
 
 containerDomRect = container_ref.getBoundingClientRect();
 
+const chart_id = "chrt_" + Date.now();
+
+async function save_chart() {
+    console.log("saving")
+    const id = chart_id;
+    const seats = new Array();
+    const students = new Array();
+
+    const [width, height] = grid_dims_get();
+
+    for (const seat_ref of seat_refs) {
+        if (seat_ref == null) {
+            continue;
+        }
+        const seat_id = seat_ref.dataset['seat-id']; // TODO: constant
+        const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+
+        const seat_index = seats.length;
+        seats.push({id, gridX, gridY})
+
+        const student_ref = seat_student_get(seat_ref);
+        if (student_ref) {
+            const name = student_ref.textContent;
+            assert(name, "student has name", student_ref);
+            const id = student_ref.dataset['student-id'] || undefined; // TODO: constant
+
+            const seatID = seat_id ?? seat_index;
+            students.push({id, name, seatID})
+        }
+    }
+
+    const unseated_student_refs = unseated_students_get();
+    for (const student_ref of unseated_student_refs) {
+        const name = student_ref.textContent;
+        assert(name, "student has name", student_ref);
+        const id = student_ref.dataset['student-id'] || undefined; // TODO: constant
+
+        students.push({id, name, seatID: null})
+    }
+
+    await Replicache.seating_chart_save({
+        id,
+        seats,
+        students,
+        width,
+        height,
+    });
+}
+
 function init() {
     // {{{ container
     {
@@ -1850,6 +1907,17 @@ function init() {
             sidebar_student_input.focus();
         };
     }
+    // }}}
+
+    // {{{ replicache
+    Replicache.ensure_init();
+    console.log("starting save interval", AUTOSAVE_INTERVAL_MS);
+    const _save_interval_handle = setInterval(save_chart, AUTOSAVE_INTERVAL_MS);
+
+    const save_button = document.getElementById("save-button");
+    save_button.onclick = () => {
+        save_chart();
+    };
     // }}}
 }
 
