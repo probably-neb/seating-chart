@@ -26,16 +26,12 @@ export default $config({
             domain = $app.stage + ".dev.deskribe.cc"
         }
 
-        const desk = new sst.aws.StaticSite("desk", {
+        const desk = new sst.aws.Astro("desk", {
             path: "app/desk",
             domain: "seating." + domain,
-            build: {
-                command: "bun run build",
-                output: "dist",
-            },
             dev: {
                 command: "bun dev",
-                url: "http://localhost:3001",
+                // url: "http://localhost:3001",
             }
         })
 

@@ -1,0 +1,87 @@
+---
+
+---
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deskribe Seating Chart Editor</title>
+</head>
+<body class="w-screen h-screen">
+    <script>
+        import "./_main.js";
+    </script>
+    <style>
+        :root {
+          font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+          line-height: 1.5;
+          font-weight: 400;
+
+          color-scheme: light dark;
+          color: rgba(255, 255, 255, 0.87);
+          background-color: #242424;
+
+          font-synthesis: none;
+          text-rendering: optimizeLegibility;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+    <div id="app" class="w-full h-full flex flex-row">
+        <div id="container-wrapper" class="overflow-auto flex-1">
+            <div id="container"></div>
+        </div>
+        <aside id="sidebar" class="w-64 h-screen bg-gray-100 flex-none">
+            <div class="w-64 bg-gray-100 p-4 overflow-y-auto text-black">
+                <h2 class="text-lg font-semibold mb-4">Seating Chart Creator</h2>
+
+                <button id="add-seat-button" class="bg-blue-500 rounded-md px-2 text-white border-b-4 border-b-blue-800">
+                    Add Seats
+                </button>
+
+                <fieldset class="border border-black pb-2">
+                    <legend class="ml-2">Zoom</legend>
+                    <div class="flex flex-row gap-4 items-center justify-evenly text-center">
+                        <button id="zoom-out" class="ring-1 ring-black rounded-md px-2 font-semibold text-md border-b-2 border-b-orange-800 bg-orange-500 w-6 text-center hover:bg-orange-600">
+                            -
+                        </button>
+                        <div id="zoom-display" class="border border-black px-2 py-1 w-16 h-8 text-center">
+                                100% <!-- PLACEHOLDER -->
+                        </div>
+                        <button id="zoom-in" class="ring-1 ring-black rounded-md px-2 font-semibold text-md border-b-2 border-b-emerald-800 bg-emerald-500 w-6 text-center hover:bg-emerald-600">
+                            +
+                        </button >
+                    </div>
+                </fieldset>
+
+                <div class="mb-6">
+                    <h3 class="text-md font-semibold mb-2">Grid Size</h3>
+                    <div class="flex space-x-2">
+                        <input id="rows-input" type="number" min="1" placeholder="Rows" class="h-9 px-3 py-2 bg-white text-black text-sm rounded-md w-16" />
+                        <span class="text-center font-semibold">x</span>
+                        <input id="cols-input" type="number" min="1" placeholder="Cols" class="h-9 px-3 py-2 bg-white text-black text-sm rounded-md w-16" />
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-md font-semibold mb-2">Add Student</h3>
+                    <div class="flex space-x-2">
+                        <input id="student-name-input" type="text" placeholder="Student Name" class="h-9 px-3 py-2 bg-white text-black text-sm rounded-md w-40 ring-2 ring-pink-300 focus:ring-pink-500 focus:outline-none" />
+
+                        <button id="add-student-button" class="bg-pink-600 border-b-4 ring-1 ring-black border-b-pink-800 text-white rounded-lg w-9 focus:outline-none focus:ring-2 hover:bg-pink-700 text-2xl">
+                            +
+                        </Button>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-md font-semibold mb-2">Students</h3>
+                    <div id="students" class="flex flex-col space-y-2">
+                    </div>
+                </div>
+            </div>
+        </aside>
+</body>
+</html>

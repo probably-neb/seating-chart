@@ -6,7 +6,7 @@ export {}
 declare module "sst" {
   export interface Resource {
     "desk": {
-      "type": "sst.aws.StaticSite"
+      "type": "sst.aws.Astro"
       "url": string
     }
     "landing": {
