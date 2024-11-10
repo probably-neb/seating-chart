@@ -4,10 +4,12 @@ import {
     type WriteTransaction,
 } from "replicache";
 
+import ID from "./id"
+
 function assert(val: any, ...msg: any[]): asserts val {
     if (val) return;
     console.error("Assertion failed: ", ...msg);
-    throw new Error("Assertion failed: " + msg?.map(String).join(" ") ?? "");
+    throw new Error("Assertion failed: " + (msg?.map(String).join(" ") ?? ""));
 }
 
 declare global {
@@ -24,8 +26,9 @@ export type Rep = Replicache<typeof Mutations>;
 
 export function init() {
     assert(typeof window != undefined, "window is defined");
+    const user_id = get_user_id()
     window.replicache = new Replicache({
-        name: "desk", // FIXME: use user ID
+        name: user_id, 
         licenseKey: TEST_LICENSE_KEY,
         mutators: Mutations,
     });
@@ -33,6 +36,20 @@ export function init() {
     console.log("initialized", window.replicache);
 }
 
+function get_user_id() {
+    // FIXME: implement way for backend to pass user ID to frontend (probably in html)
+    // and get it here
+
+    const LOCAL_STORAGE_ID_KEY = "anon-user-id"
+    let id = localStorage.getItem(LOCAL_STORAGE_ID_KEY);
+    if (id) {
+        return id;
+    }
+    id = ID.generate_for("user")
+    localStorage.setItem(LOCAL_STORAGE_ID_KEY, id);
+
+    return id;
+}
 
 export function ensure_init() {
     if (window.replicache) {
@@ -61,30 +78,6 @@ function assert_init(): Rep {
     return window.replicache
 }
 
-// {{{ ID
-const ID_LENGTH = 32;
-const ID_ENTITY_PREFIX_LENGTH = 4;
-const ID_PREFIX_LENGTH = ID_ENTITY_PREFIX_LENGTH + "_".length;
-const ID_SUFFIX_LENGTH = ID_LENGTH - ID_PREFIX_LENGTH;
-
-import {customAlphabet} from "nanoid"
-
-const generate_nano_id = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ").bind(null, ID_SUFFIX_LENGTH)
-
-const ID_PREFIXES = {
-    seat: "seat",
-    student: "stud",
-    chart: "chrt",
-} as const
-
-for (const prefix of Object.values(ID_PREFIXES)) {
-    assert(prefix.length == ID_ENTITY_PREFIX_LENGTH, "prefix is length", ID_ENTITY_PREFIX_LENGTH);
-}
-
-function generate_id(forEntity: keyof typeof ID_PREFIXES) {
-    return ID_PREFIXES[forEntity] + "_" + generate_nano_id(); // FIXME: use nanoid
-}
-// }}
 
 async function seating_chart_save_inner(
     tx: WriteTransaction,
@@ -94,27 +87,16 @@ async function seating_chart_save_inner(
         students: Array<{ id: string; seatID: string | null, name: string}>;
     }
 ) {
-    console.log("seating_chart_save", chart);
+    console.log("seating_chart_save", tx.clientID, chart);
 }
 
 export async function seating_chart_save(chart: {
     id: string;
     seats: Array<{ id?: string; gridX: number; gridY: number }>;
-    students: Array<{ id?: string; seatID: string | number | null, name: string }>;
+    students: Array<{ id: string; seatID: string | null, name: string }>;
 }) {
     const rep = assert_init();
 
-    for (const seat of chart.seats) {
-        if (seat.id == null) {
-            seat.id = generate_id("seat");
-        }
-    }
-
-    for (const student of chart.students) {
-        if (student.id == null) {
-            student.id = generate_id("student");
-        }
-    }
-
+    // FIXME: validate
     await rep.mutate.seating_chart_save(chart as any);
 }

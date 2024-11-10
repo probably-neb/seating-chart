@@ -1360,7 +1360,7 @@ function grid_dims_get() {
 
 containerDomRect = container_ref.getBoundingClientRect();
 
-const chart_id = "chrt_" + Date.now();
+const chart_id = "chrt_" + Date.now(); // FIXME: use getter that checks url or data in meta elem
 
 async function save_chart() {
     console.log("saving")
