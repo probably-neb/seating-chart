@@ -11,5 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "sst": "^3.2.16"
+  },
+  "devDependencies": {
+    "prettier-plugin-astro": "^0.14.1"
   }
 }
