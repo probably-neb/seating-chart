@@ -5,6 +5,12 @@ import * as Replicache from "@/scripts/rep";
 const app = document.getElementById("app");
 assert(app != null, "app not null");
 
+/**
+ * setup in init
+ * @type {string}
+ */
+let chart_id;
+
 const AUTOSAVE_INTERVAL_MS = 30 * 1000; // 30s
 
 // grid
@@ -1372,8 +1378,6 @@ function grid_dims_get() {
 
 containerDomRect = container_ref.getBoundingClientRect();
 
-const chart_id = ID.generate_for("chart"); // FIXME: use getter that checks url or data in meta elem
-
 async function save_chart() {
     console.log("saving");
     const id = chart_id;
@@ -1427,8 +1431,28 @@ async function save_chart() {
     await Replicache.seating_chart_save(data);
 }
 
-function init() {
+async function init() {
     Replicache.ensure_init();
+
+    const url_path = window.location.pathname.replace(/\/$/, '') // pathname without trailing slash;
+    chart_id = url_path.split('/').at(-1);
+    assert(chart_id, "chart_id", chart_id);
+    assert(chart_id.length == ID.LENGTH, "chart_id.length is", ID.length, "not", chart_id.length);
+    console.log({chart_id})
+    let initial_chart_data = {
+        id: chart_id,
+        seats: [],
+        students: [],
+        width: gridW_initial,
+        height: gridH_initial,
+    };
+
+    const rep = Replicache.get_assert_init();
+    const existing_chart_data = await Replicache.seating_chart_get(chart_id);
+    if (existing_chart_data) {
+        initial_chart_data = existing_chart_data;
+    }
+
     // {{{ container
     {
         // TODO: init all "*_initial" grid properties here
@@ -1934,9 +1958,7 @@ function init() {
     const _save_interval_handle = setInterval(save_chart, AUTOSAVE_INTERVAL_MS);
 
     const save_button = document.getElementById("save-button");
-    save_button.onclick = () => {
-        save_chart();
-    };
+    save_button.onclick = () => save_chart();
     // }}}
 }
 

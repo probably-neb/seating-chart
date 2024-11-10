@@ -4,5 +4,39 @@ import Layout from "@/layout.astro"
 ---
 
 <Layout>
-    <div>HOME</div>
+<script>
+    import * as Replicache from "@/scripts/rep";
+    Replicache.ensure_init();
+
+    import ID from "@/scripts/id"
+    
+    const rep = Replicache.get_assert_init();
+    const content_ref = document.getElementById("content");
+    if (content_ref == null) {
+        throw new Error("content_ref is null");
+    }
+
+    rep.subscribe(async (tx) => {
+        const charts = await tx.scan(Replicache.Keys.SeatingChart.prefix);
+        const ids = []
+
+        for await (const chart of charts.values()) {
+            ids.push(chart.id);
+        }
+
+        return ids;
+    }, (ids: string[]) => {
+        if (ids.length == 0) {
+            content_ref.innerHTML = "No seating charts";
+            return;
+        }
+        content_ref.innerHTML = ids.map(id => `<li>${id}</li>`).join('');
+    });
+
+    const new_chart_id = ID.generate_for("chart");
+    const new_chart_href = "/canvas/" + new_chart_id;
+    document.getElementById("create-chart")!.href = new_chart_href;
+</script>
+    <a id="create-chart" hx-boost class="px-3 py-2 rounded-lg bg-lime-600 border-b-4 border-b-lime-800">Create new chart</a>
+    <ul id="content"></ul>
 </Layout>
