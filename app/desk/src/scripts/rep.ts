@@ -116,15 +116,15 @@ async function seating_chart_save_inner(
         id: string;
         seats: Array<{ id: string; gridX: number; gridY: number }>;
         students: Array<{ id: string; seatID: string | null; name: string }>;
-        width: number;
-        height: number;
+        cols: number;
+        rows: number;
     }
 ) {
-    console.log("seating_chart_save", tx.clientID, chart);
+    console.log("seating_chart_save", chart);
     const base = {
         id: chart.id,
-        width: chart.width,
-        height: chart.height,
+        cols: chart.cols,
+        rows: chart.rows,
     };
     const seats = chart.seats;
     const students = chart.students;
@@ -151,8 +151,8 @@ export async function seating_chart_save(chart: {
     id: string;
     seats: Array<{ id?: string; gridX: number; gridY: number }>;
     students: Array<{ id: string; seatID: string | null; name: string }>;
-    width: number;
-    height: number;
+    cols: number;
+    rows: number;
 }) {
     const rep = get_assert_init();
 
@@ -183,7 +183,7 @@ export async function seating_chart_get(chart_id: string) {
             students_query,
             base_query,
         ]);
-        return Object.assign(base!, { seats, students });
+        return Object.assign({}, base!, { seats, students });
     });
 }
 // }}}

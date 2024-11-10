@@ -14,14 +14,8 @@ let chart_id;
 const AUTOSAVE_INTERVAL_MS = 30 * 1000; // 30s
 
 // grid
-const gridW_initial = 60;
-const gridH_initial = 30;
-const gridCellPx_initial = Math.floor(
-    (0.8 * window.innerWidth) / gridW_initial
-);
-
-const GRID_PROP_W = "--grid-w";
-const GRID_PROP_H = "--grid-h";
+const GRID_PROP_COLS = "--grid-cols";
+const GRID_PROP_ROWS = "--grid-rows";
 
 const PROP_GRID_POS_X = "--grid-x";
 const PROP_GRID_POS_Y = "--grid-y";
@@ -490,10 +484,11 @@ function dbg_sleep(milliseconds) {
 function closest_non_overlapping_pos(dragging_index, absX, absY) {
     // console.time("closest non overlapping pos circ");
 
+    const [grid_cols, grid_rows] = grid_dims_get();
     function isValidPosition(gridX, gridY) {
         let is_not_overlapping = true;
-        if (gridX < 0 || gridX > gridW_initial - SEAT_GRID_W) return false;
-        if (gridY < 0 || gridY > gridH_initial - SEAT_GRID_H) return false;
+        if (gridX < 0 || gridX > grid_cols - SEAT_GRID_W) return false;
+        if (gridY < 0 || gridY > grid_rows - SEAT_GRID_H) return false;
         for (let i = 0; i < seat_locs.length && is_not_overlapping; i++) {
             if (i === dragging_index) continue; // Skip the actively dragging seat
 
@@ -525,7 +520,7 @@ function closest_non_overlapping_pos(dragging_index, absX, absY) {
     );
     const [centerX, centerY] = seat_center_exact(absGridX, absGridY);
 
-    const max_radius = Math.min(gridW_initial, gridH_initial);
+    const max_radius = Math.min(grid_cols, grid_rows);
 
     for (let radius = 1; radius <= max_radius; radius++) {
         for (let angle = 0; angle < 360; angle++) {
@@ -638,8 +633,9 @@ function seat_loc_set(seat_ref, gridX, gridY) {
     assert(Number.isSafeInteger(gridX), "gridX is number", gridX);
     assert(Number.isSafeInteger(gridY), "gridY is number", gridY);
 
-    assert(gridX >= 0 && gridX < gridW_initial, "gridX is valid", gridX);
-    assert(gridY >= 0 && gridY < gridH_initial, "gridY is valid", gridY);
+    const [grid_cols, grid_rows] = grid_dims_get();
+    assert(gridX >= 0 && gridX < grid_cols, "gridX is valid", gridX);
+    assert(gridY >= 0 && gridY < grid_rows, "gridY is valid", gridY);
 
     elem_grid_pos_set(seat_ref, gridX, gridY);
 
@@ -1221,6 +1217,7 @@ function container_handle_drop_selection(event) {
 
     const [offsetX, offsetY] = elem_drag_offset_get(selection_ref);
 
+    const [grid_cols, grid_rows] = grid_dims_get();
     const gridCellPx = grid_cell_px_get();
 
     const gridX = clamp(
@@ -1232,7 +1229,7 @@ function container_handle_drop_selection(event) {
                 gridCellPx
         ),
         0,
-        gridW_initial
+        grid_cols
     );
     const gridY = clamp(
         Math.round(
@@ -1243,7 +1240,7 @@ function container_handle_drop_selection(event) {
                 gridCellPx
         ),
         0,
-        gridH_initial
+        grid_rows
     );
 
     const {
@@ -1349,31 +1346,34 @@ function student_create(name, id = null) {
     return student_ref;
 }
 
-function grid_w_set(gridW) {
-    container_ref.style.setProperty(GRID_PROP_W, gridW);
+function grid_cols_set(grid_cols) {
+    container_ref.style.setProperty(GRID_PROP_COLS, grid_cols);
 }
 
-function grid_h_set(gridH) {
-    container_ref.style.setProperty(GRID_PROP_H, gridH);
+function grid_rows_set(grid_rows) {
+    container_ref.style.setProperty(GRID_PROP_ROWS, grid_rows);
 }
 
-function grid_dims_set(gridW, gridH) {
-    container_ref.style.setProperty(GRID_PROP_W, gridW);
-    container_ref.style.setProperty(GRID_PROP_H, gridH);
+function grid_dims_set(grid_cols, grid_rows) {
+    container_ref.style.setProperty(GRID_PROP_COLS, grid_cols);
+    container_ref.style.setProperty(GRID_PROP_ROWS, grid_rows);
 }
 
+/**
+ * @returns {[cols: number, rows: number]} grid dimensions
+ */
 function grid_dims_get() {
-    const gridW = Number.parseInt(
-        container_ref.style.getPropertyValue(GRID_PROP_W)
+    const grid_cols = Number.parseInt(
+        container_ref.style.getPropertyValue(GRID_PROP_COLS)
     );
-    const gridH = Number.parseInt(
-        container_ref.style.getPropertyValue(GRID_PROP_H)
+    const grid_rows = Number.parseInt(
+        container_ref.style.getPropertyValue(GRID_PROP_ROWS)
     );
 
-    assert(Number.isSafeInteger(gridW));
-    assert(Number.isSafeInteger(gridH));
+    assert(Number.isSafeInteger(grid_cols));
+    assert(Number.isSafeInteger(grid_rows));
 
-    return [gridW, gridH];
+    return [grid_cols, grid_rows];
 }
 
 containerDomRect = container_ref.getBoundingClientRect();
@@ -1384,7 +1384,7 @@ async function save_chart() {
     const seats = new Array();
     const students = new Array();
 
-    const [width, height] = grid_dims_get();
+    const [cols, rows] = grid_dims_get();
 
     for (const seat_ref of seat_refs) {
         if (seat_ref == null) {
@@ -1422,8 +1422,8 @@ async function save_chart() {
         id,
         seats,
         students,
-        width,
-        height,
+        cols,
+        rows,
     };
 
     console.log("save_chart", data);
@@ -1434,17 +1434,18 @@ async function save_chart() {
 async function init() {
     Replicache.ensure_init();
 
+    // {{{ load
     const url_path = window.location.pathname.replace(/\/$/, '') // pathname without trailing slash;
     chart_id = url_path.split('/').at(-1);
     assert(chart_id, "chart_id", chart_id);
     assert(chart_id.length == ID.LENGTH, "chart_id.length is", ID.length, "not", chart_id.length);
-    console.log({chart_id})
+
     let initial_chart_data = {
         id: chart_id,
         seats: [],
         students: [],
-        width: gridW_initial,
-        height: gridH_initial,
+        rows: 30,
+        cols: 60,
     };
 
     const rep = Replicache.get_assert_init();
@@ -1453,8 +1454,17 @@ async function init() {
         initial_chart_data = existing_chart_data;
     }
 
+    console.log({initial_chart_data})
+
+    // }}}
+
     // {{{ container
     {
+
+        const gridCellPx_initial = Math.floor(
+            (0.8 * window.innerWidth) / initial_chart_data.cols
+        );
+
         // TODO: init all "*_initial" grid properties here
         container_ref.className = "relative bg-white";
         container_ref.style.setProperty(
@@ -1463,10 +1473,10 @@ async function init() {
         );
         container_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
         container_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
-        container_ref.style.setProperty(GRID_PROP_W, gridW_initial);
-        container_ref.style.setProperty(GRID_PROP_H, gridH_initial);
-        container_ref.style.width = grid_cell_px_dim(GRID_PROP_W);
-        container_ref.style.height = grid_cell_px_dim(GRID_PROP_H);
+        container_ref.style.setProperty(GRID_PROP_COLS, initial_chart_data.cols);
+        container_ref.style.setProperty(GRID_PROP_ROWS, initial_chart_data.rows);
+        container_ref.style.width = grid_cell_px_dim(GRID_PROP_COLS);
+        container_ref.style.height = grid_cell_px_dim(GRID_PROP_ROWS);
 
         container_ref.ondragover = function (event) {
             event.preventDefault();
@@ -1734,7 +1744,7 @@ async function init() {
                         gridCellPx
                 ),
                 0,
-                gridW_initial
+                gridW_default
             );
             const gridY = clamp(
                 Math.round(
@@ -1745,7 +1755,7 @@ async function init() {
                         gridCellPx
                 ),
                 0,
-                gridH_initial
+                gridH_default
             );
 
             const {
@@ -1860,8 +1870,8 @@ async function init() {
             );
             // debugger;
 
-            const startX = Math.round(gridW_initial / 2);
-            const startY = Math.round(gridH_initial / 2);
+            const startX = Math.round(gridW_default / 2);
+            const startY = Math.round(gridH_default / 2);
             const endX = startX + selection_data.width;
             const endY = startY + selection_data.height;
 
@@ -1898,8 +1908,8 @@ async function init() {
         assert(grid_rows_input != null);
         assert(grid_cols_input != null);
 
-        grid_rows_input.value = gridH_initial;
-        grid_cols_input.value = gridW_initial;
+        grid_rows_input.value = initial_chart_data.rows;
+        grid_cols_input.value = initial_chart_data.cols;
 
         // FIXME: check if seats are out of bounds and either move them or prevent resizing operation
 
@@ -1914,7 +1924,7 @@ async function init() {
                 return;
             }
 
-            grid_h_set(value);
+            grid_rows_set(value);
         });
 
         grid_cols_input.addEventListener("change", function (event) {
@@ -1928,7 +1938,7 @@ async function init() {
                 return;
             }
 
-            grid_w_set(value);
+            grid_cols_set(value);
         });
     }
     // }}}
@@ -1960,6 +1970,7 @@ async function init() {
     const save_button = document.getElementById("save-button");
     save_button.onclick = () => save_chart();
     // }}}
+
 }
 
 init();
