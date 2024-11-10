@@ -17,10 +17,14 @@ import Layout from "@/layout.astro"
     }
 
     rep.subscribe(async (tx) => {
-        const charts = await tx.scan(Replicache.Keys.SeatingChart.prefix);
+        const charts = await tx.scan({prefix: Replicache.Keys.SeatingChart.prefix});
         const ids = []
 
-        for await (const chart of charts.values()) {
+        for await (const [key, chart] of charts.entries()) {
+            if (chart == null) continue
+            if (!('id' in chart) || key !== Replicache.Keys.SeatingChart.by_id(chart.id)) {
+                continue;
+            }
             ids.push(chart.id);
         }
 
@@ -30,7 +34,7 @@ import Layout from "@/layout.astro"
             content_ref.innerHTML = "No seating charts";
             return;
         }
-        content_ref.innerHTML = ids.map(id => `<li>${id}</li>`).join('');
+        content_ref.innerHTML = ids.map(id => `<li><a href="/canvas/${id}" class="ring ring-white rounded-lg p-2">${id}</a></li>`).join('');
     });
 
     const new_chart_id = ID.generate_for("chart");
@@ -38,5 +42,5 @@ import Layout from "@/layout.astro"
     document.getElementById("create-chart")!.href = new_chart_href;
 </script>
     <a id="create-chart" hx-boost class="px-3 py-2 rounded-lg bg-lime-600 border-b-4 border-b-lime-800">Create new chart</a>
-    <ul id="content"></ul>
+    <ul id="content" class="flex flex-col gap-4 mt-8"></ul>
 </Layout>
