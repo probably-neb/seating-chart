@@ -1,0 +1,38 @@
+---
+const {title = "Deskribe"} = Astro.props
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+        <title>{title}</title>
+        <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous" is:inline></script>
+        <script src="https://unpkg.com/htmx-ext-head-support@2.0.1/head-support.js" is:inline></script>
+	</head>
+    <body class="w-screen h-screen" hx-ext="head-support">
+    <style>
+        :root {
+          font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+          line-height: 1.5;
+          font-weight: 400;
+
+          color-scheme: light dark;
+          color: rgba(255, 255, 255, 0.87);
+          background-color: #242424;
+
+          font-synthesis: none;
+          text-rendering: optimizeLegibility;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+        <script>
+            import * as Replicache from "./scripts/rep.ts";
+            Replicache.ensure_init();
+        </script>
+        <slot />
+	</body>
+</html>
