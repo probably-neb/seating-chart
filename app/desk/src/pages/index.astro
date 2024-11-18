@@ -16,31 +16,86 @@ import Layout from "@/layout.astro"
         throw new Error("content_ref is null");
     }
 
-    rep.subscribe(async (tx) => {
-        const charts = await tx.scan({prefix: Replicache.Keys.SeatingChart.prefix});
-        const ids = []
-
-        for await (const [key, chart] of charts.entries()) {
-            if (chart == null) continue
-            if (!('id' in chart) || key !== Replicache.Keys.SeatingChart.by_id(chart.id)) {
-                continue;
+    class ChartPreview extends HTMLElement {
+        unsubscribe?: () => void;
+        connectedCallback() {
+            const chart_id = this.dataset['chart_id'];
+            if (this.unsubscribe) {
+                this.unsubscribe();
             }
-            ids.push(chart.id);
-        }
+            if (!chart_id) {
+                return;
+            }
+            this.unsubscribe = rep.subscribe(async tx => 
+                Replicache.query_seating_chart_get(tx, chart_id)
+                , (seating_chart: Replicache.SeatingChart) => {
+                    if (!seating_chart) return;
 
-        return ids;
-    }, (ids: string[]) => {
+                    let svgContent = `<svg width="100%" height="100%" viewBox="0 0 ${seating_chart.cols} ${seating_chart.rows}">
+                        <defs>
+                            <pattern id="grid" width="1" height="1" patternUnits="userSpaceOnUse">
+                                <path d="M 1 0 L 0 0 0 1" fill="none" stroke="darkgray" stroke-width="0.05"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)" />`;
+                    
+                    console.log('seats', seating_chart.seats, chart_id)
+                    for (const seat of seating_chart.seats) {
+                        svgContent += `<rect x="${seat.gridX}" y="${seat.gridY}" width="4" height="4" fill="lightgray" stroke="darkgray" stroke-width="0.1" />`;
+                    }
+
+                    svgContent += '</svg>';
+                    this.innerHTML = svgContent;
+                }
+            );
+        }
+        disconnectedCallback() {
+            if (this.unsubscribe) {
+                this.unsubscribe();
+            }
+        }
+    }
+    customElements.define('desk-chart-preview', ChartPreview);
+
+    rep.subscribe(async (tx) => Replicache.query_seating_chart_ids_list(tx), (ids: string[]) => {
+        content_ref.innerHTML = ''; // Clear existing content
         if (ids.length == 0) {
             content_ref.innerHTML = "No seating charts";
             return;
         }
-        content_ref.innerHTML = ids.map(id => `<li><a href="/canvas/${id}" class="ring ring-white rounded-lg p-2">${id}</a></li>`).join('');
+        for (const id of ids) {
+            const card = document.createElement('div');
+            card.className = 'shadow-lg rounded-md px-4 py-8 bg-white text-black'; // Add appropriate classes
+            card.innerHTML = `
+                <div class="card-header pb-4">
+                    <div class="flex justify-between items-start">
+                        <h3 class="card-title text-xl">${id}</h3>
+                        <a href="/canvas/${id}" class="px-3 py-2 rounded-lg bg-lime-600 border-b-4 border-b-lime-800">Edit</a>
+                    </div>
+                </div>
+                <div class="card-content pb-2">
+                    <div class="aspect-video relative mb-4 ring ring-gray-500">
+                        <desk-chart-preview data-chart_id="${id}"></desk-chart-preview>
+                    </div>
+                </div>
+                <div class="card-footer flex justify-between text-sm text-muted-foreground">
+                    <p>Created: ${new Date().toLocaleDateString()}</p>
+                    <p>0 seats</p>
+                </div>
+            `;
+            content_ref.appendChild(card);
+        }
     });
 
     const new_chart_id = ID.generate_for("chart");
     const new_chart_href = "/canvas/" + new_chart_id;
     document.getElementById("create-chart")!.href = new_chart_href;
 </script>
-    <a id="create-chart" hx-boost class="px-3 py-2 rounded-lg bg-lime-600 border-b-4 border-b-lime-800">Create new chart</a>
-    <ul id="content" class="flex flex-col gap-4 mt-8"></ul>
+<div class="px-4 py-8 bg-white text-black w-full h-full">
+      <header class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">Your Seating Charts</h1>
+        <a id="create-chart" hx-boost class="px-3 py-2 rounded-lg bg-lime-600 border-b-4 border-b-lime-800">Create new chart</a>
+      </header>
+      <div id="content" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </div>
 </Layout>
