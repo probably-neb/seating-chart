@@ -1507,6 +1507,27 @@ async function init() {
     }
     // }}}
 
+    // {{{ initial seats + students
+    {
+        const seats = initial_chart_data.seats;
+        for (const seat of seats) {
+            container.appendChild(seat_create(seat.gridX, seat.gridY, seat.id))
+        }
+
+        const students = initial_chart_data.students;
+        for (const student of students) {
+            const student_ref = student_create(student.name, student.id)
+            if (student.seatID == null) {
+                sidebar_student_list_ref.appendChild(student_ref);
+                continue;
+            } 
+            const seat_ref = document.getElementById(student.seatID)
+            assert(seat_ref != null, "student seatID seat exists", student, initial_chart_data);
+            seat_student_set(seat_ref, student_ref);
+        }
+    }
+    // }}}
+
     // {{{ seat preview
     {
         seat_preview_ref.id = "seat-preview";
