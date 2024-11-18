@@ -1,6 +1,9 @@
 import {
     Replicache,
     TEST_LICENSE_KEY,
+    type DeepReadonly,
+    type ReadonlyJSONObject,
+    type ReadTransaction,
     type WriteTransaction,
 } from "replicache";
 const TUTORIAL_LICENSE_KEY = `l00000000000000000000000000000001`;
@@ -109,16 +112,36 @@ export namespace Keys {
     }
 }
 
+// {{{
+type TxW = WriteTransaction;
+type TxR = ReadTransaction;
+type TxAny = TxW | TxR;
+
+
+export interface Seat extends ReadonlyJSONObject {
+    id: string;
+    gridX: number;
+    gridY: number;
+}
+export interface Student extends ReadonlyJSONObject {
+    id: string;
+    seatID: string | null;
+    name: string;
+}
+export interface SeatingChart extends ReadonlyJSONObject {
+    id: string;
+    seats: Array<Seat>;
+    students: Array<Student>;
+    cols: number;
+    rows: number;
+}
+type SeatingChartBase = Pick<SeatingChart, "id" | "rows" | "cols">;
+// }}}
+
 // {{{ Mutations
 async function seating_chart_save_inner(
     tx: WriteTransaction,
-    chart: {
-        id: string;
-        seats: Array<{ id: string; gridX: number; gridY: number }>;
-        students: Array<{ id: string; seatID: string | null; name: string }>;
-        cols: number;
-        rows: number;
-    }
+    chart: SeatingChart
 ) {
     console.log("seating_chart_save", chart);
     const base = {
@@ -147,13 +170,7 @@ async function seating_chart_save_inner(
     }
 }
 
-export async function seating_chart_save(chart: {
-    id: string;
-    seats: Array<{ id?: string; gridX: number; gridY: number }>;
-    students: Array<{ id: string; seatID: string | null; name: string }>;
-    cols: number;
-    rows: number;
-}) {
+export async function seating_chart_save(chart: SeatingChart) {
     const rep = get_assert_init();
 
     // FIXME: validate
@@ -162,6 +179,32 @@ export async function seating_chart_save(chart: {
 // }}}
 
 // {{{ queries
+export async function query_seating_chart_get(
+    tx: TxAny,
+    chart_id: string
+) {
+    const seats_query = tx
+        .scan({ prefix: Keys.SeatingChart.Seat.prefix(chart_id) })
+        .toArray() as Promise<Array<Seat>>;
+    const students_query = tx
+        .scan({ prefix: Keys.SeatingChart.Student.prefix(chart_id) })
+        .toArray() as Promise<Array<Student>>;
+    const base_query = tx.get<SeatingChartBase>(
+        Keys.SeatingChart.by_id(chart_id)
+    );
+    const [seats, students, base] = await Promise.all([
+        seats_query,
+        students_query,
+        base_query,
+    ]);
+    if (!base) throw new Error(`no base found for ${chart_id}`);
+    const res = {
+        ...base,
+        seats,
+        students,
+    } satisfies SeatingChart;
+    return res;
+}
 export async function seating_chart_get(chart_id: string) {
     const rep = get_assert_init();
     const chart_does_exist = await rep.query((tx) =>
@@ -170,20 +213,23 @@ export async function seating_chart_get(chart_id: string) {
     if (!chart_does_exist) {
         return null;
     }
-    return await rep.query(async (tx) => {
-        const seats_query = tx
-            .scan({ prefix: Keys.SeatingChart.Seat.prefix(chart_id) })
-            .toArray();
-        const students_query = tx
-            .scan({ prefix: Keys.SeatingChart.Student.prefix(chart_id) })
-            .toArray();
-        const base_query = tx.get(Keys.SeatingChart.by_id(chart_id));
-        const [seats, students, base] = await Promise.all([
-            seats_query,
-            students_query,
-            base_query,
-        ]);
-        return Object.assign({}, base!, { seats, students });
+    return await rep.query((tx) => query_seating_chart_get(tx, chart_id));
+}
+
+export async function query_seating_chart_ids_list(tx: TxAny) {
+    const charts = tx.scan<SeatingChartBase>({
+        prefix: Keys.SeatingChart.prefix,
     });
+    const ids = [];
+
+    for await (const [key, chart] of charts.entries()) {
+        if (chart == null) continue;
+        if (!("id" in chart) || key !== Keys.SeatingChart.by_id(chart.id)) {
+            continue;
+        }
+        ids.push(chart.id);
+    }
+
+    return ids;
 }
 // }}}
