@@ -1,18 +1,22 @@
 {
-  "name": "deskribe",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "sso": "aws sso login --sso-session=deskribe"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "sst": "^3.2.16"
-  },
-  "devDependencies": {
-    "prettier-plugin-astro": "^0.14.1"
-  }
+    "name": "deskribe",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "sso": "aws sso login --sso-session=deskribe"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "sst": "^3.3.22"
+    },
+    "workspaces": [
+        "app/*",
+        "packages/*"
+    ],
+    "devDependencies": {
+        "prettier-plugin-astro": "^0.14.1"
+    }
 }
