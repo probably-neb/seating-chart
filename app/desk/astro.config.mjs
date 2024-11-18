@@ -3,7 +3,7 @@ import { defineConfig } from "astro/config";
 
 import tailwind from "@astrojs/tailwind";
 
-import aws from "astro-sst"
+import aws from "astro-sst";
 
 // https://astro.build/config
 export default defineConfig({
@@ -19,6 +19,9 @@ export default defineConfig({
             alias: {
                 "@": "/src",
             },
+        },
+        ssr: {
+            noExternal: ["@astrojs/ts-plugin"],
         },
     },
 });
