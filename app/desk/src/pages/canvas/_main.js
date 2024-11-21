@@ -332,7 +332,7 @@ function selection_clear() {
 
 // ?PERF: use IntersectionObserver instead of manual calculation
 /**
- * @returns {Array<{gridX: number, gridY: number} | null>} Array with same length as seat_refs where indices corresponding to selected seats in seat_refs are the offsets from the start of the selection
+ * @returns {Array<{gridX: number, gridY: number} | null> | null} Array with same length as seat_refs where indices corresponding to selected seats in seat_refs are the offsets from the start of the selection. Or null if no selected seats
  */
 function selected_seats_compute() {
     assert(selected_region != null);
@@ -347,6 +347,8 @@ function selected_seats_compute() {
     }
 
     const selected_seats = new Array(seat_refs.length).fill(null);
+
+    let found_selected_seats = false;
 
     for (let i = 0; i < seat_refs.length; i++) {
         const seat_ref = seat_refs[i];
@@ -379,6 +381,7 @@ function selected_seats_compute() {
                 endY >= seatY;
         }
         if (is_in_selection) {
+            found_selected_seats = true;
             const seatSelectionOffset = {
                 gridX: seat_gridX - startX,
                 gridY: seat_gridY - startY,
@@ -387,7 +390,7 @@ function selected_seats_compute() {
         }
     }
 
-    return selected_seats;
+    return found_selected_seats ? selected_seats : null;
 }
 
 /**
@@ -680,7 +683,7 @@ function seat_student_set(seat_ref, student_ref) {
 
 /**
  * @param {HTMLElement} seat_ref
- * @returns {HTMLElement} student_ref
+ * @returns {HTMLElement | null} student_ref or null if no student
  */
 function seat_student_pop(seat_ref) {
     const student = seat_student_get(seat_ref);
@@ -761,10 +764,10 @@ function seat_ref_get_by_id(seat_id) {
 function seat_create(gridX, gridY, id = null) {
     const element = document.createElement("div");
     const elementClassName =
-        "bg-indigo-400 border-2 border-indigo-500 text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-blue-500 data-[studentdragover]:border-green-500 flex items-center justify-center";
+        "bg-indigo-400 border-2 border-indigo-500 text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-blue-500 data-[studentdragover]:border-green-500 flex items-center justify-center focus:ring-2 focus:ring-blue-500";
     element.className = elementClassName;
     element.id = id ?? ID.generate_for("seat");
-    // element.innerText = id.toString();
+    element.tabIndex = 0;
     element.draggable = true;
     element.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
     element.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
@@ -929,10 +932,26 @@ function seat_create(gridX, gridY, id = null) {
     };
 
     element.onkeydown = function (event) {
+        if (event.key === "Delete" || event.key === "Backspace") {
+            seat_delete(event.currentTarget);
+        }
         console.log("seat keydown", event.key, event.code);
     }
 
     return element;
+}
+
+function seat_delete(seat_ref) {
+    assert(is_seat_ref(seat_ref), "seat_ref is seat", seat_ref);
+    const maybe_student_ref = seat_student_get(seat_ref);
+    if (maybe_student_ref != null) {
+        student_make_unseated(maybe_student_ref);
+    }
+
+    const seat_ref_index = seat_refs.indexOf(seat_ref);
+    seat_refs.splice(seat_ref_index, 1);
+
+    seat_ref.remove();
 }
 
 function clamp(n, min, max) {
@@ -1738,7 +1757,7 @@ async function init() {
 
             const selected_seats = selected_seats_compute();
 
-            if (selected_seats.length == 0) {
+            if (selected_seats == null) {
                 console.log("empty selection");
                 selection_clear();
                 return;
