@@ -117,7 +117,6 @@ type TxW = WriteTransaction;
 type TxR = ReadTransaction;
 type TxAny = TxW | TxR;
 
-
 export interface Seat extends ReadonlyJSONObject {
     id: string;
     gridX: number;
@@ -152,6 +151,24 @@ async function seating_chart_save_inner(
     const seats = chart.seats;
     const students = chart.students;
 
+    const existing_chart = await query_seating_chart_get(tx, chart.id);
+
+    const removed_seat_ids = new Array<string>();
+    for (let i = 0; i < existing_chart.seats.length; i++) {
+        let found = false;
+        for (let j = 0; j < seats.length; j++) {
+            if (existing_chart.seats[i]!.id == seats[j]!.id) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            removed_seat_ids.push(existing_chart.seats[i]!.id);
+        }
+    }
+
+    // TODO: removed students
+
     const res = await Promise.allSettled([
         tx.set(Keys.SeatingChart.by_id(chart.id), base),
         ...students.map((student) =>
@@ -159,6 +176,9 @@ async function seating_chart_save_inner(
                 Keys.SeatingChart.Student.by_id(chart.id, student.id),
                 student
             )
+        ),
+        ...removed_seat_ids.map((seat_id) =>
+            tx.del(Keys.SeatingChart.Seat.by_id(chart.id, seat_id))
         ),
         ...seats.map((seat) =>
             tx.set(Keys.SeatingChart.Seat.by_id(chart.id, seat.id), seat)
@@ -179,10 +199,7 @@ export async function seating_chart_save(chart: SeatingChart) {
 // }}}
 
 // {{{ queries
-export async function query_seating_chart_get(
-    tx: TxAny,
-    chart_id: string
-) {
+export async function query_seating_chart_get(tx: TxAny, chart_id: string) {
     const seats_query = tx
         .scan({ prefix: Keys.SeatingChart.Seat.prefix(chart_id) })
         .toArray() as Promise<Array<Seat>>;
