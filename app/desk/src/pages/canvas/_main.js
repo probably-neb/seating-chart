@@ -1991,11 +1991,25 @@ async function init() {
     // }}}
 
     // {{{ autosave
+
     console.log("starting save interval", AUTOSAVE_INTERVAL_MS);
     const _save_interval_handle = setInterval(save_chart, AUTOSAVE_INTERVAL_MS);
 
     const save_button = document.getElementById("save-button");
-    save_button.onclick = () => save_chart();
+
+    const do_save = () => save_chart()
+
+    save_button.onclick = do_save;
+    window.addEventListener("beforeunload", do_save);
+    window.addEventListener("popstate", do_save)
+    window.addEventListener("pagehide", do_save)
+
+    document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState == "hidden") {
+            await save_chart();
+        }
+    });
+
     // }}}
 
 }
