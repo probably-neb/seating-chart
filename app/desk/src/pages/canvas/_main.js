@@ -1758,7 +1758,7 @@ async function init() {
             const [offsetX, offsetY] = elem_drag_offset_get(event.target);
 
             const gridCellPx = grid_cell_px_get();
-            const [gridW, gridH] = grid_dims_get();
+            const [grid_cols, grid_rows] = grid_dims_get();
 
             const gridX = clamp(
                 Math.round(
@@ -1769,7 +1769,7 @@ async function init() {
                         gridCellPx
                 ),
                 0,
-                gridW
+                grid_cols
             );
             const gridY = clamp(
                 Math.round(
@@ -1780,7 +1780,7 @@ async function init() {
                         gridCellPx
                 ),
                 0,
-                gridH
+                grid_rows
             );
 
             const {
@@ -1895,10 +1895,10 @@ async function init() {
             );
             // debugger;
 
-            const [gridW, gridH] = grid_dims_get();
+            const [grid_cols, grid_rows] = grid_dims_get();
 
-            const startX = Math.round(gridW / 2);
-            const startY = Math.round(gridH / 2);
+            const startX = Math.round(grid_cols / 2);
+            const startY = Math.round(grid_rows / 2);
             const endX = startX + selection_data.width;
             const endY = startY + selection_data.height;
 
