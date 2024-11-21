@@ -35,7 +35,6 @@ const SEAT_ID_PREFIX = "drag-";
 
 const SEAT_DATA_STUDENT_DROP_INDICATION = "studentdragover";
 
-let next_seat_id = 0;
 let seat_refs = [];
 
 const seat_preview_ref = document.createElement("div");
@@ -72,7 +71,7 @@ const invisible_drag_preview = document.createElement("span");
 }
 
 // student
-const STUDENT_DATA_SEAT_INDEX = "seatindex";
+const STUDENT_DATA_SEAT_ID = "seatid";
 const student_refs = [];
 
 // zoom
@@ -90,6 +89,7 @@ const STUDENT_CLASSLIST_SIDEBAR =
 const STUDENT_CLASSLIST_SEATING =
     "border-2 border-black rounded-md w-min px-2 py-1 flex items-center justify-center font-semibold text-xs bg-white text-black break-normal";
 
+/** @returns {asserts val} */
 function assert(val, ...msg) {
     if (val) return;
     console.error("Assertion failed: ", ...msg);
@@ -597,15 +597,14 @@ function seat_grid_pos_revert_to_abs_loc(seat_ref) {
 /**
  * Get the absolute location of the seat, regardless of selection status.
  * Will not effect the transform (visual location)
- * used for storage only
  */
 function seat_abs_loc_set(seat_ref, gridX, gridY) {
+    assert(is_seat_ref(seat_ref), "seat_ref is seat", seat_ref);
+    assert(Number.isSafeInteger(gridX), "gridX is int", gridX);
+    assert(Number.isSafeInteger(gridY), "gridY is int", gridY);
+
     seat_ref.dataset.x = gridX;
     seat_ref.dataset.y = gridY;
-
-    // PERF: come up with a better way to get this, maybe have a map of seat refs to indices
-    const seat_index = seat_refs.indexOf(seat_ref);
-    assert(seat_index != -1, "seat_index not -1", seat_index);
 }
 
 /**
@@ -661,8 +660,7 @@ function unseated_students_get() {
  */
 function seat_student_get(seat_ref) {
     const students = seat_ref.querySelectorAll("[data-student]"); // TODO: constant
-    // FIXME: uncomment once swap implemented
-    // assert(students.length <= 1, "no more than 1 student per seat", students)
+    assert(students.length <= 1, "no more than 1 student per seat", students)
     if (students.length === 0) {
         return null;
     }
@@ -676,9 +674,8 @@ function seat_student_get(seat_ref) {
 function seat_student_set(seat_ref, student_ref) {
     student_ref.className = STUDENT_CLASSLIST_SEATING;
     seat_ref.appendChild(student_ref);
-    const seat_index = seat_refs.indexOf(seat_ref);
-    assert(seat_index != -1, "seat_ref is in seat_refs", seat_ref, seat_refs);
-    student_ref.dataset[STUDENT_DATA_SEAT_INDEX] = seat_index;
+    // TODO: assert seat_ref.id is valid id
+    student_ref.dataset[STUDENT_DATA_SEAT_ID] = seat_ref.id;
 }
 
 /**
@@ -692,12 +689,12 @@ function seat_student_pop(seat_ref) {
     }
 
     assert(
-        STUDENT_DATA_SEAT_INDEX in student.dataset,
+        STUDENT_DATA_SEAT_ID in student.dataset,
         "seat-index in student dataset",
         student.dataset
     );
 
-    delete student.dataset[STUDENT_DATA_SEAT_INDEX];
+    delete student.dataset[STUDENT_DATA_SEAT_ID];
     return student;
 }
 
@@ -749,6 +746,18 @@ function seat_student_transfer(dest_seat_ref, student_ref) {
     seat_student_set(dest_seat_ref, student_ref);
 }
 
+/** @returns {elem is HTMLDivElement} */
+function is_seat_ref(elem) {
+    return elem != null && elem instanceof HTMLDivElement && SEAT_DATA_IDENTIFIER in elem.dataset;
+}
+
+function seat_ref_get_by_id(seat_id) {
+    const seat_ref = document.getElementById(seat_id);
+    assert(seat_ref != null, "seat ref not null", seat_id, seat_ref);
+    assert(is_seat_ref(seat_ref), "seat ref is seat", seat_id, seat_ref);
+    return seat_ref;
+}
+
 function seat_create(gridX, gridY, id = null) {
     const element = document.createElement("div");
     const elementClassName =
@@ -760,7 +769,6 @@ function seat_create(gridX, gridY, id = null) {
     element.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
     element.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
     element.dataset[SEAT_DATA_IDENTIFIER] = "";
-    const seat_index = seat_refs.length;
     seat_refs.push(element);
 
     const gridCellPx = grid_cell_px_get();
@@ -772,6 +780,9 @@ function seat_create(gridX, gridY, id = null) {
     seat_loc_set(element, snapX, snapY);
 
     element.ondragstart = function (event) {
+        const seat_ref = event.currentTarget;
+        assert(is_seat_ref(seat_ref), "seat ref is seat", seat_ref);
+
         dbg_clear_all_dots();
         console.log("DRAG SEAT START", element.dataset);
         if ("selected" in element.dataset) {
@@ -781,7 +792,7 @@ function seat_create(gridX, gridY, id = null) {
 
         selection_clear();
 
-        event.dataTransfer.setData("text/plain", seat_index);
+        event.dataTransfer.setData("text/plain", seat_ref.id); // TODO: deskribe/id mime type
         event.dataTransfer.setData(
             DRAG_DATA_TYPE_KIND,
             DRAG_DATA_TYPE_KIND_SEAT
@@ -917,6 +928,10 @@ function seat_create(gridX, gridY, id = null) {
         seat_student_drop_indication_disable(seat_ref);
     };
 
+    element.onkeydown = function (event) {
+        console.log("seat keydown", event.key, event.code);
+    }
+
     return element;
 }
 
@@ -954,7 +969,7 @@ function elem_apply_onetime_transition(elem, transition) {
             );
             delete elem.style.transition;
         }
-        element.removeEventListener("transitionend", cleanUp);
+        elem.removeEventListener("transitionend", cleanUp);
     });
 }
 
@@ -1185,24 +1200,21 @@ function elem_drag_offset_clear(elem) {
 
 function container_handle_drop_seat(event) {
     event.preventDefault();
-    const idStr = event.dataTransfer.getData("text/plain");
-    const id = Number.parseInt(idStr);
-    assert(Number.isSafeInteger(id), "id is integer", `'${idStr}'`, id);
-    console.log("ON DROP", id);
+    const seat_id = event.dataTransfer.getData("text/plain");
+    console.log("ON DROP", seat_id);
     assert(containerDomRect != null, "containerDomRect not null");
 
-    const element = seat_refs[id];
-    assert(element != null, "element not null");
+    const seat_ref = seat_ref_get_by_id(seat_id);
 
     assert(seat_preview_ref != null, "preview not null");
 
     const [gridX, gridY] = elem_grid_pos_get(seat_preview_ref);
 
-    seat_loc_set(element, gridX, gridY);
+    seat_loc_set(seat_ref, gridX, gridY);
 
-    element.style.zIndex = 0;
+    seat_ref.style.zIndex = 0;
 
-    container_ref.appendChild(element);
+    container_ref.appendChild(seat_ref);
 
     seat_preview_ref.style.display = "none";
 }
@@ -1268,33 +1280,29 @@ function elem_make_invisible(elem) {
 }
 
 function elem_make_visible(elem) {
+    if (elem.style.getPropertyValue("visibility") != "hidden") return;
     elem.style.removeProperty("visibility");
 }
 
 function student_seat_get(student_ref) {
-    const seat_index_str = student_ref.dataset[STUDENT_DATA_SEAT_INDEX];
-    if (!seat_index_str) {
+    const seat_id = student_ref.dataset[STUDENT_DATA_SEAT_ID];
+    if (!seat_id) {
         return null;
     }
-    const seat_index = Number.parseInt(seat_index_str);
-    assert(
-        Number.isSafeInteger(seat_index),
-        "seat_index is safe integer",
-        seat_index
-    );
-
-    return seat_refs[seat_index];
+    return seat_ref_get_by_id(seat_id);
 }
 
 function student_make_unseated(student_ref) {
     student_ref.className = STUDENT_CLASSLIST_SIDEBAR;
-    sidebar_student_list_ref.appendChild(student_ref);
+
     assert(
-        STUDENT_DATA_SEAT_INDEX in student_ref.dataset,
+        STUDENT_DATA_SEAT_ID in student_ref.dataset,
         "student to be unseated must be in seat",
         student_ref
     );
-    delete student_ref.dataset[STUDENT_DATA_SEAT_INDEX];
+    delete student_ref.dataset[STUDENT_DATA_SEAT_ID];
+
+    sidebar_student_list_ref.appendChild(student_ref);
 }
 
 function student_create(name, id = null) {
