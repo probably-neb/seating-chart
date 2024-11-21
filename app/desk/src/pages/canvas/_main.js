@@ -1568,7 +1568,8 @@ async function init() {
             grid_cell_px_adjust(-event.deltaY / 250);
             // TODO: center zoom on mouse position
 
-            // event.preventDefault();
+            // TODO: consider this more deeply. Breaks site zoom when mouse over canvas
+            event.preventDefault();
         });
     }
     // }}}
