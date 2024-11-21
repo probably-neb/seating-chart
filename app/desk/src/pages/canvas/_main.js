@@ -37,8 +37,6 @@ const SEAT_DATA_STUDENT_DROP_INDICATION = "studentdragover";
 
 let next_seat_id = 0;
 let seat_refs = [];
-// FIXME: remove - calculate on demand using `seat_abs_loc_get`
-let seat_locs = [];
 
 const seat_preview_ref = document.createElement("div");
 
@@ -332,10 +330,13 @@ function selection_clear() {
     is_creating_selection = false;
 }
 
-// PERF: use IntersectionObserver instead of manual calculation
+// ?PERF: use IntersectionObserver instead of manual calculation
+/**
+ * @returns {Array<{gridX: number, gridY: number} | null>} Array with same length as seat_refs where indices corresponding to selected seats in seat_refs are the offsets from the start of the selection
+ */
 function selected_seats_compute() {
     assert(selected_region != null);
-    console.log({ selected_region });
+    // console.log({ selected_region });
     const {
         start: { gridX: startX, gridY: startY },
         end: { gridX: endX, gridY: endY },
@@ -345,19 +346,21 @@ function selected_seats_compute() {
         return [];
     }
 
-    const selected_seats = new Array();
+    const selected_seats = new Array(seat_refs.length).fill(null);
 
-    for (let i = 0; i < seat_locs.length; i++) {
-        const seat_loc = seat_locs[i];
-        if (seat_loc == null) {
+    for (let i = 0; i < seat_refs.length; i++) {
+        const seat_ref = seat_refs[i];
+        if (seat_ref == null) {
             continue;
         }
+        const [seat_gridX, seat_gridY] = seat_abs_loc_get(seat_ref);
+
         // adjust by 1 so selection must be inside of seat not just adjacent
         // to count as selection
-        const seat_left = seat_loc.gridX + 1;
-        const seat_top = seat_loc.gridY + 1;
-        const seat_right = seat_loc.gridX + SEAT_GRID_W - 1;
-        const seat_bottom = seat_loc.gridY + SEAT_GRID_H - 1;
+        const seat_left = seat_gridX + 1;
+        const seat_top = seat_gridY + 1;
+        const seat_right = seat_gridX + SEAT_GRID_W - 1;
+        const seat_bottom = seat_gridY + SEAT_GRID_H - 1;
 
         const corners = [
             [seat_left, seat_top],
@@ -377,8 +380,8 @@ function selected_seats_compute() {
         }
         if (is_in_selection) {
             const seatSelectionOffset = {
-                gridX: seat_loc.gridX - startX,
-                gridY: seat_loc.gridY - startY,
+                gridX: seat_gridX - startX,
+                gridY: seat_gridY - startY,
             };
             selected_seats[i] = seatSelectionOffset;
         }
@@ -483,7 +486,7 @@ function dbg_sleep(milliseconds) {
     }
 }
 
-function closest_non_overlapping_pos(dragging_index, absX, absY) {
+function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
     // console.time("closest non overlapping pos circ");
 
     const [grid_cols, grid_rows] = grid_dims_get();
@@ -491,15 +494,14 @@ function closest_non_overlapping_pos(dragging_index, absX, absY) {
         let is_not_overlapping = true;
         if (gridX < 0 || gridX > grid_cols - SEAT_GRID_W) return false;
         if (gridY < 0 || gridY > grid_rows - SEAT_GRID_H) return false;
-        for (let i = 0; i < seat_locs.length && is_not_overlapping; i++) {
-            if (i === dragging_index) continue; // Skip the actively dragging seat
-
-            const seat_loc = seat_locs[i];
-            if (seat_loc == null) continue;
+        for (let i = 0; i < seat_refs.length && is_not_overlapping; i++) {
+            const seat_ref = seat_refs[i];
+            if (seat_ref == null || seat_ref == dragging_seat_ref) continue;
+            const [seat_gridX, seat_gridY] = seat_abs_loc_get(seat_ref);
 
             const is_overlapping =
-                Math.abs(gridX - seat_loc.gridX) < SEAT_GRID_W &&
-                Math.abs(gridY - seat_loc.gridY) < SEAT_GRID_H;
+                Math.abs(gridX - seat_gridX) < SEAT_GRID_W &&
+                Math.abs(gridY - seat_gridY) < SEAT_GRID_H;
 
             is_not_overlapping = !is_overlapping;
         }
@@ -604,13 +606,6 @@ function seat_abs_loc_set(seat_ref, gridX, gridY) {
     // PERF: come up with a better way to get this, maybe have a map of seat refs to indices
     const seat_index = seat_refs.indexOf(seat_ref);
     assert(seat_index != -1, "seat_index not -1", seat_index);
-
-    if (seat_locs[seat_index] != null) {
-        seat_locs[seat_index].gridX = gridX;
-        seat_locs[seat_index].gridY = gridY;
-    } else {
-        seat_locs[seat_index] = { gridX, gridY };
-    }
 }
 
 /**
@@ -770,7 +765,7 @@ function seat_create(gridX, gridY, id = null) {
 
     const gridCellPx = grid_cell_px_get();
     const { gridX: snapX, gridY: snapY } = closest_non_overlapping_pos(
-        id,
+        element,
         gridX * gridCellPx,
         gridY * gridCellPx
     );
@@ -823,7 +818,7 @@ function seat_create(gridX, gridY, id = null) {
 
         element.style.transform = `translate(${x}px, ${y}px)`;
 
-        const snapped_loc = closest_non_overlapping_pos(seat_index, x, y);
+        const snapped_loc = closest_non_overlapping_pos(element, x, y);
         {
             assert(seat_preview_ref != null, "preview not null");
             elem_grid_pos_set(
@@ -1437,10 +1432,16 @@ async function init() {
     Replicache.ensure_init();
 
     // {{{ load
-    const url_path = window.location.pathname.replace(/\/$/, '') // pathname without trailing slash;
-    chart_id = url_path.split('/').at(-1);
+    const url_path = window.location.pathname.replace(/\/$/, ""); // pathname without trailing slash;
+    chart_id = url_path.split("/").at(-1);
     assert(chart_id, "chart_id", chart_id);
-    assert(chart_id.length == ID.LENGTH, "chart_id.length is", ID.length, "not", chart_id.length);
+    assert(
+        chart_id.length == ID.LENGTH,
+        "chart_id.length is",
+        ID.length,
+        "not",
+        chart_id.length
+    );
 
     let initial_chart_data = {
         id: chart_id,
@@ -1456,13 +1457,12 @@ async function init() {
         initial_chart_data = existing_chart_data;
     }
 
-    console.log({initial_chart_data})
+    console.log({ initial_chart_data });
 
     // }}}
 
     // {{{ container
     {
-
         const gridCellPx_initial = Math.floor(
             (0.8 * window.innerWidth) / initial_chart_data.cols
         );
@@ -1475,8 +1475,14 @@ async function init() {
         );
         container_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
         container_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
-        container_ref.style.setProperty(GRID_PROP_COLS, initial_chart_data.cols);
-        container_ref.style.setProperty(GRID_PROP_ROWS, initial_chart_data.rows);
+        container_ref.style.setProperty(
+            GRID_PROP_COLS,
+            initial_chart_data.cols
+        );
+        container_ref.style.setProperty(
+            GRID_PROP_ROWS,
+            initial_chart_data.rows
+        );
         container_ref.style.width = grid_cell_px_dim(GRID_PROP_COLS);
         container_ref.style.height = grid_cell_px_dim(GRID_PROP_ROWS);
 
@@ -1513,18 +1519,23 @@ async function init() {
     {
         const seats = initial_chart_data.seats;
         for (const seat of seats) {
-            container.appendChild(seat_create(seat.gridX, seat.gridY, seat.id))
+            container.appendChild(seat_create(seat.gridX, seat.gridY, seat.id));
         }
 
         const students = initial_chart_data.students;
         for (const student of students) {
-            const student_ref = student_create(student.name, student.id)
+            const student_ref = student_create(student.name, student.id);
             if (student.seatID == null) {
                 sidebar_student_list_ref.appendChild(student_ref);
                 continue;
-            } 
-            const seat_ref = document.getElementById(student.seatID)
-            assert(seat_ref != null, "student seatID seat exists", student, initial_chart_data);
+            }
+            const seat_ref = document.getElementById(student.seatID);
+            assert(
+                seat_ref != null,
+                "student seatID seat exists",
+                student,
+                initial_chart_data
+            );
             seat_student_set(seat_ref, student_ref);
         }
     }
@@ -1997,12 +2008,12 @@ async function init() {
 
     const save_button = document.getElementById("save-button");
 
-    const do_save = () => save_chart()
+    const do_save = () => save_chart();
 
     save_button.onclick = do_save;
     window.addEventListener("beforeunload", do_save);
-    window.addEventListener("popstate", do_save)
-    window.addEventListener("pagehide", do_save)
+    window.addEventListener("popstate", do_save);
+    window.addEventListener("pagehide", do_save);
 
     document.addEventListener("visibilitychange", async () => {
         if (document.visibilityState == "hidden") {
@@ -2011,7 +2022,6 @@ async function init() {
     });
 
     // }}}
-
 }
 
 init();
