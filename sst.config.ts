@@ -41,6 +41,7 @@ export default $config({
             link: [desk],
             dev: {
                 command: "bun dev",
+                autostart: false,
             }
         })
     },
