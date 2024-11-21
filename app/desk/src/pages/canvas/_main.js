@@ -352,8 +352,10 @@ function selected_seats_compute() {
         if (seat_loc == null) {
             continue;
         }
-        const seat_left = seat_loc.gridX;
-        const seat_top = seat_loc.gridY;
+        // adjust by 1 so selection must be inside of seat not just adjacent
+        // to count as selection
+        const seat_left = seat_loc.gridX + 1;
+        const seat_top = seat_loc.gridY + 1;
         const seat_right = seat_loc.gridX + SEAT_GRID_W - 1;
         const seat_bottom = seat_loc.gridY + SEAT_GRID_H - 1;
 
