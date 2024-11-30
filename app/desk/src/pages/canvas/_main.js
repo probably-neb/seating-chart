@@ -764,7 +764,7 @@ function seat_ref_get_by_id(seat_id) {
 function seat_create(gridX, gridY, id = null) {
     const element = document.createElement("div");
     const elementClassName =
-        "bg-indigo-400 border-2 border-indigo-500 text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-blue-500 data-[studentdragover]:border-green-500 flex items-center justify-center focus:ring-2 focus:ring-blue-500";
+        "bg-cerulean border-2 border-cerulean-dark text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-cerulean-light data-[studentdragover]:border-cerulean-light data-[studentdragover]:border-4 data-[invalid]:border-melon-dark flex items-center justify-center focus:ring-2 focus:ring-blue-500";
     element.className = elementClassName;
     element.id = id ?? ID.generate_for("seat");
     element.tabIndex = 0;
@@ -1495,7 +1495,7 @@ async function init() {
         );
 
         // TODO: init all "*_initial" grid properties here
-        container_ref.className = "relative bg-white";
+        container_ref.className = "relative bg-floral-white";
         container_ref.style.setProperty(
             "--grid-cell-px",
             gridCellPx_initial + "px"
@@ -1653,7 +1653,7 @@ async function init() {
     {
         selection_ref.id = "selection";
         selection_ref.className =
-            "absolute bg-blue-300/40 ring-2 ring-blue-500 z-5";
+            "absolute bg-moonstone/20 ring-2 ring-moonstone-dark z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
         selection_ref.style.display = "none";
         selection_ref.draggable = true;
         container_ref.appendChild(selection_ref);

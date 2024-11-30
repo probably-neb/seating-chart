@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* https://coolors.co/palette/227c9d-1da0a8-17c3b2-ffcb77-ffe2b3-fef9ef-feb3b1-fe6d73 */
+        --cerulean: 196 64% 37%;
+        --cerulean-dark: 196 64% 25%;
+        --cerulean-light: 196 64% 45%;
+        --moonstone: 183 71% 39%;
+        --moonstone-dark: 183 71% 29%;
+        --light-sea-green: 174 79% 43%;
+        --light-sea-green-dark: 174 79% 33%;
+        --sunset: 37 100% 73%;
+        --sunset-light: 37 100% 83%;
+        --sunset-dark: 37 100% 53%;
+        --sunset-dark-extra: 37 100% 33%;
+        --peach: 37 100% 85%;
+        --floral-white: 40 88% 97%;
+        --floral-white-dark: 40 88% 97%;
+        --melon: 2 97% 85%;
+        --melon-dark: 2 97% 75%;
+        --light-red: 358 99% 71%;
+    }
+}
