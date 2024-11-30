@@ -149,23 +149,28 @@ async function seating_chart_save_inner(
     const seats = chart.seats;
     const students = chart.students;
 
-    const existing_chart = await query_seating_chart_get(tx, chart.id);
-
     const removed_seat_ids = new Array<string>();
-    for (let i = 0; i < existing_chart.seats.length; i++) {
-        let found = false;
-        for (let j = 0; j < seats.length; j++) {
-            if (existing_chart.seats[i]!.id == seats[j]!.id) {
-                found = true;
-                break;
+
+    if (await tx.has(Keys.SeatingChart.by_id(chart.id))) {
+        const existing_chart = await query_seating_chart_get(tx, chart.id);
+
+
+        for (let i = 0; i < existing_chart.seats.length; i++) {
+            let found = false;
+            for (let j = 0; j < seats.length; j++) {
+                if (existing_chart.seats[i]!.id == seats[j]!.id) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                removed_seat_ids.push(existing_chart.seats[i]!.id);
             }
         }
-        if (!found) {
-            removed_seat_ids.push(existing_chart.seats[i]!.id);
-        }
+
+        // TODO: removed students
     }
 
-    // TODO: removed students
 
     const res = await Promise.allSettled([
         tx.set(Keys.SeatingChart.by_id(chart.id), base),
@@ -220,6 +225,7 @@ export async function query_seating_chart_get(tx: TxAny, chart_id: string) {
     } satisfies SeatingChart;
     return res;
 }
+
 export async function seating_chart_get(chart_id: string) {
     const rep = get_assert_init();
     const chart_does_exist = await rep.query((tx) =>
