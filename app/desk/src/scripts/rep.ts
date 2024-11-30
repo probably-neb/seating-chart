@@ -1,7 +1,5 @@
 import {
     Replicache,
-    TEST_LICENSE_KEY,
-    type DeepReadonly,
     type ReadonlyJSONObject,
     type ReadTransaction,
     type WriteTransaction,

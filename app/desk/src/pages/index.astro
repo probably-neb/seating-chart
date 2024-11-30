@@ -89,7 +89,7 @@ import Layout from "@/layout.astro"
 
     const new_chart_id = ID.generate_for("chart");
     const new_chart_href = "/canvas/" + new_chart_id;
-    document.getElementById("create-chart")!.href = new_chart_href;
+    document.getElementById("create-chart")!.setAttribute("href", new_chart_href);
 </script>
 <div class="px-4 py-8 bg-white text-black w-full h-full">
       <header class="flex justify-between items-center mb-8">
