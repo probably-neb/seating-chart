@@ -903,9 +903,14 @@ function seat_create(gridX, gridY, id = null) {
     element.ondragend = function (event) {
         preview_hide();
 
-        const seat = event.currentTarget;
+        const seat_ref = event.target;
 
-        elem_drag_offset_clear(seat);
+        if (!is_seat_ref(seat_ref)) {
+            console.warn("drag end bubbled from non-seat", seat_ref);
+            return;
+        }
+
+        elem_drag_offset_clear(seat_ref);
         if (event.dataTransfer.dropEffect !== "none") {
             // drop succeeded
             return;
@@ -913,10 +918,10 @@ function seat_create(gridX, gridY, id = null) {
         // drop failed
 
         elem_apply_onetime_transition(
-            event.currentTarget,
+            seat_ref,
             "transform 0.3s ease-out"
         );
-        seat_grid_pos_revert_to_abs_loc(element);
+        seat_grid_pos_revert_to_abs_loc(seat_ref);
         // const abs_loc = seat_abs_loc_get(element);
     };
 
@@ -1036,6 +1041,8 @@ function elem_apply_onetime_transition(elem, transition) {
 
     elem.addEventListener("transitionend", function cleanUp() {
         if (elem.style.transition !== transition) {
+            elem.removeEventListener("transitionend", cleanUp);
+            elem.style.removeProperty("--prev-transition");
             return;
         }
         const prev = elem.style.getPropertyValue("--prev-transition");
@@ -1052,6 +1059,7 @@ function elem_apply_onetime_transition(elem, transition) {
             );
             delete elem.style.transition;
         }
+        elem.style.removeProperty("--prev-transition");
         elem.removeEventListener("transitionend", cleanUp);
     });
 }
@@ -1424,6 +1432,7 @@ function student_create(name, id = null) {
     student_ref.ondragend = function (event) {
         const student_ref = event.currentTarget;
         elem_make_visible(student_ref);
+        event.stopPropagation();
     };
 
     return student_ref;
