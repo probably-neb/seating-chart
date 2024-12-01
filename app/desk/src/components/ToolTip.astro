@@ -1,0 +1,34 @@
+<deskribe-tooltip class="inline-block relative">
+    <slot />
+    <div role="tooltip" inert class="pointer-events-none fixed z-50 transition-opacity duration-100 p-2 bg-floral-white-dark text-black ring-1 ring-black ring-offset-2" style="display: none; opacity: 0;">
+        <slot name="tooltip" />
+    </div>
+</deskribe-tooltip>
+
+<script>
+    class ToolTip extends HTMLElement {
+        connectedCallback() {
+            const tooltip_ref = this.querySelector("[role='tooltip']");
+            if (tooltip_ref == null) {
+                throw new Error("tooltip_ref not found");
+            }
+
+            this.addEventListener("mouseenter", () => {
+                // Position tooltip relative to the trigger element
+                const triggerRect = this.getBoundingClientRect();
+                tooltip_ref.style.left = `${triggerRect.left + triggerRect.width / 2}px`;
+                tooltip_ref.style.top = `${triggerRect.bottom + 4}px`; // 4px gap
+                tooltip_ref.style.transform = "translate(-50%)";
+                
+                tooltip_ref.style.display = "block";
+                tooltip_ref.style.opacity = "1";
+            });
+
+            this.addEventListener("mouseleave", () => {
+                tooltip_ref.style.display = "none";
+                tooltip_ref.style.opacity = "0";
+            });
+        }
+    }
+    customElements.define("deskribe-tooltip", ToolTip);
+</script>
