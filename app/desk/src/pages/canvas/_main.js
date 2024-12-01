@@ -998,6 +998,11 @@ function seat_create(gridX, gridY, id = null) {
     return element;
 }
 
+/**
+ * @param {HTMLElement} seat_ref
+ * 
+ * removes seat from canvas and unseats any student in the seat
+ */
 function seat_delete(seat_ref) {
     assert(is_seat_ref(seat_ref), "seat_ref is seat", seat_ref);
     const maybe_student_ref = seat_student_get(seat_ref);
@@ -1006,7 +1011,9 @@ function seat_delete(seat_ref) {
     }
 
     const seat_ref_index = seat_refs.indexOf(seat_ref);
-    seat_refs.splice(seat_ref_index, 1);
+    if (seat_ref_index !== -1) {
+        seat_refs.splice(seat_ref_index, 1);
+    }
 
     seat_ref.remove();
 }
@@ -2080,6 +2087,29 @@ async function init() {
             sidebar_student_list_ref.appendChild(student_create(name));
             sidebar_student_input.focus();
         };
+
+        sidebar_ref.querySelector("#clear-button").addEventListener("click", () => {
+            while (seat_refs.length > 0) {
+                const seat_ref = seat_refs.pop();
+                if (!is_seat_ref(seat_ref)) {
+                    continue;
+                }
+                seat_delete(seat_ref);
+            }
+        });
+
+        sidebar_ref.querySelector("#clear-students-button").addEventListener("click", () => {
+            for (let i = 0; i < seat_refs.length; i++) {
+                const seat_ref = seat_refs[i];
+                if (!is_seat_ref(seat_ref)) {
+                    continue;
+                }
+                const student_ref = seat_student_get(seat_ref);
+                if (student_ref) {
+                    student_make_unseated(student_ref);
+                }
+            }
+        });
     }
     // }}}
 
