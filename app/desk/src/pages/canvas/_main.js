@@ -912,7 +912,6 @@ function seat_create(gridX, gridY, id = null) {
 
         elem_drag_offset_clear(seat_ref);
         if (event.dataTransfer.dropEffect !== "none") {
-            // drop succeeded
             return;
         }
         // drop failed
@@ -1301,11 +1300,20 @@ function container_handle_drop_seat(event) {
 
     const [gridX, gridY] = elem_grid_pos_get(seat_preview_ref);
 
+    const [orig_gridX, orig_gridY] = seat_abs_loc_get(seat_ref);
+
     seat_loc_set(seat_ref, gridX, gridY);
 
     seat_ref.style.zIndex = 0;
 
     container_ref.appendChild(seat_ref);
+
+    action_stack_push({
+        kind: "seat-move",
+        seat_id: seat_ref.id,
+        from: { gridX: orig_gridX, gridY: orig_gridY },
+        dest: { gridX, gridY },
+    });
 
     seat_preview_ref.style.display = "none";
 }
@@ -1469,6 +1477,61 @@ function grid_dims_get() {
 }
 
 containerDomRect = container_ref.getBoundingClientRect();
+
+// {{{ Action Stack
+/** @type {number} */
+let action_stack_index = 0;
+
+/** @type {Array<Action>} */
+let action_stack = [];
+
+/**
+ * @typedef {MoveSeatAction} Action
+ */
+
+/**
+ * @typedef {Object} GridPoint
+ * @property {number} gridX
+ * @property {number} gridY
+ */
+
+/**
+ * @typedef {Object} MoveSeatAction
+ * @property {'seat-move'} kind
+ * @property {string} seat_id
+ * @property {GridPoint | null} from  null if new seat
+ * @property {GridPoint} dest
+ */
+
+function action_stack_push(action) {
+    action_stack.push(action);
+    action_stack_index = action_stack.length - 1;
+}
+
+function action_stack_undo() {
+    if (action_stack_index == 0) {
+        return;
+    }
+    const action = action_stack[action_stack_index];
+    switch (action.kind) {
+        case "seat-move":
+            const seat_ref = seat_ref_get_by_id(action.seat_id);
+            if (action.from == null) {
+                seat_delete(seat_ref);
+            } else {
+                seat_loc_set(seat_ref, action.from.gridX, action.from.gridY);
+            }
+                
+            break;
+        default:
+            assert(false, "tried to undo unknown action kind", action);
+    }
+    action_stack_index--;
+}
+
+
+
+//}}}
 
 async function save_chart() {
     console.time("save_chart");
@@ -2141,6 +2204,17 @@ async function init() {
             await save_chart();
         }
     });
+
+    // }}}
+
+    // {{{ action stack
+    document.addEventListener("keydown", function (event) {
+        if (event.key == "z" && event.ctrlKey) {
+            console.log("undo");
+            action_stack_undo();
+        }
+    });
+    // TODO: redo
 
     // }}}
 }
