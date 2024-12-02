@@ -76,6 +76,7 @@ const invisible_drag_preview = document.createElement("span");
 // student
 const STUDENT_DATA_SEAT_ID = "seatid";
 const student_refs = [];
+const STUDENT_DATA_IDENTIFIER = "student";
 
 // zoom
 const ZOOM_BTN_SCALE_FACTOR = 0.1;
@@ -578,13 +579,13 @@ function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
         for (let angle = 0; angle < 360; angle++) {
             const x = Math.round(
                 centerX +
-                    radius * Math.cos((angle * Math.PI) / 180) -
-                    SEAT_GRID_W / 2
+                radius * Math.cos((angle * Math.PI) / 180) -
+                SEAT_GRID_W / 2
             );
             const y = Math.round(
                 centerY +
-                    radius * Math.sin((angle * Math.PI) / 180) -
-                    SEAT_GRID_H / 2
+                radius * Math.sin((angle * Math.PI) / 180) -
+                SEAT_GRID_H / 2
             );
 
             if (seat_is_valid_position(dragging_seat_ref, x, y)) {
@@ -985,6 +986,16 @@ function seat_create(gridX, gridY, id = null) {
         );
 
         const student_ref = student_refs[student_index];
+        {
+            const original_seat_ref = student_seat_get(student_ref);
+            if (original_seat_ref == null) {
+                action_stack_push({
+                    kind: "student-seat-assign",
+                    student_id: student_ref.id,
+                    seat_id: seat_ref.id,
+                });
+            }
+        }
         seat_student_transfer(seat_ref, student_ref);
 
         event.stopPropagation();
@@ -1126,7 +1137,7 @@ function elem_animate_move_swap(elem_ref, move, swapping_with_ref) {
 
     const distance = Math.sqrt(
         Math.pow(final_rect_x - initialRect.left, 2) +
-            Math.pow(final_rect_y - initialRect.top, 2)
+        Math.pow(final_rect_y - initialRect.top, 2)
     );
 
     const duration = distance / 1000;
@@ -1334,7 +1345,7 @@ function container_handle_drop_selection(event) {
                 containerDomRect.left -
                 offsetX +
                 container_ref.scrollLeft) /
-                gridCellPx
+            gridCellPx
         ),
         0,
         grid_cols
@@ -1345,7 +1356,7 @@ function container_handle_drop_selection(event) {
                 containerDomRect.top -
                 offsetY +
                 container_ref.scrollTop) /
-                gridCellPx
+            gridCellPx
         ),
         0,
         grid_rows
@@ -1386,6 +1397,22 @@ function student_seat_get(student_ref) {
     return seat_ref_get_by_id(seat_id);
 }
 
+/** @returns {elem is HTMLDivElement} */
+function is_student_ref(elem) {
+    return elem != null && elem instanceof HTMLDivElement && STUDENT_DATA_IDENTIFIER in elem.dataset;
+}
+
+/**
+ * @param {string} student_id
+ * @returns {HTMLDivElement}
+ */
+function student_ref_get_by_id(student_id) {
+    const student_ref = document.getElementById(student_id);
+    assert(student_ref != null, "student ref not null", student_id, student_ref);
+    assert(is_student_ref(student_ref), "student ref is student", student_id, student_ref);
+    return student_ref;
+}
+
 function student_make_unseated(student_ref) {
     student_ref.className = STUDENT_CLASSLIST_SIDEBAR;
 
@@ -1403,7 +1430,7 @@ function student_create(name, id = null) {
     const student_ref = document.createElement("div");
     student_ref.className = STUDENT_CLASSLIST_SIDEBAR;
     student_ref.textContent = name;
-    student_ref.dataset["student"] = "";
+    student_ref.dataset[STUDENT_DATA_IDENTIFIER] = "";
 
     student_ref.id = id ?? ID.generate_for("student");
 
@@ -1480,13 +1507,13 @@ containerDomRect = container_ref.getBoundingClientRect();
 
 // {{{ Action Stack
 /** @type {number} */
-let action_stack_index = 0;
+let action_stack_index = -1;
 
 /** @type {Array<Action>} */
 let action_stack = [];
 
 /**
- * @typedef {MoveSeatAction} Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create} Action
  */
 
 /**
@@ -1496,37 +1523,69 @@ let action_stack = [];
  */
 
 /**
- * @typedef {Object} MoveSeatAction
+ * @typedef {Object} Action_Seat_Move
  * @property {'seat-move'} kind
  * @property {string} seat_id
- * @property {GridPoint | null} from  null if new seat
+ * @property {GridPoint} from
  * @property {GridPoint} dest
  */
 
+/**
+ * @typedef {Object} Action_Seat_Create
+ * @property {'seat-create'} kind
+ * @property {string} seat_id
+ * @property {GridPoint} loc
+ */
+
+/**
+ * @typedef {Object} Action_Student_Seat_Assign
+ * @property {'student-seat-assign'} kind
+ * @property {string} student_id
+ * @property {string} seat_id
+ */
+
+
 function action_stack_push(action) {
-    action_stack.push(action);
+    if (action_stack_index < action_stack.length - 1) {
+        // TODO: this removes all undone actions, consider inserting here and
+        // then checking 
+        action_stack.splice(action_stack_index + 1, action_stack.length - action_stack_index - 1, action);
+    } else {
+        action_stack.push(action);
+    }
     action_stack_index = action_stack.length - 1;
+    console.log("action_stack_push", action_stack_index, action_stack.slice(0, action_stack_index), action_stack[action_stack_index],action_stack.slice(action_stack_index + 1));
 }
 
 function action_stack_undo() {
-    if (action_stack_index == 0) {
+    if (action_stack_index < 0) {
         return;
     }
     const action = action_stack[action_stack_index];
     switch (action.kind) {
         case "seat-move":
-            const seat_ref = seat_ref_get_by_id(action.seat_id);
-            if (action.from == null) {
-                seat_delete(seat_ref);
-            } else {
+            {
+                const seat_ref = seat_ref_get_by_id(action.seat_id);
                 seat_loc_set(seat_ref, action.from.gridX, action.from.gridY);
+                break;
             }
-                
-            break;
+        case "seat-create":
+            {
+                const seat_ref = seat_ref_get_by_id(action.seat_id);
+                seat_delete(seat_ref);
+                break;
+            }
+        case "student-seat-assign":
+            {
+                const student_ref = student_ref_get_by_id(action.student_id);
+                student_make_unseated(student_ref);
+                break;
+            }
         default:
             assert(false, "tried to undo unknown action kind", action);
     }
     action_stack_index--;
+    console.log("action_stack_undo", action_stack_index, action_stack.slice(0, action_stack_index), action_stack[action_stack_index],action_stack.slice(action_stack_index + 1));
 }
 
 
@@ -1752,7 +1811,13 @@ async function init() {
 
         add_seat_btn.addEventListener("click", () => {
             console.log("creating new seat");
-            container_ref.appendChild(seat_create(0, 0));
+            const seat_ref = seat_create(0, 0);
+            container_ref.appendChild(seat_ref);
+            action_stack_push({
+                kind: "seat-create",
+                seat_id: seat_ref.id,
+                loc: { gridX: 0, gridY: 0 },
+            });
         });
 
         container_ref.addEventListener("click", function (event) {
@@ -1778,7 +1843,15 @@ async function init() {
             const gridX = Math.round(center_gridX - SEAT_GRID_W / 2);
             const gridY = Math.round(center_gridY - SEAT_GRID_H / 2);
 
-            container_ref.appendChild(seat_create(gridX, gridY));
+            const seat_ref = seat_create(gridX, gridY);
+
+            container_ref.appendChild(seat_ref);
+
+            action_stack_push({
+                kind: "seat-create",
+                seat_id: seat_ref.id,
+                loc: { gridX, gridY },
+            });
         });
     }
     // }}}
@@ -1820,13 +1893,13 @@ async function init() {
                 (event.clientX -
                     containerDomRect.left +
                     container_ref.scrollLeft) /
-                    gridCellPx
+                gridCellPx
             );
             const gridY = Math.floor(
                 (event.clientY -
                     containerDomRect.top +
                     container_ref.scrollTop) /
-                    gridCellPx
+                gridCellPx
             );
             selected_region = {
                 start: { gridX, gridY },
@@ -1852,13 +1925,13 @@ async function init() {
                 (event.clientX -
                     containerDomRect.left +
                     container_ref.scrollLeft) /
-                    gridCellPx
+                gridCellPx
             );
             const gridY = Math.floor(
                 (event.clientY -
                     containerDomRect.top +
                     container_ref.scrollTop) /
-                    gridCellPx
+                gridCellPx
             );
             selected_region_end_set(gridX, gridY);
 
@@ -1879,13 +1952,13 @@ async function init() {
                 (event.clientX -
                     containerDomRect.left +
                     container_ref.scrollLeft) /
-                    gridCellPx
+                gridCellPx
             );
             const gridY = Math.floor(
                 (event.clientY -
                     containerDomRect.top +
                     container_ref.scrollTop) /
-                    gridCellPx
+                gridCellPx
             );
             selected_region_end_set(gridX, gridY);
 
@@ -1938,7 +2011,7 @@ async function init() {
                         containerDomRect.left -
                         offsetX +
                         container_ref.scrollLeft) /
-                        gridCellPx
+                    gridCellPx
                 ),
                 0,
                 grid_cols
@@ -1949,7 +2022,7 @@ async function init() {
                         containerDomRect.top -
                         offsetY +
                         container_ref.scrollTop) /
-                        gridCellPx
+                    gridCellPx
                 ),
                 0,
                 grid_rows
@@ -2055,15 +2128,15 @@ async function init() {
 
             assert(
                 "selected_offsets" in selection_data &&
-                    Array.isArray(selection_data.selected_offsets)
+                Array.isArray(selection_data.selected_offsets)
             );
             assert(
                 "width" in selection_data &&
-                    typeof selection_data.width == "number"
+                typeof selection_data.width == "number"
             );
             assert(
                 "height" in selection_data &&
-                    typeof selection_data.height == "number"
+                typeof selection_data.height == "number"
             );
             // debugger;
 
