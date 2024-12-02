@@ -994,6 +994,13 @@ function seat_create(gridX, gridY, id = null) {
                     student_id: student_ref.id,
                     seat_id: seat_ref.id,
                 });
+            } else {
+                action_stack_push({
+                    kind: "student-seat-transfer",
+                    student_id: student_ref.id,
+                    from_seat_id: original_seat_ref.id,
+                    to_seat_id: seat_ref.id,
+                });
             }
         }
         seat_student_transfer(seat_ref, student_ref);
@@ -1007,7 +1014,6 @@ function seat_create(gridX, gridY, id = null) {
         if (event.key === "Delete" || event.key === "Backspace") {
             seat_delete(event.currentTarget);
         }
-        console.log("seat keydown", event.key, event.code);
     }
 
     return element;
@@ -1544,6 +1550,14 @@ let action_stack = [];
  * @property {string} seat_id
  */
 
+/**
+ * @typedef {Object} Action_Student_Seat_Transfer
+ * @property {'student-seat-transfer'} kind
+ * @property {string} student_id
+ * @property {string} from_seat_id
+ * @property {string} to_seat_id
+ */
+
 
 function action_stack_push(action) {
     if (action_stack_index < action_stack.length - 1) {
@@ -1579,6 +1593,13 @@ function action_stack_undo() {
             {
                 const student_ref = student_ref_get_by_id(action.student_id);
                 student_make_unseated(student_ref);
+                break;
+            }
+        case "student-seat-transfer":
+            {
+                const student_ref = student_ref_get_by_id(action.student_id);
+                const from_seat_ref = seat_ref_get_by_id(action.from_seat_id);
+                seat_student_transfer(from_seat_ref,student_ref);
                 break;
             }
         default:
