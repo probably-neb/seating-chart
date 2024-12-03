@@ -9,7 +9,7 @@
     class ToolTip extends HTMLElement {
         connectedCallback() {
             const tooltip_ref = this.querySelector("[role='tooltip']");
-            if (tooltip_ref == null) {
+            if (tooltip_ref == null || !(tooltip_ref instanceof HTMLElement)) {
                 throw new Error("tooltip_ref not found");
             }
 
