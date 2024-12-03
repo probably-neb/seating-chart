@@ -1070,6 +1070,7 @@ function seat_create(gridX, gridY, id = null) {
  * @param {HTMLElement} seat_ref
  * 
  * removes seat from canvas and unseats any student in the seat
+ * TODO: have return student_id because it is often needed for undo action creation
  */
 function seat_delete(seat_ref) {
     assert(is_seat_ref(seat_ref), "seat_ref is seat", seat_ref);
@@ -1567,7 +1568,7 @@ let action_stack_index = -1;
 let action_stack = [];
 
 /**
- * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move } Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats} Action
  */
 
 /**
@@ -1630,6 +1631,18 @@ let action_stack = [];
  * @property {GridPoint} from_end
  * @property {GridPoint} dest_start
  * @property {GridPoint} dest_end
+ */
+
+/**
+ * @typedef {Object} Action_Clear_Students
+ * @property {'clear-students'} kind
+ * @property {Record<string, string>} student_id_to_seat_id
+ */
+
+/**
+ * @typedef {Object} Action_Clear_Seats
+ * @property {'clear-seats'} kind
+ * @property {Array<{id: string, gridX: number, gridY: number, student_id: string | null}>} seats
  */
 
 
@@ -1708,6 +1721,35 @@ function action_stack_undo() {
                 selected_region.start = action.from_start;
                 selected_region.end = action.from_end;
                 selection_update();
+                break;
+            }
+        case "clear-students":
+            {
+                for (const [student_id, seat_id] of Object.entries(action.student_id_to_seat_id)) {
+                    const student_ref = student_ref_get_by_id(student_id);
+                    if (!is_student_ref(student_ref)) {
+                        continue;
+                    }
+                    const seat_ref = seat_ref_get_by_id(seat_id);
+                    if (!is_seat_ref(seat_ref)) {
+                        continue;
+                    }
+                    seat_student_set(seat_ref, student_ref);
+                }
+                break;
+            }
+        case "clear-seats":
+            {
+                for (const seat of action.seats) {
+                    const seat_ref = seat_create(seat.gridX, seat.gridY, seat.id);
+                    if (seat.student_id != null) {
+                        const student_ref = student_ref_get_by_id(seat.student_id);
+                        if (is_student_ref(student_ref)) {
+                            seat_student_set(seat_ref, student_ref);
+                        }
+                    }
+                    container_ref.appendChild(seat_ref);
+                }
                 break;
             }
         default:
@@ -2420,26 +2462,44 @@ async function init() {
         };
 
         sidebar_ref.querySelector("#clear-button").addEventListener("click", () => {
+            const seats = [];
             while (seat_refs.length > 0) {
                 const seat_ref = seat_refs.pop();
                 if (!is_seat_ref(seat_ref)) {
                     continue;
                 }
+                const seat_id = seat_ref.id;
+                const student_ref = seat_student_get(seat_ref);
+                const student_id = student_ref ? student_ref.id : null;
+                const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+                seats.push({ id: seat_id, gridX, gridY, student_id});
                 seat_delete(seat_ref);
             }
+            action_stack_push({
+                kind: "clear-seats",
+                seats,
+            });
         });
 
         sidebar_ref.querySelector("#clear-students-button").addEventListener("click", () => {
+            const student_id_to_seat_id = {};
             for (let i = 0; i < seat_refs.length; i++) {
                 const seat_ref = seat_refs[i];
                 if (!is_seat_ref(seat_ref)) {
                     continue;
                 }
+                const seat_id = seat_ref.id;
                 const student_ref = seat_student_get(seat_ref);
                 if (student_ref) {
+                    const student_id = student_ref.id;
                     student_make_unseated(student_ref);
+                    student_id_to_seat_id[student_id] = seat_id;
                 }
             }
+            action_stack_push({
+                kind: "clear-students",
+                student_id_to_seat_id,
+            });
         });
     }
     // }}}
