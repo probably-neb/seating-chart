@@ -1,11 +1,13 @@
 * UNDO/REDO
-** - ( ) UNDO
+  - ( ) UNDO
   -- (x) seat moving
   -- (x) student transfers
   -- (x) grid size changes
+  -- ( ) delete seat
   -- ( ) batches
   --- ( ) clear all
   --- ( ) clear students
+  --- ( ) delete selection
 
   - ( ) REDO
   -- ( ) seat moving
