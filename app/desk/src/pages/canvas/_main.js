@@ -1011,8 +1011,27 @@ function seat_create(gridX, gridY, id = null) {
     };
 
     element.onkeydown = function (event) {
+        const seat_ref = event.currentTarget;
+        if (!is_seat_ref(seat_ref)) {
+            return;
+        }
         if (event.key === "Delete" || event.key === "Backspace") {
-            seat_delete(event.currentTarget);
+            let student_id = null;
+            const maybe_student_ref = seat_student_get(seat_ref);
+            if (maybe_student_ref != null) {
+                student_id = maybe_student_ref.id;
+            }
+            const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+            const seat_id = seat_ref.id;
+
+            seat_delete(seat_ref, student_id);
+
+            action_stack_push({
+                kind: "seat-delete",
+                seat_id,
+                student_id,
+                loc: { gridX, gridY },
+            });
         }
     }
 
@@ -1520,7 +1539,7 @@ let action_stack_index = -1;
 let action_stack = [];
 
 /**
- * @typedef {Action_Seat_Move | Action_Seat_Create} Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize } Action
  */
 
 /**
@@ -1541,6 +1560,14 @@ let action_stack = [];
  * @typedef {Object} Action_Seat_Create
  * @property {'seat-create'} kind
  * @property {string} seat_id
+ * @property {GridPoint} loc
+ */
+
+/**
+ * @typedef {Object} Action_Seat_Delete
+ * @property {'seat-delete'} kind
+ * @property {string} seat_id
+ * @property {string?} student_id
  * @property {GridPoint} loc
  */
 
@@ -1569,6 +1596,9 @@ let action_stack = [];
  */
 
 
+/**
+ * @param {Action} action
+ */
 function action_stack_push(action) {
     if (action_stack_index < action_stack.length - 1) {
         // TODO: this removes all undone actions, consider inserting here and
@@ -1605,6 +1635,15 @@ function action_stack_undo() {
             {
                 const seat_ref = seat_ref_get_by_id(action.seat_id);
                 seat_delete(seat_ref);
+                break;
+            }
+        case "seat-delete":
+            {
+                const seat_ref = seat_create(action.loc.gridX, action.loc.gridY, action.seat_id);
+                if (action.student_id != null) {
+                    seat_student_set(seat_ref, student_ref_get_by_id(action.student_id));
+                }
+                container_ref.appendChild(seat_ref);
                 break;
             }
         case "student-seat-assign":
