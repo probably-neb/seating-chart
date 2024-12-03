@@ -1170,6 +1170,7 @@ function elem_animate_move_swap(elem_ref, move, swapping_with_ref) {
         document.body.removeChild(elevated_container_ref);
     });
 }
+
 /**
  * @param {HTMLElement} element
  * @param {() => void} move
@@ -1558,6 +1559,15 @@ let action_stack = [];
  * @property {string} to_seat_id
  */
 
+/**
+ * @typedef {Object} Action_Grid_Resize
+ * @property {'grid-resize'} kind
+ * @property {number} to_cols
+ * @property {number} to_rows
+ * @property {number} from_cols
+ * @property {number} from_rows
+ */
+
 
 function action_stack_push(action) {
     if (action_stack_index < action_stack.length - 1) {
@@ -1568,7 +1578,15 @@ function action_stack_push(action) {
         action_stack.push(action);
     }
     action_stack_index = action_stack.length - 1;
-    console.log("action_stack_push", action_stack_index, action_stack.slice(0, action_stack_index), action_stack[action_stack_index],action_stack.slice(action_stack_index + 1));
+    /*
+    console.log(
+        "action_stack_push",
+        action_stack_index,
+        action_stack.slice(0, action_stack_index),
+        action_stack[action_stack_index],
+        action_stack.slice(action_stack_index + 1)
+    );
+    */
 }
 
 function action_stack_undo() {
@@ -1600,6 +1618,11 @@ function action_stack_undo() {
                 const student_ref = student_ref_get_by_id(action.student_id);
                 const from_seat_ref = seat_ref_get_by_id(action.from_seat_id);
                 seat_student_transfer(from_seat_ref,student_ref);
+                break;
+            }
+        case "grid-resize":
+            {
+                grid_dims_set(action.from_cols, action.from_rows);
                 break;
             }
         default:
@@ -2217,7 +2240,17 @@ async function init() {
                 return;
             }
 
+            const [from_cols, from_rows] = grid_dims_get();
+
             grid_rows_set(value);
+
+            action_stack_push({
+                kind: "grid-resize",
+                from_cols,
+                from_rows,
+                to_cols: from_cols,
+                to_rows: value,
+            });
         });
 
         grid_cols_input.addEventListener("change", function (event) {
@@ -2231,7 +2264,16 @@ async function init() {
                 return;
             }
 
+            const [from_cols, from_rows] = grid_dims_get();
             grid_cols_set(value);
+
+            action_stack_push({
+                kind: "grid-resize",
+                from_cols,
+                from_rows,
+                to_cols: value,
+                to_rows: from_rows,
+            });
         });
     }
     // }}}
