@@ -1165,7 +1165,7 @@ function elem_animate_move_swap(elem_ref, move, swapping_with_ref) {
         Math.pow(final_rect_y - initialRect.top, 2)
     );
 
-    const duration = distance / 1000;
+    const duration = distance / 3000;
 
     // Step 5: Remove the transform with a transition
     elem_ref.style.transform = "";
@@ -1260,7 +1260,7 @@ function elem_animate_move(element, move, center = false) {
         initialRect.top
     );
 
-    const duration = distance / 1000;
+    const duration = distance / 3000;
 
     // Step 5: Remove the transform with a transition
     element.style.transform = "";
