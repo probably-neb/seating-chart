@@ -424,6 +424,34 @@ function selected_seats_compute() {
 }
 
 /**
+ * @param {number} startX
+ * @param {number} startY
+ * @param {number} endX
+ * @param {number} endY
+ * 
+ * Used to manually create a selection
+ * clears selection if already exists,
+ * then creates new selection from start to end and calculates selected seats within region
+ */
+function selection_create(startX, startY, endX, endY) {
+    assert(Number.isSafeInteger(startX), "startX is int", startX);
+    assert(Number.isSafeInteger(startY), "startY is int", startY);
+    assert(Number.isSafeInteger(endX), "endX is int", endX);
+    assert(Number.isSafeInteger(endY), "endY is int", endY);
+
+    selection_clear();
+    selected_region = {
+        start: { gridX: startX, gridY: startY },
+        end: { gridX: endX, gridY: endY },
+    };
+    const selected_seat_offsets = selected_seats_compute();
+    assert(selected_seat_offsets != null, "selected seats found");
+
+    selected_seats_update(selected_seat_offsets);
+    selection_update();
+}
+
+/**
  * @param {Array<{gridX: number, gridY: number} | null>} selected_seat_offsets
  */
 function selected_seats_update(selected_seat_offsets) {
@@ -1539,7 +1567,7 @@ let action_stack_index = -1;
 let action_stack = [];
 
 /**
- * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize } Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move } Action
  */
 
 /**
@@ -1593,6 +1621,15 @@ let action_stack = [];
  * @property {number} to_rows
  * @property {number} from_cols
  * @property {number} from_rows
+ */
+
+/**
+ * @typedef {Object} Action_Selection_Move
+ * @property {'selection-move'} kind
+ * @property {GridPoint} from_start
+ * @property {GridPoint} from_end
+ * @property {GridPoint} dest_start
+ * @property {GridPoint} dest_end
  */
 
 
@@ -1664,11 +1701,28 @@ function action_stack_undo() {
                 grid_dims_set(action.from_cols, action.from_rows);
                 break;
             }
+        case "selection-move":
+            {
+                selection_create(action.dest_start.gridX, action.dest_start.gridY, action.dest_end.gridX, action.dest_end.gridY);
+                assert(selected_region != null, "selection exists");
+                selected_region.start = action.from_start;
+                selected_region.end = action.from_end;
+                selection_update();
+                break;
+            }
         default:
             assert(false, "tried to undo unknown action kind", action);
     }
     action_stack_index--;
-    console.log("action_stack_undo", action_stack_index, action_stack.slice(0, action_stack_index), action_stack[action_stack_index],action_stack.slice(action_stack_index + 1));
+    /*
+    console.log(
+        "action_stack_undo",
+        action_stack_index,
+        action_stack.slice(0, action_stack_index),
+        action_stack[action_stack_index],
+        action_stack.slice(action_stack_index + 1)
+    );
+    */
 }
 
 
@@ -2075,7 +2129,14 @@ async function init() {
                 DRAG_DATA_TYPE_KIND_SELECTION
             );
             event.dataTransfer.setDragImage(invisible_drag_preview, 0, 0);
-            elem_drag_offset_set(event.target, event.clientX, event.clientY);
+
+            const selection_ref = event.target;
+            elem_drag_offset_set(selection_ref, event.clientX, event.clientY);
+
+            selection_ref.dataset.startx = selected_region.start.gridX;
+            selection_ref.dataset.starty = selected_region.start.gridY;
+            selection_ref.dataset.endx = selected_region.end.gridX;
+            selection_ref.dataset.endy = selected_region.end.gridY;
         };
 
         selection_ref.ondrag = function (event) {
@@ -2132,8 +2193,31 @@ async function init() {
                 console.warn("no selection on ondragend");
             }
 
-            if (event.dataTransfer.dropEffect !== "none") {
-                // drop succeeded
+            const drop_succeeded = event.dataTransfer.dropEffect !== "none";
+            if (drop_succeeded) {
+                const from_startX = Number.parseInt(selection_ref.dataset.startx);
+                const from_startY = Number.parseInt(selection_ref.dataset.starty);
+                const from_endX = Number.parseInt(selection_ref.dataset.endx);
+                const from_endY = Number.parseInt(selection_ref.dataset.endy);
+
+                const dest_startX = selected_region.start.gridX;
+                const dest_startY = selected_region.start.gridY;
+                const dest_endX = selected_region.end.gridX;
+                const dest_endY = selected_region.end.gridY;
+                
+                action_stack_push({
+                    kind: "selection-move",
+                    from_start: { gridX: from_startX, gridY: from_startY },
+                    from_end: { gridX: from_endX, gridY: from_endY },
+                    dest_start: { gridX: dest_startX, gridY: dest_startY },
+                    dest_end: { gridX: dest_endX, gridY: dest_endY },
+                });
+
+                delete selection_ref.dataset.startx;
+                delete selection_ref.dataset.starty;
+                delete selection_ref.dataset.endx;
+                delete selection_ref.dataset.endy;
+
                 return;
             }
         };
