@@ -154,14 +154,10 @@ async function seating_chart_save_inner(
     if (await tx.has(Keys.SeatingChart.by_id(chart.id))) {
         const existing_chart = await query_seating_chart_get(tx, chart.id);
 
-
         for (let i = 0; i < existing_chart.seats.length; i++) {
             let found = false;
-            for (let j = 0; j < seats.length; j++) {
-                if (existing_chart.seats[i]!.id == seats[j]!.id) {
-                    found = true;
-                    break;
-                }
+            for (let j = 0; j < seats.length && !found; j++) {
+                found = existing_chart.seats[i]!.id == seats[j]!.id;
             }
             if (!found) {
                 removed_seat_ids.push(existing_chart.seats[i]!.id);
@@ -171,14 +167,10 @@ async function seating_chart_save_inner(
         // TODO: removed students
     }
 
-
     const res = await Promise.allSettled([
         tx.set(Keys.SeatingChart.by_id(chart.id), base),
         ...students.map((student) =>
-            tx.set(
-                Keys.SeatingChart.Student.by_id(chart.id, student.id),
-                student
-            )
+            tx.set(Keys.SeatingChart.Student.by_id(chart.id, student.id), student)
         ),
         ...removed_seat_ids.map((seat_id) =>
             tx.del(Keys.SeatingChart.Seat.by_id(chart.id, seat_id))
