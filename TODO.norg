@@ -3,16 +3,35 @@
   -- (x) seat moving
   -- (x) student transfers
   -- (x) grid size changes
-  -- ( ) delete seat
-  -- ( ) batches
-  --- ( ) clear all
-  --- ( ) clear students
-  --- ( ) delete selection
+  -- (x) delete seat
+  -- (x) clear students
+  -- (x) clear students
+  -- ( ) delete selection
+  -- (x) selection move
+  -- ( ) Undo Button
 
   - ( ) REDO
-  -- ( ) seat moving
-  -- ( ) student transfers
-  -- ( ) grid size changes
-  -- ( ) batches
-  --- ( ) clear all
-  --- ( ) clear students
+  -- (x) Handle <C-y> keybinnd to redo
+  -- (x) seat moving
+  -- (x) student transfers
+  -- (x) grid size changes
+  -- (x) clear students
+  -- (x) clear students
+  -- ( ) delete selection
+  -- (x) selection move
+  -- ( ) Redo Button
+
+* General Chart
+  - ( ) drag student to sidebar to unseat
+  - ( ) remove student from sidebar
+  - ( ) name charts
+  - ( ) dev/prod local storage not synced?
+  - ( ) grid size shrink below seat pos handling (don't shrink or shift all seats)
+
+
+* UI
+  - ( ) long student names display
+  - ( )
+** sonner
+   - ( ) port to vanilla ts
+   - ( ) import in layout
