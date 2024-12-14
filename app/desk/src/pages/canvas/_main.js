@@ -110,8 +110,7 @@ function grid_cell_px_dim(v) {
 }
 
 function grid_cell_px_get() {
-    const gridCellPxStr =
-        container_ref.style.getPropertyValue("--grid-cell-px");
+    const gridCellPxStr = container_ref.style.getPropertyValue("--grid-cell-px");
     const gridCellPx = Number.parseFloat(gridCellPxStr.slice(0, -"px".length));
 
     assert(
@@ -252,12 +251,10 @@ function selection_update() {
 
     elem_grid_pos_set(selection_ref, startX, startY);
 
-
     selection_dims_set(Math.abs(endX - startX), Math.abs(endY - startY));
 
     selection_ref.style.width = grid_cell_px_dim(SELECTION_PROP_WIDTH);
     selection_ref.style.height = grid_cell_px_dim(SELECTION_PROP_HEIGHT);
-
 
     // update selected seats abs loc
 
@@ -405,10 +402,7 @@ function selected_seats_compute() {
         for (let i = 0; i < corners.length && !is_in_selection; i++) {
             const [seatX, seatY] = corners[i];
             is_in_selection ||=
-                startX <= seatX &&
-                startY <= seatY &&
-                endX >= seatX &&
-                endY >= seatY;
+                startX <= seatX && startY <= seatY && endX >= seatX && endY >= seatY;
         }
         if (is_in_selection) {
             found_selected_seats = true;
@@ -428,7 +422,7 @@ function selected_seats_compute() {
  * @param {number} startY
  * @param {number} endX
  * @param {number} endY
- * 
+ *
  * Used to manually create a selection
  * clears selection if already exists,
  * then creates new selection from start to end and calculates selected seats within region
@@ -594,11 +588,7 @@ function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
         return { gridX, gridY };
     }
 
-    const [absGridX, absGridY] = px_point_to_grid_unsafe(
-        gridCellPx,
-        absX,
-        absY
-    );
+    const [absGridX, absGridY] = px_point_to_grid_unsafe(gridCellPx, absX, absY);
     const [centerX, centerY] = seat_center_exact(absGridX, absGridY);
 
     const max_radius = Math.min(grid_cols, grid_rows);
@@ -606,14 +596,10 @@ function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
     for (let radius = 1; radius <= max_radius; radius++) {
         for (let angle = 0; angle < 360; angle++) {
             const x = Math.round(
-                centerX +
-                radius * Math.cos((angle * Math.PI) / 180) -
-                SEAT_GRID_W / 2
+                centerX + radius * Math.cos((angle * Math.PI) / 180) - SEAT_GRID_W / 2
             );
             const y = Math.round(
-                centerY +
-                radius * Math.sin((angle * Math.PI) / 180) -
-                SEAT_GRID_H / 2
+                centerY + radius * Math.sin((angle * Math.PI) / 180) - SEAT_GRID_H / 2
             );
 
             if (seat_is_valid_position(dragging_seat_ref, x, y)) {
@@ -738,8 +724,7 @@ function seat_student_drop_indication_disable(seat_ref) {
 }
 
 function unseated_students_get() {
-    const students =
-        sidebar_student_list_ref.querySelectorAll("[data-student]"); // TODO: constantt
+    const students = sidebar_student_list_ref.querySelectorAll("[data-student]"); // TODO: constantt
     return students;
 }
 
@@ -749,7 +734,7 @@ function unseated_students_get() {
  */
 function seat_student_get(seat_ref) {
     const students = seat_ref.querySelectorAll("[data-student]"); // TODO: constant
-    assert(students.length <= 1, "no more than 1 student per seat", students)
+    assert(students.length <= 1, "no more than 1 student per seat", students);
     if (students.length === 0) {
         return null;
     }
@@ -812,8 +797,7 @@ function seat_student_transfer(dest_seat_ref, student_ref) {
             elem_animate_move_swap(
                 student_in_seat_ref,
                 () => {
-                    const also_student_in_seat_ref =
-                        seat_student_pop(dest_seat_ref);
+                    const also_student_in_seat_ref = seat_student_pop(dest_seat_ref);
                     assert(
                         also_student_in_seat_ref === student_in_seat_ref,
                         "student in seat did not change",
@@ -837,7 +821,11 @@ function seat_student_transfer(dest_seat_ref, student_ref) {
 
 /** @returns {elem is HTMLDivElement} */
 function is_seat_ref(elem) {
-    return elem != null && elem instanceof HTMLDivElement && SEAT_DATA_IDENTIFIER in elem.dataset;
+    return (
+        elem != null &&
+        elem instanceof HTMLDivElement &&
+        SEAT_DATA_IDENTIFIER in elem.dataset
+    );
 }
 
 function seat_ref_get_by_id(seat_id) {
@@ -882,10 +870,7 @@ function seat_create(gridX, gridY, id = null) {
         selection_clear();
 
         event.dataTransfer.setData("text/plain", seat_ref.id); // TODO: deskribe/id mime type
-        event.dataTransfer.setData(
-            DRAG_DATA_TYPE_KIND,
-            DRAG_DATA_TYPE_KIND_SEAT
-        );
+        event.dataTransfer.setData(DRAG_DATA_TYPE_KIND, DRAG_DATA_TYPE_KIND_SEAT);
         elem_drag_offset_set(event.target, event.clientX, event.clientY);
         // seat_gridloc_save(event.target);
         event.dataTransfer.setDragImage(invisible_drag_preview, 0, 0);
@@ -911,21 +896,14 @@ function seat_create(gridX, gridY, id = null) {
             offsetX +
             container_ref.scrollLeft;
         const y =
-            event.clientY -
-            containerDomRect.top -
-            offsetY +
-            container_ref.scrollTop;
+            event.clientY - containerDomRect.top - offsetY + container_ref.scrollTop;
 
         element.style.transform = `translate(${x}px, ${y}px)`;
 
         const snapped_loc = closest_non_overlapping_pos(element, x, y);
         {
             assert(seat_preview_ref != null, "preview not null");
-            elem_grid_pos_set(
-                seat_preview_ref,
-                snapped_loc.gridX,
-                snapped_loc.gridY
-            );
+            elem_grid_pos_set(seat_preview_ref, snapped_loc.gridX, snapped_loc.gridY);
         }
     };
 
@@ -945,10 +923,7 @@ function seat_create(gridX, gridY, id = null) {
         }
         // drop failed
 
-        elem_apply_onetime_transition(
-            seat_ref,
-            "transform 0.3s ease-out"
-        );
+        elem_apply_onetime_transition(seat_ref, "transform 0.3s ease-out");
         seat_grid_pos_revert_to_abs_loc(seat_ref);
         // const abs_loc = seat_abs_loc_get(element);
     };
@@ -1061,14 +1036,14 @@ function seat_create(gridX, gridY, id = null) {
                 loc: { gridX, gridY },
             });
         }
-    }
+    };
 
     return element;
 }
 
 /**
  * @param {HTMLElement} seat_ref
- * 
+ *
  * removes seat from canvas and unseats any student in the seat
  * TODO: have return student_id because it is often needed for undo action creation
  */
@@ -1111,10 +1086,7 @@ function elem_apply_onetime_transition(elem, transition) {
         }
         const prev = elem.style.getPropertyValue("--prev-transition");
         if (prev) {
-            assert(
-                had_transition,
-                "if prev then there shouldv'e been a transition"
-            );
+            assert(had_transition, "if prev then there shouldv'e been a transition");
             elem.style.transition = prev;
         } else {
             assert(
@@ -1252,10 +1224,8 @@ function elem_animate_move(element, move, center = false) {
     let final_rect_y;
     if (center) {
         const final_parent_rect = element.parentElement.getBoundingClientRect();
-        const parent_mid_x =
-            final_parent_rect.left + final_parent_rect.width / 2;
-        const parent_mid_y =
-            final_parent_rect.top + final_parent_rect.height / 2;
+        const parent_mid_x = final_parent_rect.left + final_parent_rect.width / 2;
+        const parent_mid_y = final_parent_rect.top + final_parent_rect.height / 2;
         final_rect_x = parent_mid_x - final_elem_rect.width / 2;
         final_rect_y = parent_mid_y - final_elem_rect.height / 2;
     } else {
@@ -1454,7 +1424,11 @@ function student_seat_get(student_ref) {
 
 /** @returns {elem is HTMLDivElement} */
 function is_student_ref(elem) {
-    return elem != null && elem instanceof HTMLDivElement && STUDENT_DATA_IDENTIFIER in elem.dataset;
+    return (
+        elem != null &&
+        elem instanceof HTMLDivElement &&
+        STUDENT_DATA_IDENTIFIER in elem.dataset
+    );
 }
 
 /**
@@ -1464,7 +1438,12 @@ function is_student_ref(elem) {
 function student_ref_get_by_id(student_id) {
     const student_ref = document.getElementById(student_id);
     assert(student_ref != null, "student ref not null", student_id, student_ref);
-    assert(is_student_ref(student_ref), "student ref is student", student_id, student_ref);
+    assert(
+        is_student_ref(student_ref),
+        "student ref is student",
+        student_id,
+        student_ref
+    );
     return student_ref;
 }
 
@@ -1645,28 +1624,31 @@ let action_stack = [];
  * @property {Array<{id: string, gridX: number, gridY: number, student_id: string | null}>} seats
  */
 
-
 /**
  * @param {Action} action
  */
 function action_stack_push(action) {
     if (action_stack_index < action_stack.length - 1) {
         // TODO: this removes all undone actions, consider inserting here and
-        // then checking 
-        action_stack.splice(action_stack_index + 1, action_stack.length - action_stack_index - 1, action);
+        // then checking
+        action_stack.splice(
+            action_stack_index + 1,
+            action_stack.length - action_stack_index - 1,
+            action
+        );
     } else {
         action_stack.push(action);
     }
     action_stack_index = action_stack.length - 1;
     /*
-    console.log(
-        "action_stack_push",
-        action_stack_index,
-        action_stack.slice(0, action_stack_index),
-        action_stack[action_stack_index],
-        action_stack.slice(action_stack_index + 1)
-    );
-    */
+      console.log(
+      "action_stack_push",
+      action_stack_index,
+      action_stack.slice(0, action_stack_index),
+      action_stack[action_stack_index],
+      action_stack.slice(action_stack_index + 1)
+      );
+      */
 }
 
 function action_stack_undo() {
@@ -1675,103 +1657,229 @@ function action_stack_undo() {
     }
     const action = action_stack[action_stack_index];
     switch (action.kind) {
-        case "seat-move":
-            {
-                const seat_ref = seat_ref_get_by_id(action.seat_id);
-                seat_loc_set(seat_ref, action.from.gridX, action.from.gridY);
-                break;
+        case "seat-move": {
+            const seat_ref = seat_ref_get_by_id(action.seat_id);
+            seat_loc_set(seat_ref, action.from.gridX, action.from.gridY);
+            break;
+        }
+        case "seat-create": {
+            const seat_ref = seat_ref_get_by_id(action.seat_id);
+            seat_delete(seat_ref);
+            break;
+        }
+        case "seat-delete": {
+            const seat_ref = seat_create(
+                action.loc.gridX,
+                action.loc.gridY,
+                action.seat_id
+            );
+            if (action.student_id != null) {
+                seat_student_set(seat_ref, student_ref_get_by_id(action.student_id));
             }
-        case "seat-create":
-            {
-                const seat_ref = seat_ref_get_by_id(action.seat_id);
-                seat_delete(seat_ref);
-                break;
+            container_ref.appendChild(seat_ref);
+            break;
+        }
+        case "student-seat-assign": {
+            const student_ref = student_ref_get_by_id(action.student_id);
+            student_make_unseated(student_ref);
+            break;
+        }
+        case "student-seat-transfer": {
+            const student_ref = student_ref_get_by_id(action.student_id);
+            const from_seat_ref = seat_ref_get_by_id(action.from_seat_id);
+            seat_student_transfer(from_seat_ref, student_ref);
+            break;
+        }
+        case "grid-resize": {
+            grid_dims_set(action.from_cols, action.from_rows);
+            break;
+        }
+        case "selection-move": {
+            selection_create(
+                action.dest_start.gridX,
+                action.dest_start.gridY,
+                action.dest_end.gridX,
+                action.dest_end.gridY
+            );
+            assert(selected_region != null, "selection exists");
+            selected_region.start = action.from_start;
+            selected_region.end = action.from_end;
+            selection_update();
+            break;
+        }
+        case "clear-students": {
+            for (const [student_id, seat_id] of Object.entries(
+                action.student_id_to_seat_id
+            )) {
+                const student_ref = student_ref_get_by_id(student_id);
+                if (!is_student_ref(student_ref)) {
+                    continue;
+                }
+                const seat_ref = seat_ref_get_by_id(seat_id);
+                if (!is_seat_ref(seat_ref)) {
+                    continue;
+                }
+                seat_student_set(seat_ref, student_ref);
             }
-        case "seat-delete":
-            {
-                const seat_ref = seat_create(action.loc.gridX, action.loc.gridY, action.seat_id);
-                if (action.student_id != null) {
-                    seat_student_set(seat_ref, student_ref_get_by_id(action.student_id));
+            break;
+        }
+        case "clear-seats": {
+            for (const seat of action.seats) {
+                const seat_ref = seat_create(seat.gridX, seat.gridY, seat.id);
+                if (seat.student_id != null) {
+                    const student_ref = student_ref_get_by_id(seat.student_id);
+                    if (is_student_ref(student_ref)) {
+                        seat_student_set(seat_ref, student_ref);
+                    }
                 }
                 container_ref.appendChild(seat_ref);
-                break;
             }
-        case "student-seat-assign":
-            {
-                const student_ref = student_ref_get_by_id(action.student_id);
-                student_make_unseated(student_ref);
-                break;
-            }
-        case "student-seat-transfer":
-            {
-                const student_ref = student_ref_get_by_id(action.student_id);
-                const from_seat_ref = seat_ref_get_by_id(action.from_seat_id);
-                seat_student_transfer(from_seat_ref,student_ref);
-                break;
-            }
-        case "grid-resize":
-            {
-                grid_dims_set(action.from_cols, action.from_rows);
-                break;
-            }
-        case "selection-move":
-            {
-                selection_create(action.dest_start.gridX, action.dest_start.gridY, action.dest_end.gridX, action.dest_end.gridY);
-                assert(selected_region != null, "selection exists");
-                selected_region.start = action.from_start;
-                selected_region.end = action.from_end;
-                selection_update();
-                break;
-            }
-        case "clear-students":
-            {
-                for (const [student_id, seat_id] of Object.entries(action.student_id_to_seat_id)) {
-                    const student_ref = student_ref_get_by_id(student_id);
-                    if (!is_student_ref(student_ref)) {
-                        continue;
-                    }
-                    const seat_ref = seat_ref_get_by_id(seat_id);
-                    if (!is_seat_ref(seat_ref)) {
-                        continue;
-                    }
-                    seat_student_set(seat_ref, student_ref);
-                }
-                break;
-            }
-        case "clear-seats":
-            {
-                for (const seat of action.seats) {
-                    const seat_ref = seat_create(seat.gridX, seat.gridY, seat.id);
-                    if (seat.student_id != null) {
-                        const student_ref = student_ref_get_by_id(seat.student_id);
-                        if (is_student_ref(student_ref)) {
-                            seat_student_set(seat_ref, student_ref);
-                        }
-                    }
-                    container_ref.appendChild(seat_ref);
-                }
-                break;
-            }
+            break;
+        }
         default:
             assert(false, "tried to undo unknown action kind", action);
     }
     action_stack_index--;
     /*
+      console.log(
+      "action_stack_undo",
+      action_stack_index,
+      action_stack.slice(0, action_stack_index),
+      action_stack[action_stack_index],
+      action_stack.slice(action_stack_index + 1)
+      );
+      */
+}
+
+function action_stack_redo() {
+    action_stack_index++;
+    if (action_stack_index < 0 || action_stack_index == action_stack.length) {
+        action_stack_index--;
+        return;
+    }
+    const action = action_stack[action_stack_index];
+    assert(action != null);
+
+    console.log("redo", action.kind);
+    switch (action.kind) {
+        case "seat-move": {
+            const seat_ref = seat_ref_get_by_id(action.seat_id);
+            seat_loc_set(seat_ref, action.dest.gridX, action.dest.gridY);
+            break;
+        }
+        case "seat-create": {
+            const seat_ref = seat_create(
+                action.loc.gridX,
+                action.loc.gridY,
+                action.seat_id
+            );
+            container_ref.appendChild(seat_ref);
+            break;
+        }
+        case "seat-delete": {
+            const seat_ref = seat_ref_get_by_id(action.seat_id);
+            seat_delete(seat_ref);
+            break;
+        }
+        case "student-seat-assign": {
+            const student_ref = student_ref_get_by_id(action.student_id);
+            const seat_ref = seat_ref_get_by_id(action.seat_id);
+            seat_student_set(seat_ref, student_ref);
+            break;
+        }
+        case "student-seat-transfer": {
+            const student_ref = student_ref_get_by_id(action.student_id);
+            const to_seat_ref = seat_ref_get_by_id(action.to_seat_id);
+            seat_student_transfer(to_seat_ref, student_ref);
+            break;
+        }
+        case "grid-resize": {
+            grid_dims_set(action.to_cols, action.to_rows);
+            break;
+        }
+        case "selection-move": {
+            // create selection at original location so it includes
+            // seats that were selected and so we make sure it exists
+            // (selection clear is not an action)
+            selection_create(
+                action.from_start.gridX,
+                action.from_start.gridY,
+                action.from_end.gridX,
+                action.from_end.gridY
+            );
+            assert(selected_region != null, "selection exists");
+            // then move it to where it came from
+            selected_region.start = action.dest_start;
+            selected_region.end = action.dest_end;
+            selection_update();
+            break;
+        }
+        case "clear-students": {
+            void chart_clear_students();
+            break;
+        }
+        case "clear-seats": {
+            void chart_clear_seats();
+            break;
+        }
+        default:
+            assert(false, "tried to undo unknown action kind", action);
+    }
     console.log(
-        "action_stack_undo",
+        "action_stack_redo",
         action_stack_index,
         action_stack.slice(0, action_stack_index),
         action_stack[action_stack_index],
         action_stack.slice(action_stack_index + 1)
     );
-    */
 }
-
-
 
 //}}}
 
-async function save_chart() {
+/**
+ *
+ * @returns {Action_Clear_Students["student_id_to_seat_id"]}
+ */
+function chart_clear_students() {
+    const student_id_to_seat_id = {};
+    for (let i = 0; i < seat_refs.length; i++) {
+        const seat_ref = seat_refs[i];
+        if (!is_seat_ref(seat_ref)) {
+            continue;
+        }
+        const seat_id = seat_ref.id;
+        const student_ref = seat_student_get(seat_ref);
+        if (student_ref) {
+            const student_id = student_ref.id;
+            student_make_unseated(student_ref);
+            student_id_to_seat_id[student_id] = seat_id;
+        }
+    }
+    return student_id_to_seat_id;
+}
+
+/**
+ *
+ * @returns {Action_Clear_Seats["seats"]}
+ */
+function chart_clear_seats() {
+    const seats = [];
+    while (seat_refs.length > 0) {
+        const seat_ref = seat_refs.pop();
+        if (!is_seat_ref(seat_ref)) {
+            continue;
+        }
+        const seat_id = seat_ref.id;
+        const student_ref = seat_student_get(seat_ref);
+        const student_id = student_ref ? student_ref.id : null;
+        const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+        seats.push({ id: seat_id, gridX, gridY, student_id });
+        seat_delete(seat_ref);
+    }
+    return seats;
+}
+
+async function chart_save() {
     console.time("save_chart");
     const id = chart_id;
     const seats = new Array();
@@ -1874,14 +1982,8 @@ async function init() {
         );
         container_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
         container_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
-        container_ref.style.setProperty(
-            GRID_PROP_COLS,
-            initial_chart_data.cols
-        );
-        container_ref.style.setProperty(
-            GRID_PROP_ROWS,
-            initial_chart_data.rows
-        );
+        container_ref.style.setProperty(GRID_PROP_COLS, initial_chart_data.cols);
+        container_ref.style.setProperty(GRID_PROP_ROWS, initial_chart_data.rows);
         container_ref.style.width = grid_cell_px_dim(GRID_PROP_COLS);
         container_ref.style.height = grid_cell_px_dim(GRID_PROP_ROWS);
 
@@ -1890,9 +1992,9 @@ async function init() {
         };
 
         container_ref.style.backgroundImage = `
-        linear-gradient(to right, #e5e5e5 1px, transparent 1px),
-        linear-gradient(to bottom, #e5e5e5 1px, transparent 1px)
-        `;
+            linear-gradient(to right, #e5e5e5 1px, transparent 1px),
+            linear-gradient(to bottom, #e5e5e5 1px, transparent 1px)
+            `;
 
         container_ref.style.backgroundSize = `var(--grid-cell-px) var(--grid-cell-px)`;
 
@@ -2008,9 +2110,7 @@ async function init() {
             containerDomRect = container_ref.getBoundingClientRect();
 
             const px_x =
-                event.clientX -
-                containerDomRect.left +
-                container_ref.scrollLeft;
+                event.clientX - containerDomRect.left + container_ref.scrollLeft;
             const px_y =
                 event.clientY - containerDomRect.top + container_ref.scrollTop;
             const [center_gridX, center_gridY] = px_point_to_grid_round(
@@ -2069,15 +2169,11 @@ async function init() {
             const gridCellPx = grid_cell_px_get();
 
             const gridX = Math.floor(
-                (event.clientX -
-                    containerDomRect.left +
-                    container_ref.scrollLeft) /
+                (event.clientX - containerDomRect.left + container_ref.scrollLeft) /
                 gridCellPx
             );
             const gridY = Math.floor(
-                (event.clientY -
-                    containerDomRect.top +
-                    container_ref.scrollTop) /
+                (event.clientY - containerDomRect.top + container_ref.scrollTop) /
                 gridCellPx
             );
             selected_region = {
@@ -2101,15 +2197,11 @@ async function init() {
             const gridCellPx = grid_cell_px_get();
 
             const gridX = Math.floor(
-                (event.clientX -
-                    containerDomRect.left +
-                    container_ref.scrollLeft) /
+                (event.clientX - containerDomRect.left + container_ref.scrollLeft) /
                 gridCellPx
             );
             const gridY = Math.floor(
-                (event.clientY -
-                    containerDomRect.top +
-                    container_ref.scrollTop) /
+                (event.clientY - containerDomRect.top + container_ref.scrollTop) /
                 gridCellPx
             );
             selected_region_end_set(gridX, gridY);
@@ -2128,15 +2220,11 @@ async function init() {
             const gridCellPx = grid_cell_px_get();
 
             const gridX = Math.floor(
-                (event.clientX -
-                    containerDomRect.left +
-                    container_ref.scrollLeft) /
+                (event.clientX - containerDomRect.left + container_ref.scrollLeft) /
                 gridCellPx
             );
             const gridY = Math.floor(
-                (event.clientY -
-                    containerDomRect.top +
-                    container_ref.scrollTop) /
+                (event.clientY - containerDomRect.top + container_ref.scrollTop) /
                 gridCellPx
             );
             selected_region_end_set(gridX, gridY);
@@ -2246,7 +2334,7 @@ async function init() {
                 const dest_startY = selected_region.start.gridY;
                 const dest_endX = selected_region.end.gridX;
                 const dest_endY = selected_region.end.gridY;
-                
+
                 action_stack_push({
                     kind: "selection-move",
                     from_start: { gridX: from_startX, gridY: from_startY },
@@ -2340,12 +2428,10 @@ async function init() {
                 Array.isArray(selection_data.selected_offsets)
             );
             assert(
-                "width" in selection_data &&
-                typeof selection_data.width == "number"
+                "width" in selection_data && typeof selection_data.width == "number"
             );
             assert(
-                "height" in selection_data &&
-                typeof selection_data.height == "number"
+                "height" in selection_data && typeof selection_data.height == "number"
             );
             // debugger;
 
@@ -2367,10 +2453,7 @@ async function init() {
             selection_force_appear_above_seats();
 
             for (const { gridX, gridY } of selection_data.selected_offsets) {
-                const new_seat_ref = seat_create(
-                    startX + gridX,
-                    startY + gridY
-                );
+                const new_seat_ref = seat_create(startX + gridX, startY + gridY);
                 seat_make_selected(new_seat_ref, gridX, gridY);
             }
 
@@ -2462,56 +2545,33 @@ async function init() {
         };
 
         sidebar_ref.querySelector("#clear-button").addEventListener("click", () => {
-            const seats = [];
-            while (seat_refs.length > 0) {
-                const seat_ref = seat_refs.pop();
-                if (!is_seat_ref(seat_ref)) {
-                    continue;
-                }
-                const seat_id = seat_ref.id;
-                const student_ref = seat_student_get(seat_ref);
-                const student_id = student_ref ? student_ref.id : null;
-                const [gridX, gridY] = seat_abs_loc_get(seat_ref);
-                seats.push({ id: seat_id, gridX, gridY, student_id});
-                seat_delete(seat_ref);
-            }
+            const seats = chart_clear_seats();
             action_stack_push({
                 kind: "clear-seats",
                 seats,
             });
         });
 
-        sidebar_ref.querySelector("#clear-students-button").addEventListener("click", () => {
-            const student_id_to_seat_id = {};
-            for (let i = 0; i < seat_refs.length; i++) {
-                const seat_ref = seat_refs[i];
-                if (!is_seat_ref(seat_ref)) {
-                    continue;
-                }
-                const seat_id = seat_ref.id;
-                const student_ref = seat_student_get(seat_ref);
-                if (student_ref) {
-                    const student_id = student_ref.id;
-                    student_make_unseated(student_ref);
-                    student_id_to_seat_id[student_id] = seat_id;
-                }
-            }
-            action_stack_push({
-                kind: "clear-students",
-                student_id_to_seat_id,
+        sidebar_ref
+            .querySelector("#clear-students-button")
+            .addEventListener("click", () => {
+                const student_id_to_seat_id = chart_clear_students();
+                action_stack_push({
+                    kind: "clear-students",
+                    student_id_to_seat_id,
+                });
             });
-        });
     }
     // }}}
 
     // {{{ autosave
 
     console.log("starting save interval", AUTOSAVE_INTERVAL_MS);
-    const _save_interval_handle = setInterval(save_chart, AUTOSAVE_INTERVAL_MS);
+    const _save_interval_handle = setInterval(chart_save, AUTOSAVE_INTERVAL_MS);
 
     const save_button = document.getElementById("save-button");
 
-    const do_save = () => save_chart();
+    const do_save = () => chart_save();
 
     save_button.onclick = do_save;
     window.addEventListener("beforeunload", do_save);
@@ -2520,7 +2580,7 @@ async function init() {
 
     document.addEventListener("visibilitychange", async () => {
         if (document.visibilityState == "hidden") {
-            await save_chart();
+            await chart_save();
         }
     });
 
@@ -2531,6 +2591,9 @@ async function init() {
         if (event.key == "z" && event.ctrlKey) {
             console.log("undo");
             action_stack_undo();
+        } else if (event.key == "y" && event.ctrlKey) {
+            console.log("redo");
+            action_stack_redo();
         }
     });
     // TODO: redo
