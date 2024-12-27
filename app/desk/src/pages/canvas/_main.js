@@ -87,11 +87,16 @@ const sidebar_ref = document.getElementById("sidebar");
 assert(sidebar_ref != null, "sidebar not null");
 const sidebar_student_list_ref = sidebar_ref.querySelector("#students");
 
+// top bar
+const topbar_ref = document.getElementById("top-bar");
+assert(topbar_ref != null, "top bar not null");
+
 const STUDENT_CLASSLIST_SIDEBAR =
     "ring-2 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black";
 
 const STUDENT_CLASSLIST_SEATING =
     "border-2 border-black rounded-md w-min px-2 py-1 flex items-center justify-center font-semibold text-xs bg-white text-black break-normal";
+
 
 /** @returns {asserts val} */
 function assert(val, ...msg) {
@@ -1825,6 +1830,7 @@ function action_stack_redo() {
         default:
             assert(false, "tried to undo unknown action kind", action);
     }
+    /*
     console.log(
         "action_stack_redo",
         action_stack_index,
@@ -1832,6 +1838,7 @@ function action_stack_redo() {
         action_stack[action_stack_index],
         action_stack.slice(action_stack_index + 1)
     );
+    */
 }
 
 //}}}
@@ -1975,7 +1982,7 @@ async function init() {
         );
 
         // TODO: init all "*_initial" grid properties here
-        container_ref.className = "relative bg-floral-white";
+        container_ref.className = "w-full relative bg-white rounded-md shadow-lg overflow-auto p-2 h-[calc(100vh-120px)]";
         container_ref.style.setProperty(
             "--grid-cell-px",
             gridCellPx_initial + "px"
@@ -1984,16 +1991,15 @@ async function init() {
         container_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
         container_ref.style.setProperty(GRID_PROP_COLS, initial_chart_data.cols);
         container_ref.style.setProperty(GRID_PROP_ROWS, initial_chart_data.rows);
-        container_ref.style.width = grid_cell_px_dim(GRID_PROP_COLS);
-        container_ref.style.height = grid_cell_px_dim(GRID_PROP_ROWS);
 
         container_ref.ondragover = function (event) {
             event.preventDefault();
         };
 
+        const GRID_LINE_COLOR = '#e0e7ff'; // '#e5e5e5'
         container_ref.style.backgroundImage = `
-            linear-gradient(to right, #e5e5e5 1px, transparent 1px),
-            linear-gradient(to bottom, #e5e5e5 1px, transparent 1px)
+            linear-gradient(to right, ${GRID_LINE_COLOR} 1px, transparent 1px),
+            linear-gradient(to bottom, ${GRID_LINE_COLOR} 1px, transparent 1px)
             `;
 
         container_ref.style.backgroundSize = `var(--grid-cell-px) var(--grid-cell-px)`;
@@ -2139,7 +2145,7 @@ async function init() {
     {
         selection_ref.id = "selection";
         selection_ref.className =
-            "absolute bg-moonstone/20 ring-2 ring-moonstone-dark z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
+            "absolute bg-cyan-300/20 ring-2 ring-blue-500 z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
         selection_ref.style.display = "none";
         selection_ref.draggable = true;
         container_ref.appendChild(selection_ref);
@@ -2243,7 +2249,6 @@ async function init() {
             selection_ref.draggable = "true";
             selection_force_appear_above_seats();
         });
-
         ////////////////////////
         // dragging selection //
         ////////////////////////
@@ -2566,23 +2571,25 @@ async function init() {
 
     // {{{ autosave
 
-    console.log("starting save interval", AUTOSAVE_INTERVAL_MS);
-    const _save_interval_handle = setInterval(chart_save, AUTOSAVE_INTERVAL_MS);
+    {
+        console.log("starting save interval", AUTOSAVE_INTERVAL_MS);
+        const _save_interval_handle = setInterval(chart_save, AUTOSAVE_INTERVAL_MS);
 
-    const save_button = document.getElementById("save-button");
+        const save_button = document.getElementById("save-button");
 
-    const do_save = () => chart_save();
+        const do_save = () => chart_save();
 
-    save_button.onclick = do_save;
-    window.addEventListener("beforeunload", do_save);
-    window.addEventListener("popstate", do_save);
-    window.addEventListener("pagehide", do_save);
+        save_button.onclick = do_save;
+        window.addEventListener("beforeunload", do_save);
+        window.addEventListener("popstate", do_save);
+        window.addEventListener("pagehide", do_save);
 
-    document.addEventListener("visibilitychange", async () => {
-        if (document.visibilityState == "hidden") {
-            await chart_save();
-        }
-    });
+        document.addEventListener("visibilitychange", async () => {
+            if (document.visibilityState == "hidden") {
+                await chart_save();
+            }
+        });
+    }
 
     // }}}
 
@@ -2596,8 +2603,6 @@ async function init() {
             action_stack_redo();
         }
     });
-    // TODO: redo
-
     // }}}
 }
 
