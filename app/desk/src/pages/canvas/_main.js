@@ -170,8 +170,8 @@ function px_point_to_grid_round(gridCellPx, x, y) {
     );
     const [offset_x, offset_y] = grid_offset_get();
 
-    const gridX = Math.round(x / gridCellPx) + offset_x;
-    const gridY = Math.round(y / gridCellPx) + offset_y;
+    const gridX = Math.round(( x / gridCellPx ) + offset_x);
+    const gridY = Math.round(( y / gridCellPx ) + offset_y);
 
     return [gridX, gridY];
 }
@@ -1508,8 +1508,8 @@ function student_create(name, id = null) {
 * @param y {number}
 */
 function grid_offset_set(x, y) {
-    assert(Number.isSafeInteger(x), 'grid offset x is safe integer');
-    assert(Number.isSafeInteger(y), 'grid offset y is safe integer');
+    assert(Number.isSafeFloat(x), 'grid offset x is safe integer');
+    assert(Number.isSafeFloat(y), 'grid offset y is safe integer');
     container_ref.style.setProperty(GRID_PROP_OFFSET_X, x);
     container_ref.style.setProperty(GRID_PROP_OFFSET_Y, y);
 }
@@ -1518,10 +1518,10 @@ function grid_offset_set(x, y) {
 * @returns {[x: number, y: number]}
 */
 function grid_offset_get() {
-    const x = Number.parseInt(container_ref.style.getPropertyValue(GRID_PROP_OFFSET_X));
-    const y = Number.parseInt(container_ref.style.getPropertyValue(GRID_PROP_OFFSET_Y));
-    assert(Number.isSafeInteger(x), 'grid offset x is safe integer');
-    assert(Number.isSafeInteger(y), 'grid offset y is safe integer');
+    const x = Number.parseFloat(container_ref.style.getPropertyValue(GRID_PROP_OFFSET_X));
+    const y = Number.parseFloat(container_ref.style.getPropertyValue(GRID_PROP_OFFSET_Y));
+    assert(Number.isSafeFloat(x), 'grid offset x is safe integer');
+    assert(Number.isSafeFloat(y), 'grid offset y is safe integer');
     return [x, y];
 }
 
@@ -1980,6 +1980,7 @@ async function init() {
             `;
 
         container_ref.style.backgroundSize = `var(--grid-cell-px) var(--grid-cell-px)`;
+        container_ref.style.backgroundPosition = `left calc(-1 * var(${GRID_PROP_OFFSET_X}) * var(--grid-cell-px)) top calc(-1 * var(${GRID_PROP_OFFSET_Y}) * var(--grid-cell-px))`;
 
         container_ref.ondrop = function (event) {
             const kind = event.dataTransfer.getData(DRAG_DATA_TYPE_KIND);
@@ -2030,7 +2031,9 @@ async function init() {
                 return;
             }
             const grid_cell_px = grid_cell_px_get();
-            grid_offset_update(event.deltaX / grid_cell_px, event.deltaY / grid_cell_px);
+            const delta_x = event.deltaX / grid_cell_px
+            const delta_y = event.deltaY / grid_cell_px;
+            grid_offset_update(delta_x, delta_y);
         })
     }
     // }}}
