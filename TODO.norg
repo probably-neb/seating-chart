@@ -27,11 +27,72 @@
   - ( ) name charts
   - ( ) dev/prod local storage not synced?
   - ( ) grid size shrink below seat pos handling (don't shrink or shift all seats)
+  - ( ) improve closest_non_overlapping_pos algorithm to handle heaavy
+  - ( ) don't clear selection if invalid
+  - ( ) always expect seats in seat_refs to be non null (use asserts!)
+  - (?) when ctrl+click for creating seat, allow dragging to create multiple seats + show previews
 
 
 * UI
   - ( ) long student names display
-  - ( )
+  - ( ) Update onetime transition to use CSS :where to fix bugs
+
+  - ( ) infinite canvas display
+  -- (x) remove GRID_W, GRID_H
+  --- ( ) implement grid_center_approx using grid_cell_px for selection paste
+  -- (?) consider tracking current_grid_w and current_grid_h if needed
+  -- (x) negative seat positions
+  --- (x) fix all asserts that seat_pos > 0
+  --- (x) offset positions by grid offset
+  -- ( ) initial grid offset (i.e. offset of 0,0)
+  --- (_) should be 0.5 * h / cell_h, 0.5 * w / cell_h initially
+  --- ( ) smarter soluion - calculate logical center of all seats (if any) and set it to that
+  -- ( ) custom scrollbar in x,y
+  --- ( ) handle wheel + scroll & scroll by grid_cell_px
+  --- ( ) initially center x,y scrollbars to allow movement beyond visible area
+  --- (?) hide but show when moouse moves close?
+  -- ( ) update grid offset on zoom
+  --- ( ) with buttons: heuristic ?= delta(grid_cell_px) > grid_cell_px
+  --- ( ) with keybind: center on mouse pos - ensure same pos is under mouse during zoom
+  -- ( ) scroll when seat dragged off canvas
+  -- ( ) update grid offset when undo/redoing to either center or restore view state from action
+  -- ( ) movement
+  --- ( ) consider \<ctrl\>? + wasd | ^\<v\>
+  --- ( ) right mouse button drag movement
+  --- (?) consider using container_ref.scrollBy(grid_cell_px) for smooth movement - will need to track how this impacts layout (whether grid_offset is needed for seat + selection layout)
+  -- ( ) sidebar
+  --- ( ) make foldable
+  --- ( ) move clear all + clear students to top bar
+
 ** sonner
-   - ( ) port to vanilla ts
    - ( ) import in layout
+   - ( ) PORT
+   -- ( ) Create Toast
+   --- (x) data-mounted logic - is needed for animations?
+   --- (x) offset calc
+   ---- (x) setting offset before remove # just skipping setting offset when removed
+   --- (x) height calc
+   ---- (x) `--initial-height` once mounted
+   ---- ( ) toastHeightsBefore
+   ----- (x) updating toastHeightsBefore for toasts after toast added
+   ----- ( ) updating toastHeightsBefore for toasts after toast removed
+   --- ( ) swipe to remove
+   ---- ( ) setting isSwiped and swipeOut correctly
+   ---- ( ) can just `ToastState.dismiss(id)` (+ setting swipeOut/isSwiped) and have region logic handle offset + height adjustments
+   --- ( ) timer
+   ---- ( ) pause when document hidden
+   ---- ( ) pause when interacting
+   ---- ( ) clear when dismissed
+   -- ( ) Keyboard shortcuts
+   --- ( ) focus toasts (sets expanded=true)
+   --- ( ) esc to unfocus
+   --- ( ) which region should be focused when multiple regions?
+   -- ( ) focus behavior
+   -- ( ) expanded behavior
+   --- ( ) set to false when toasts.length <= 1
+   -- ( ) Theme behavior
+   --- ( ) media query for setting theme
+   -- ( ) fixup props
+   --- ( ) toast props
+   --- ( ) toaster props
+   --- ( ) toaster region props
