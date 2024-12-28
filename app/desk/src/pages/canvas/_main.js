@@ -473,8 +473,9 @@ function selected_seats_update(selected_seat_offsets) {
 }
 
 function seat_make_selected(seat_ref, ofsX, ofsY) {
-    seat_ref.style.transform = GRID_POS_TRANSFORM_NO_OFFSET;
     elem_grid_pos_set(seat_ref, ofsX, ofsY);
+    // NOTE: has to happen after elem_grid_pos_set because that sets the transform
+    seat_ref.style.transform = GRID_POS_TRANSFORM_NO_OFFSET;
     seat_ref.dataset["selected"] = "";
     selection_ref.appendChild(seat_ref);
     seat_ref.draggable = false;
