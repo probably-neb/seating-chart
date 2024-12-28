@@ -1113,7 +1113,6 @@ function elem_animate_move_swap(elem_ref, move, swapping_with_ref) {
     // are not effected by the element getting moved
     const final_elem_rect = swapping_with_ref.getBoundingClientRect();
 
-    // debugger
     // Step 1: Get the initial position & create elevated container
     //         so animation appears above everything else
     const initialRect = elem_ref.getBoundingClientRect();
@@ -1200,7 +1199,6 @@ function elem_animate_move_swap(elem_ref, move, swapping_with_ref) {
  * @param {boolean | undefined} center
  */
 function elem_animate_move(element, move, center = false) {
-    // debugger
     // Step 1: Get the initial position
     const initialRect = element.getBoundingClientRect();
 
@@ -1366,22 +1364,11 @@ function container_handle_drop_selection(event) {
 
     const gridCellPx = grid_cell_px_get();
 
-    const gridX =
-        Math.round(
-            (event.clientX -
-                containerDomRect.left -
-                offsetX +
-                container_ref.scrollLeft) /
-            gridCellPx
-        );
-    const gridY =
-        Math.round(
-            (event.clientY -
-                containerDomRect.top -
-                offsetY +
-                container_ref.scrollTop) /
-            gridCellPx
-        );
+    const [gridX, gridY] = px_point_to_grid_round(
+        gridCellPx,
+        event.clientX - containerDomRect.left - offsetX,
+        event.clientY - containerDomRect.top - offsetY
+    );
 
     const {
         start: { gridX: startX, gridY: startY },
@@ -2132,9 +2119,9 @@ async function init() {
             containerDomRect = container_ref.getBoundingClientRect();
 
             const px_x =
-                event.clientX - containerDomRect.left + container_ref.scrollLeft;
+                event.clientX - containerDomRect.left;
             const px_y =
-                event.clientY - containerDomRect.top + container_ref.scrollTop;
+                event.clientY - containerDomRect.top;
             const [center_gridX, center_gridY] = px_point_to_grid_round(
                 grid_cell_px_get(),
                 px_x,
@@ -2284,22 +2271,12 @@ async function init() {
 
             const gridCellPx = grid_cell_px_get();
 
-            const gridX =
-                Math.round(
-                    (event.clientX -
-                        containerDomRect.left -
-                        offsetX +
-                        container_ref.scrollLeft) /
-                    gridCellPx
-                );
-            const gridY =
-                Math.round(
-                    (event.clientY -
-                        containerDomRect.top -
-                        offsetY +
-                        container_ref.scrollTop) /
-                    gridCellPx
-                );
+            const [gridX, gridY] = px_point_to_grid_round(
+                gridCellPx,
+                event.clientX - containerDomRect.left - offsetX,
+                event.clientY - containerDomRect.top - offsetY
+            );
+
 
             const {
                 start: { gridX: startX, gridY: startY },
