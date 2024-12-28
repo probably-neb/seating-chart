@@ -1525,6 +1525,11 @@ function grid_offset_get() {
     return [x, y];
 }
 
+function grid_offset_update(x, y) {
+    const [old_x, old_y] = grid_offset_get();
+    grid_offset_set(old_x + x, old_y + y);
+} 
+
 // FIXME: Remove
 containerDomRect = container_ref.getBoundingClientRect();
 
@@ -2018,6 +2023,14 @@ async function init() {
                 return;
             }
 
+        })
+
+        container_ref.addEventListener("wheel", function (event) {
+            if (event.ctrlKey) {
+                return;
+            }
+            const grid_cell_px = grid_cell_px_get();
+            grid_offset_update(event.deltaX / grid_cell_px, event.deltaY / grid_cell_px);
         })
     }
     // }}}
