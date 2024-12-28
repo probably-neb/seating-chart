@@ -17,6 +17,7 @@ const AUTOSAVE_INTERVAL_MS = 30 * 1000; // 30s
 const GRID_PROP_COLS = "--grid-cols";
 const GRID_PROP_ROWS = "--grid-rows";
 
+
 const PROP_GRID_POS_X = "--grid-x";
 const PROP_GRID_POS_Y = "--grid-y";
 
@@ -119,12 +120,10 @@ function grid_cell_px_get() {
     const gridCellPx = Number.parseFloat(gridCellPxStr.slice(0, -"px".length));
 
     assert(
-        Number.isSafeFloat(
-            gridCellPx,
-            "gridCellPx is valid float",
-            gridCellPx,
-            gridCellPxStr
-        )
+        Number.isSafeFloat(gridCellPx),
+        "gridCellPx is valid float",
+        gridCellPx,
+        gridCellPxStr
     );
 
     return gridCellPx;
@@ -322,15 +321,15 @@ function selection_dims_get() {
 
     assert(Number.isSafeInteger(width));
     assert(Number.isSafeInteger(height));
-    assert(width > 0);
-    assert(height > 0);
+    assert(width >= 0, width);
+    assert(height >= 0, height);
 
     return [width, height];
 }
 
 function selection_clear() {
     // FIXME: do not clear if invalid
-    console.log("selection clear");
+    // console.log("selection clear");
     const selected_seats = selected_seat_refs_get();
     if (selected_region == null) {
         assert(
@@ -556,14 +555,10 @@ function dbg_sleep(milliseconds) {
  * gridX and gridY are optional, if provided they will be used instead of the seat_ref's abs_loc
  */
 function seat_is_valid_position(seat_ref, gridX, gridY) {
-    const [grid_cols, grid_rows] = grid_dims_get();
-
     if (gridX == null || gridY == null) {
         [gridX, gridY] = seat_abs_loc_get(seat_ref);
     }
     let is_not_overlapping = true;
-    if (gridX < 0 || gridX > grid_cols - SEAT_GRID_W) return false;
-    if (gridY < 0 || gridY > grid_rows - SEAT_GRID_H) return false;
 
     for (let i = 0; i < seat_refs.length && is_not_overlapping; i++) {
         const other_seat_ref = seat_refs[i];
@@ -582,8 +577,6 @@ function seat_is_valid_position(seat_ref, gridX, gridY) {
 function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
     // console.time("closest non overlapping pos circ");
 
-    const [grid_cols, grid_rows] = grid_dims_get();
-
     const gridCellPx = grid_cell_px_get();
 
     const [gridX, gridY] = px_point_to_grid_round(gridCellPx, absX, absY);
@@ -596,7 +589,8 @@ function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
     const [absGridX, absGridY] = px_point_to_grid_unsafe(gridCellPx, absX, absY);
     const [centerX, centerY] = seat_center_exact(absGridX, absGridY);
 
-    const max_radius = Math.min(grid_cols, grid_rows);
+    // FIXME: make non arbitrary
+    const max_radius = 100;
 
     for (let radius = 1; radius <= max_radius; radius++) {
         for (let angle = 0; angle < 360; angle++) {
@@ -610,10 +604,12 @@ function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
             if (seat_is_valid_position(dragging_seat_ref, x, y)) {
                 // console.timeEnd("closest non overlapping pos circ");
                 // console.log('angle', angle, 'radius', radius)
+                console.log('cnop', { x, y })
                 return { gridX: x, gridY: y };
             }
         }
     }
+    // FIXME: handle better
     throw new Error("No valid position found");
 }
 
@@ -708,10 +704,6 @@ function seat_loc_set(seat_ref, gridX, gridY) {
 
     assert(Number.isSafeInteger(gridX), "gridX is number", gridX);
     assert(Number.isSafeInteger(gridY), "gridY is number", gridY);
-
-    const [grid_cols, grid_rows] = grid_dims_get();
-    assert(gridX >= 0 && gridX < grid_cols, "gridX is valid", gridX);
-    assert(gridY >= 0 && gridY < grid_rows, "gridY is valid", gridY);
 
     elem_grid_pos_set(seat_ref, gridX, gridY);
 
@@ -906,6 +898,7 @@ function seat_create(gridX, gridY, id = null) {
         element.style.transform = `translate(${x}px, ${y}px)`;
 
         const snapped_loc = closest_non_overlapping_pos(element, x, y);
+        console.log("snapped_loc", snapped_loc)
         {
             assert(seat_preview_ref != null, "preview not null");
             elem_grid_pos_set(seat_preview_ref, snapped_loc.gridX, snapped_loc.gridY);
@@ -1366,31 +1359,24 @@ function container_handle_drop_selection(event) {
 
     const [offsetX, offsetY] = elem_drag_offset_get(selection_ref);
 
-    const [grid_cols, grid_rows] = grid_dims_get();
     const gridCellPx = grid_cell_px_get();
 
-    const gridX = clamp(
+    const gridX =
         Math.round(
             (event.clientX -
                 containerDomRect.left -
                 offsetX +
                 container_ref.scrollLeft) /
             gridCellPx
-        ),
-        0,
-        grid_cols
-    );
-    const gridY = clamp(
+        );
+    const gridY =
         Math.round(
             (event.clientY -
                 containerDomRect.top -
                 offsetY +
                 container_ref.scrollTop) /
             gridCellPx
-        ),
-        0,
-        grid_rows
-    );
+        );
 
     const {
         start: { gridX: startX, gridY: startY },
@@ -1512,36 +1498,7 @@ function student_create(name, id = null) {
     return student_ref;
 }
 
-function grid_cols_set(grid_cols) {
-    container_ref.style.setProperty(GRID_PROP_COLS, grid_cols);
-}
-
-function grid_rows_set(grid_rows) {
-    container_ref.style.setProperty(GRID_PROP_ROWS, grid_rows);
-}
-
-function grid_dims_set(grid_cols, grid_rows) {
-    container_ref.style.setProperty(GRID_PROP_COLS, grid_cols);
-    container_ref.style.setProperty(GRID_PROP_ROWS, grid_rows);
-}
-
-/**
- * @returns {[cols: number, rows: number]} grid dimensions
- */
-function grid_dims_get() {
-    const grid_cols = Number.parseInt(
-        container_ref.style.getPropertyValue(GRID_PROP_COLS)
-    );
-    const grid_rows = Number.parseInt(
-        container_ref.style.getPropertyValue(GRID_PROP_ROWS)
-    );
-
-    assert(Number.isSafeInteger(grid_cols));
-    assert(Number.isSafeInteger(grid_rows));
-
-    return [grid_cols, grid_rows];
-}
-
+// FIXME: Remove
 containerDomRect = container_ref.getBoundingClientRect();
 
 // {{{ Action Stack
@@ -1597,15 +1554,6 @@ let action_stack = [];
  * @property {string} student_id
  * @property {string} from_seat_id
  * @property {string} to_seat_id
- */
-
-/**
- * @typedef {Object} Action_Grid_Resize
- * @property {'grid-resize'} kind
- * @property {number} to_cols
- * @property {number} to_rows
- * @property {number} from_cols
- * @property {number} from_rows
  */
 
 /**
@@ -1695,10 +1643,6 @@ function action_stack_undo() {
             seat_student_transfer(from_seat_ref, student_ref);
             break;
         }
-        case "grid-resize": {
-            grid_dims_set(action.from_cols, action.from_rows);
-            break;
-        }
         case "selection-move": {
             selection_create(
                 action.dest_start.gridX,
@@ -1742,7 +1686,7 @@ function action_stack_undo() {
             break;
         }
         default:
-            assert(false, "tried to undo unknown action kind", action);
+            console.warn("tried to undo unknown action kind", action);
     }
     action_stack_index--;
     /*
@@ -1798,10 +1742,6 @@ function action_stack_redo() {
             seat_student_transfer(to_seat_ref, student_ref);
             break;
         }
-        case "grid-resize": {
-            grid_dims_set(action.to_cols, action.to_rows);
-            break;
-        }
         case "selection-move": {
             // create selection at original location so it includes
             // seats that were selected and so we make sure it exists
@@ -1828,7 +1768,7 @@ function action_stack_redo() {
             break;
         }
         default:
-            assert(false, "tried to undo unknown action kind", action);
+            console.warn("tried to undo unknown action kind", action);
     }
     /*
     console.log(
@@ -1892,8 +1832,6 @@ async function chart_save() {
     const seats = new Array();
     const students = new Array();
 
-    const [cols, rows] = grid_dims_get();
-
     for (const seat_ref of seat_refs) {
         if (seat_ref == null) {
             continue;
@@ -1930,8 +1868,9 @@ async function chart_save() {
         id,
         seats,
         students,
-        cols,
-        rows,
+        // FIXME: REMOVE
+        cols: 0,
+        rows: 0,
     };
 
     console.log("save_chart", data);
@@ -1965,6 +1904,10 @@ async function init() {
         cols: 60,
     };
 
+    // FIXME: calculate
+    const grid_w_initial = 60;
+    const grid_h_initial = 30;
+
     const rep = Replicache.get_assert_init();
     const existing_chart_data = await Replicache.seating_chart_get(chart_id);
     if (existing_chart_data) {
@@ -1975,10 +1918,12 @@ async function init() {
 
     // }}}
 
+
     // {{{ container
     {
         const gridCellPx_initial = Math.floor(
-            (0.8 * window.innerWidth) / initial_chart_data.cols
+            // FIXME: use initial grid w
+            (0.8 * window.innerWidth) / grid_w_initial
         );
 
         // TODO: init all "*_initial" grid properties here
@@ -1989,8 +1934,6 @@ async function init() {
         );
         container_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
         container_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
-        container_ref.style.setProperty(GRID_PROP_COLS, initial_chart_data.cols);
-        container_ref.style.setProperty(GRID_PROP_ROWS, initial_chart_data.rows);
 
         container_ref.ondragover = function (event) {
             event.preventDefault();
@@ -2282,30 +2225,23 @@ async function init() {
             const [offsetX, offsetY] = elem_drag_offset_get(event.target);
 
             const gridCellPx = grid_cell_px_get();
-            const [grid_cols, grid_rows] = grid_dims_get();
 
-            const gridX = clamp(
+            const gridX =
                 Math.round(
                     (event.clientX -
                         containerDomRect.left -
                         offsetX +
                         container_ref.scrollLeft) /
                     gridCellPx
-                ),
-                0,
-                grid_cols
-            );
-            const gridY = clamp(
+                );
+            const gridY =
                 Math.round(
                     (event.clientY -
                         containerDomRect.top -
                         offsetY +
                         container_ref.scrollTop) /
                     gridCellPx
-                ),
-                0,
-                grid_rows
-            );
+                );
 
             const {
                 start: { gridX: startX, gridY: startY },
@@ -2438,8 +2374,9 @@ async function init() {
             assert(
                 "height" in selection_data && typeof selection_data.height == "number"
             );
-            // debugger;
 
+            // FIXME: implement approximate grid center retreival
+            assert(false, 'not implemented')
             const [grid_cols, grid_rows] = grid_dims_get();
 
             const startX = Math.round(grid_cols / 2);
@@ -2463,70 +2400,6 @@ async function init() {
             }
 
             console.log("paste:", selection_data, event);
-        });
-    }
-    // }}}
-
-    // {{{ grid controls
-    {
-        /** @type {HTMLInputElement} */
-        const grid_rows_input = document.getElementById("rows-input");
-        /** @type {HTMLInputElement} */
-        const grid_cols_input = document.getElementById("cols-input");
-
-        assert(grid_rows_input != null);
-        assert(grid_cols_input != null);
-
-        grid_rows_input.value = initial_chart_data.rows;
-        grid_cols_input.value = initial_chart_data.cols;
-
-        // FIXME: check if seats are out of bounds and either move them or prevent resizing operation
-
-        grid_rows_input.addEventListener("change", function (event) {
-            const value = Number.parseInt(event.target.value);
-            if (!Number.isSafeInteger(value)) {
-                console.error("grid rows not int:", value, event.target.value);
-                return;
-            }
-            if (value < 1) {
-                console.error("grid rows < 1:", value, event.target.value);
-                return;
-            }
-
-            const [from_cols, from_rows] = grid_dims_get();
-
-            grid_rows_set(value);
-
-            action_stack_push({
-                kind: "grid-resize",
-                from_cols,
-                from_rows,
-                to_cols: from_cols,
-                to_rows: value,
-            });
-        });
-
-        grid_cols_input.addEventListener("change", function (event) {
-            const value = Number.parseInt(event.target.value);
-            if (!Number.isSafeInteger(value)) {
-                console.error("grid rows not int:", value, event.target.value);
-                return;
-            }
-            if (value < 1) {
-                console.error("grid cols < 1:", value, event.target.value);
-                return;
-            }
-
-            const [from_cols, from_rows] = grid_dims_get();
-            grid_cols_set(value);
-
-            action_stack_push({
-                kind: "grid-resize",
-                from_cols,
-                from_rows,
-                to_cols: value,
-                to_rows: from_rows,
-            });
         });
     }
     // }}}
