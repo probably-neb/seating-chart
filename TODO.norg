@@ -31,6 +31,11 @@
   - ( ) don't clear selection if invalid
   - ( ) always expect seats in seat_refs to be non null (use asserts!)
   - (?) when ctrl+click for creating seat, allow dragging to create multiple seats + show previews
+  - ( ) Deleting selection
+  - ( ) Clear all and clear students when selection is active should be scoped to selection
+  -- ( ) Remove selection if empty
+  - ( ) Stop selection creation on mouseleave
+  - ( ) Paste selection or create new seat from button at mouse pos if over canvas
 
 
 * UI
@@ -50,7 +55,7 @@
   -- ( ) custom scrollbar in x,y
   --- ( ) handle wheel + scroll & scroll by grid_cell_px
   --- ( ) initially center x,y scrollbars to allow movement beyond visible area
-  --- (?) hide but show when moouse moves close?
+  --- (?) hide but show when mouse moves close?
   -- ( ) update grid offset on zoom
   --- ( ) with buttons: heuristic ?= delta(grid_cell_px) > grid_cell_px
   --- ( ) with keybind: center on mouse pos - ensure same pos is under mouse during zoom
@@ -63,6 +68,7 @@
   -- ( ) sidebar
   --- ( ) make foldable
   --- ( ) move clear all + clear students to top bar
+  -- ( ) Use estimate center for add seats
 
 ** sonner
    - ( ) import in layout
