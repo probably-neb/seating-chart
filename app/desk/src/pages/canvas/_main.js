@@ -2141,11 +2141,10 @@ async function init() {
 
     // {{{ seat controls
     {
-        const add_seat_btn = document.getElementById("add-seat-button");
-
-        add_seat_btn.addEventListener("click", () => {
+        document.getElementById("add-seat-button").addEventListener("click", () => {
             console.log("creating new seat");
-            const seat_ref = seat_create(0, 0);
+            const [center_gridX, center_gridY] = grid_center_estimate();
+            const seat_ref = seat_create(center_gridX - SEAT_GRID_W / 2, center_gridY - SEAT_GRID_H / 2);
             container_ref.appendChild(seat_ref);
             action_stack_push({
                 kind: "seat-create",
