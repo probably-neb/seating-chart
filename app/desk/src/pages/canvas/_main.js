@@ -2551,16 +2551,16 @@ async function init() {
 
     // }}}
 
-    // {{{ action stack
+    // {{{ action stack (undo/redo)
     document.addEventListener("keydown", function (event) {
         if (event.key == "z" && event.ctrlKey) {
-            console.log("undo");
             action_stack_undo();
         } else if (event.key == "y" && event.ctrlKey) {
-            console.log("redo");
             action_stack_redo();
         }
     });
+    topbar_ref.querySelector("#undo-button").addEventListener("click", action_stack_undo)
+    topbar_ref.querySelector("#redo-button").addEventListener("click", action_stack_redo)
     // }}}
 }
 

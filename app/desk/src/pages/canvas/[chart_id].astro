@@ -62,8 +62,8 @@ import ToolTip from "@/components/ToolTip.astro";
                             >
                             +
                     </button>
-                    <button>MOVE</button>
-                    <button>ERASER</button>
+                    <button>TODO(MOVE)</button>
+                    <button>TODO(ERASER)</button>
                 </div>
                 <div class="space-x-2">
                     <button
@@ -94,8 +94,12 @@ import ToolTip from "@/components/ToolTip.astro";
                     </ToolTip>
                 </div>
                 <div class="space-x-2">
-                    <button id="undo-button">Undo</button>
-                    <button id="redo-button">Redo</button>
+                    <button id="undo-button" class="ring-1 ring-melon-dark-extra rounded-md px-2 font-semibold text-lg border-b-2 border-b-melon-dark-extra text-white bg-melon-dark text-center">
+                        Undo
+                    </button>
+                    <button id="redo-button" class="ring-1 ring-light-sea-green-dark rounded-md px-2 font-semibold text-lg border-b-2 border-b-light-sea-green-dark bg-light-sea-green text-white text-center">
+                        Redo
+                    </button>
                     <button
                             id="save-button"
                             class="text-xl bg-sunset-dark rounded-md px-2 text-white border-b-4 border-sunset-dark-extra"
