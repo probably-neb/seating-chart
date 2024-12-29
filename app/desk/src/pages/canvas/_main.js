@@ -1938,7 +1938,6 @@ async function init() {
 
     // }}}
 
-
     // {{{ container
     {
         const gridCellPx_initial = Math.floor(
@@ -1947,7 +1946,7 @@ async function init() {
         );
 
         // TODO: init all "*_initial" grid properties here
-        container_ref.className = "w-full relative bg-white rounded-md shadow-lg overflow-hidden m-2 h-[calc(100vh-120px)]";
+        container_ref.className = "w-full relative bg-white rounded-lg shadow-lg shadow-gray-400 overflow-hidden m-2 h-[calc(100vh-120px)]";
         container_ref.style.setProperty(
             "--grid-cell-px",
             gridCellPx_initial + "px"
@@ -2496,7 +2495,7 @@ async function init() {
             sidebar_student_input.focus();
         };
 
-        sidebar_ref.querySelector("#clear-button").addEventListener("click", () => {
+        topbar_ref.querySelector("#clear-button").addEventListener("click", () => {
             const seats = chart_clear_seats();
             action_stack_push({
                 kind: "clear-seats",
@@ -2504,7 +2503,7 @@ async function init() {
             });
         });
 
-        sidebar_ref
+        topbar_ref
             .querySelector("#clear-students-button")
             .addEventListener("click", () => {
                 const student_id_to_seat_id = chart_clear_students();

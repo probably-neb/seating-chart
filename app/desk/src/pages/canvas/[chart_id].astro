@@ -2,119 +2,109 @@
 import Layout from "@/layout.astro";
 import ToolTip from "@/components/ToolTip.astro";
 ---
-
-<!doctype html>
-<Layout title="Deskribe Seating Chart Editor" />
+<Layout title="Deskribe Seating Chart Editor">
 <script>
     import "./_main.js";
 </script>
-<div id="app" class="h-screen flex bg-purple-100">
-    <aside id="sidebar" class="w-64 h-screen bg-white flex-none">
-        <div class="w-64 p-4 overflow-y-auto text-black">
-            <h2 class="text-lg font-semibold mb-4">Seating Chart Creator</h2>
+    <div id="app" class="h-screen flex bg-purple-100">
+        <aside id="sidebar" class="w-64 h-screen bg-white flex-none">
+            <div class="w-64 p-4 overflow-y-auto text-black">
+                <h2 class="text-lg font-semibold mb-4">Seating Chart Creator</h2>
 
-            <button
-                id="save-button"
-                class="text-xl bg-sunset-dark rounded-md px-2 text-white inset-0 border-b-4 border-sunset-dark-extra"
-            >
-                Save
-            </button>
+                <hr class="my-4" />
 
-            <hr class="my-4" />
+            </div>
 
-            <button
-                id="add-seat-button"
-                class="bg-cerulean rounded-md px-2 text-white border-b-4 border-b-cerulean-dark"
-            >
-                Add Seats
-            </button>
+            <div class="mb-6">
+                <h3 class="text-md font-semibold mb-2">Add Student</h3>
+                <div class="flex space-x-2">
+                    <input
+                            id="student-name-input"
+                            type="text"
+                            placeholder="Student Name"
+                            class="h-9 px-3 py-2 bg-white text-black text-sm rounded-md w-40 ring-2 ring-pink-300 focus:ring-pink-500 focus:outline-none"
+                            />
 
-            <fieldset class="border border-black pb-2">
-                <legend class="ml-2">Utilities</legend>
-                <ToolTip>
+                            <button
+                                    id="add-student-button"
+                                    class="bg-pink-600 border-b-4 ring-1 ring-black border-b-pink-800 text-white rounded-lg w-9 focus:outline-none focus:ring-2 hover:bg-pink-700 text-2xl"
+                                    >
+                                    +
+                            </button>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-md font-semibold mb-2">Students</h3>
+                <div id="students" class="flex flex-col space-y-2"></div>
+            </div>
+        </aside>
+        <div class="flex-1 p-4">
+            <div
+                id="top-bar"
+                class="bg-white shadow-md rounded-lg p-2 mb-4 flex justify-between items-center text-black"
+                >
+                <div class="space-x-2">
                     <button
-                        id="clear-button"
-                        class="bg-light-red rounded-md px-2 text-white border-b-4 border-b-light-red-dark"
-                    >
-                        Clear All
+                            id="zoom-out"
+                            class="ring-1 ring-sunset-dark-extra rounded-md px-2 font-semibold text-md border-b-2 border-b-sunset-dark-extra bg-sunset-dark w-6 text-center hover:bg-sunset-dark">
+                        -
                     </button>
-                    <div slot="tooltip">
-                        Make all students unseated and remove all seats
-                    </div>
-                </ToolTip>
-                <ToolTip>
+                    <span
+                            id="zoom-display"
+                            class="border border-black px-2 py-1 w-16 h-8 text-center inline-block"
+                            >
+                            100% <!-- PLACEHOLDER -->
+                    </span>
                     <button
-                        id="clear-students-button"
-                        class="bg-light-red rounded-md px-2 text-white border-b-4 border-b-light-red-dark"
-                    >
-                        Clear Students
+                            id="zoom-in"
+                            class="ring-1 ring-light-sea-green-dark rounded-md px-2 font-semibold text-md border-b-2 border-b-light-sea-green-dark bg-light-sea-green w-6 text-center hover:bg-light-sea-green-dark"
+                            >
+                            +
                     </button>
-                    <div slot="tooltip">Make all students unseated</div>
-                </ToolTip>
-            </fieldset>
-        </div>
-
-        <div class="mb-6">
-            <h3 class="text-md font-semibold mb-2">Add Student</h3>
-            <div class="flex space-x-2">
-                <input
-                    id="student-name-input"
-                    type="text"
-                    placeholder="Student Name"
-                    class="h-9 px-3 py-2 bg-white text-black text-sm rounded-md w-40 ring-2 ring-pink-300 focus:ring-pink-500 focus:outline-none"
-                />
-
-                <button
-                    id="add-student-button"
-                    class="bg-pink-600 border-b-4 ring-1 ring-black border-b-pink-800 text-white rounded-lg w-9 focus:outline-none focus:ring-2 hover:bg-pink-700 text-2xl"
-                >
-                    +
-                </button>
+                    <button>MOVE</button>
+                    <button>ERASER</button>
+                </div>
+                <div class="space-x-2">
+                    <button
+                        id="add-seat-button"
+                        class="bg-cerulean rounded-md px-2 text-white border-b-4 border-b-cerulean-dark"
+                    >
+                        Add Seats
+                    </button>
+                    <ToolTip>
+                        <button
+                                id="clear-button"
+                                class="bg-light-red rounded-md px-2 text-white border-b-4 border-b-light-red-dark"
+                                >
+                                Clear All
+                        </button>
+                            <div slot="tooltip">
+                                Make all students unseated and remove all seats
+                            </div>
+                    </ToolTip>
+                    <ToolTip>
+                        <button
+                                id="clear-students-button"
+                                class="bg-light-red rounded-md px-2 text-white border-b-4 border-b-light-red-dark"
+                                >
+                                Clear Students
+                        </button>
+                            <div slot="tooltip">Make all students unseated</div>
+                    </ToolTip>
+                </div>
+                <div class="space-x-2">
+                    <button id="undo-button">Undo</button>
+                    <button id="redo-button">Redo</button>
+                    <button
+                            id="save-button"
+                            class="text-xl bg-sunset-dark rounded-md px-2 text-white border-b-4 border-sunset-dark-extra"
+                            >
+                            Save
+                    </button>
+                </div>
             </div>
+            <div id="container"></div>
         </div>
-
-        <div>
-            <h3 class="text-md font-semibold mb-2">Students</h3>
-            <div id="students" class="flex flex-col space-y-2"></div>
-        </div>
-    </aside>
-    <div class="flex-1 p-4">
-        <div
-            id="top-bar"
-            class="bg-white shadow-md rounded-lg p-2 mb-4 flex justify-between items-center text-black"
-        >
-            <div class="space-x-2">
-                <button
-                    id="zoom-out"
-                    class="ring-1 ring-sunset-dark-extra rounded-md px-2 font-semibold text-md border-b-2 border-b-sunset-dark-extra bg-sunset-dark w-6 text-center hover:bg-sunset-dark"
-                    >-</button
-                >
-                <span
-                    id="zoom-display"
-                    class="border border-black px-2 py-1 w-16 h-8 text-center inline-block"
-                >
-                    100% <!-- PLACEHOLDER -->
-                </span>
-                <button
-                    id="zoom-in"
-                    class="ring-1 ring-light-sea-green-dark rounded-md px-2 font-semibold text-md border-b-2 border-b-light-sea-green-dark bg-light-sea-green w-6 text-center hover:bg-light-sea-green-dark"
-                    >+</button
-                >
-                <button>MOVE</button>
-                <button>ERASER</button>
-            </div>
-            <div class="space-x-2">
-                <button>Undo</button>
-                <button>Redo</button>
-                <button
-                    id="save-button"
-                    class="text-xl bg-sunset-dark rounded-md px-2 text-white border-b-4 border-sunset-dark-extra"
-                >
-                    Save
-                </button>
-            </div>
-        </div>
-        <div id="container"></div>
     </div>
-</div>
-<Layout />
+</Layout>
