@@ -2023,6 +2023,34 @@ async function init() {
             const delta_y = event.deltaY / grid_cell_px;
             grid_offset_update(delta_x, delta_y);
         })
+
+        container_ref.addEventListener("mousedown", function (event) {
+            if (event.button == 1) {
+                container_ref.dataset['moving'] = "";
+            }
+        })
+        container_ref.addEventListener("mousemove", function (event) {
+            if (!('moving' in container_ref.dataset)) {
+                return;
+            }
+            const grid_cell_px = grid_cell_px_get();
+            const delta_x = -event.movementX / grid_cell_px;
+            const delta_y = -event.movementY / grid_cell_px;
+            window.requestAnimationFrame(() => grid_offset_update(delta_x, delta_y));
+        });
+        container_ref.addEventListener("mouseup", function (event) {
+            if (!('moving' in container_ref.dataset)) {
+                return;
+            }
+            delete container_ref.dataset['moving'];
+            const grid_cell_px = grid_cell_px_get();
+            const delta_x = -event.movementX / grid_cell_px;
+            const delta_y = -event.movementY / grid_cell_px;
+            window.requestAnimationFrame(() => grid_offset_update(delta_x, delta_y));
+        });
+        container_ref.addEventListener("mouseleave", function () {
+            delete container_ref.dataset['moving'];
+        })
     }
     // }}}
 
@@ -2159,11 +2187,10 @@ async function init() {
         ////////////////////////
 
         container_ref.addEventListener("mousedown", function (event) {
-            if (event.ctrlKey) {
+            if (event.ctrlKey || event.button != 0) {
                 return;
             }
             containerDomRect = container_ref.getBoundingClientRect();
-            console.log("mouse down", event.composedPath());
             {
                 // ensure not clicking something besides container
                 const path = event.composedPath();
@@ -2188,11 +2215,15 @@ async function init() {
             };
             selection_update();
             selection_ref.draggable = "false";
+            selection_ref.dataset['started'] = '';
             is_creating_selection = true;
             selection_force_appear_below_seats();
         });
 
         container_ref.addEventListener("mousemove", function (event) {
+            if ('moving' in container_ref.dataset) {
+                return;
+            }
             if (!is_creating_selection || selected_region == null) {
                 // selection_clear();
                 return;
@@ -2210,11 +2241,18 @@ async function init() {
         });
 
         container_ref.addEventListener("mouseup", function (event) {
-            containerDomRect = container_ref.getBoundingClientRect();
+            if (!('started' in selection_ref.dataset)) {
+                // don't remove selection on mouse up where mouse down didn't start a selection
+                return;
+            }
+            delete selection_ref.dataset['started'];
+
             if (!is_creating_selection || selected_region == null) {
                 selection_clear();
                 return;
             }
+
+            containerDomRect = container_ref.getBoundingClientRect();
             console.log("mouse up");
 
             const gridCellPx = grid_cell_px_get();
