@@ -1493,7 +1493,7 @@ function student_create(name, id = null) {
     return student_ref;
 }
 
-/*
+/**
 * @param x {number}
 * @param y {number}
 */
@@ -1504,7 +1504,7 @@ function grid_offset_set(x, y) {
     container_ref.style.setProperty(GRID_PROP_OFFSET_Y, y);
 }
 
-/*
+/**
 * @returns {[x: number, y: number]}
 */
 function grid_offset_get() {
@@ -1520,6 +1520,10 @@ function grid_offset_update(x, y) {
     grid_offset_set(old_x + x, old_y + y);
 }
 
+
+/**
+* @returns {[x: number, y: number]}
+*/
 function grid_center_estimate() {
     const container_dom_rect = container_ref.getBoundingClientRect();
     const grid_cell_px = grid_cell_px_get();
