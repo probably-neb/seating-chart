@@ -29,6 +29,7 @@ const GRID_POS_TRANSFORM =
 const GRID_POS_TRANSFORM_NO_OFFSET =
     `translate(calc(var(--grid-cell-px) * var(${PROP_GRID_POS_X})), calc(var(--grid-cell-px) * var(${PROP_GRID_POS_Y})))`;
 
+
 // seats
 const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
@@ -51,6 +52,7 @@ const CONTAINER_PROP_SCALE = "--scale";
 /** @type {HTMLDivElement} */
 const container_ref = document.getElementById("container");
 assert(container_ref != null, "container not null");
+// TODO: Consider Remove
 let containerDomRect;
 
 // selection
@@ -1534,8 +1536,6 @@ function grid_center_estimate() {
     return px_point_to_grid_round(grid_cell_px, center_x, center_y);
 }
 
-// FIXME: Remove
-containerDomRect = container_ref.getBoundingClientRect();
 
 // {{{ Action Stack
 /** @type {number} */
@@ -1962,7 +1962,6 @@ async function init() {
         );
 
         // TODO: init all "*_initial" grid properties here
-        container_ref.className = "w-full relative bg-white rounded-lg shadow-lg shadow-gray-400 overflow-hidden m-2 h-[calc(100vh-120px)]";
         container_ref.style.setProperty(
             "--grid-cell-px",
             gridCellPx_initial + "px"
