@@ -1516,7 +1516,17 @@ function grid_offset_get() {
 function grid_offset_update(x, y) {
     const [old_x, old_y] = grid_offset_get();
     grid_offset_set(old_x + x, old_y + y);
-} 
+}
+
+function grid_center_estimate() {
+    const container_dom_rect = container_ref.getBoundingClientRect();
+    const grid_cell_px = grid_cell_px_get();
+
+    const center_x = container_dom_rect.width / 2;
+    const center_y = container_dom_rect.height / 2;
+
+    return px_point_to_grid_round(grid_cell_px, center_x, center_y);
+}
 
 // FIXME: Remove
 containerDomRect = container_ref.getBoundingClientRect();
@@ -2448,12 +2458,10 @@ async function init() {
                 "height" in selection_data && typeof selection_data.height == "number"
             );
 
-            // FIXME: implement approximate grid center retreival
-            assert(false, 'not implemented')
-            const [grid_cols, grid_rows] = grid_dims_get();
+            // FIXME: implement checking if mouse is over container and getting mouse position
+            // instead
+            const [startX, startY] = grid_center_estimate();
 
-            const startX = Math.round(grid_cols / 2);
-            const startY = Math.round(grid_rows / 2);
             const endX = startX + selection_data.width;
             const endY = startY + selection_data.height;
 
