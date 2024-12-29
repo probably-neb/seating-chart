@@ -46,14 +46,14 @@ let seat_refs = [];
 
 const seat_preview_ref = document.createElement("div");
 
-// container
-const CONTAINER_PROP_SCALE = "--scale";
+// chart
+const CHART_PROP_SCALE = "--scale";
 
 /** @type {HTMLDivElement} */
-const container_ref = document.getElementById("container");
-assert(container_ref != null, "container not null");
+const chart_ref = document.getElementById("container");
+assert(chart_ref != null, "chart not null");
 // TODO: Consider Remove
-let containerDomRect;
+let chartDomRect;
 
 // selection
 const SELECTION_PROP_WIDTH = "--width";
@@ -75,10 +75,10 @@ const DRAG_DATA_TYPE_KIND_SEAT = "seat";
 const DRAG_DATA_TYPE_KIND_SELECTION = "selection";
 const DRAG_DATA_TYPE_KIND_STUDENT = "student";
 
-const invisible_drag_preview = document.createElement("span");
+const invisible_drag_preview_ref = document.createElement("span");
 {
-    invisible_drag_preview.style.display = "none";
-    app.appendChild(invisible_drag_preview);
+    invisible_drag_preview_ref.style.display = "none";
+    app.appendChild(invisible_drag_preview_ref);
 }
 
 // student
@@ -123,7 +123,7 @@ function grid_cell_px_dim(v) {
 }
 
 function grid_cell_px_get() {
-    const gridCellPxStr = container_ref.style.getPropertyValue("--grid-cell-px");
+    const gridCellPxStr = chart_ref.style.getPropertyValue("--grid-cell-px");
     const gridCellPx = Number.parseFloat(gridCellPxStr.slice(0, -"px".length));
 
     assert(
@@ -137,7 +137,7 @@ function grid_cell_px_get() {
 }
 
 function grid_cell_px_adjust(factor) {
-    const current_scale_str = container_ref.style.getPropertyValue(CONTAINER_PROP_SCALE);
+    const current_scale_str = chart_ref.style.getPropertyValue(CHART_PROP_SCALE);
     const current_scale = current_scale_str ? Number.parseFloat(current_scale_str) : 1.0;
 
     assert(
@@ -158,11 +158,11 @@ function grid_cell_px_adjust(factor) {
     const new_value = current_value * scale_transform;
     // console.log({ new_value, current_value, scale_transform });
 
-    container_ref.style.setProperty("--grid-cell-px", new_value + "px");
+    chart_ref.style.setProperty("--grid-cell-px", new_value + "px");
 
     zoom_display_update(desired_scale);
 
-    container_ref.style.setProperty(CONTAINER_PROP_SCALE, desired_scale);
+    chart_ref.style.setProperty(CHART_PROP_SCALE, desired_scale);
 }
 
 function px_point_to_grid_round(gridCellPx, x, y) {
@@ -289,14 +289,14 @@ function selection_force_appear_above_seats() {
     if (selection_ref.nextElementSibling == null) {
         return;
     }
-    container_ref.appendChild(selection_ref);
+    chart_ref.appendChild(selection_ref);
 }
 
 function selection_force_appear_below_seats() {
     if (selection_ref.previousElementSibling == null) {
         return;
     }
-    container_ref.insertBefore(selection_ref, container_ref.firstChild);
+    chart_ref.insertBefore(selection_ref, chart_ref.firstChild);
 }
 
 function selection_dims_set(width, height) {
@@ -348,7 +348,7 @@ function selection_clear() {
     }
     for (const seat of selected_seats) {
         seat.remove();
-        container_ref.appendChild(seat);
+        chart_ref.appendChild(seat);
         delete seat.dataset.selected;
         seat_grid_pos_revert_to_abs_loc(seat);
         seat.draggable = true;
@@ -462,7 +462,7 @@ function selected_seats_update(selected_seat_offsets) {
             }
             if (seat_ref.parentElement == selection_ref) {
                 seat_ref.remove();
-                container_ref.appendChild(seat_ref);
+                chart_ref.appendChild(seat_ref);
             }
             seat_ref.style.transform = GRID_POS_TRANSFORM;
             seat_ref.draggable = true;
@@ -527,7 +527,7 @@ function dbg_render_dot_in_grid_square(color, gridX, gridY) {
     dbg_dot.classList = "rounded-full";
 
     dbg_dot.dataset["dbgdot"] = "";
-    container_ref.appendChild(dbg_dot);
+    chart_ref.appendChild(dbg_dot);
 }
 
 function dbg_clear_all_dots() {
@@ -870,7 +870,7 @@ function seat_create(gridX, gridY, id = null) {
         event.dataTransfer.setData(DRAG_DATA_TYPE_KIND, DRAG_DATA_TYPE_KIND_SEAT);
         elem_drag_offset_set(event.target, event.clientX, event.clientY);
         // seat_gridloc_save(event.target);
-        event.dataTransfer.setDragImage(invisible_drag_preview, 0, 0);
+        event.dataTransfer.setDragImage(invisible_drag_preview_ref, 0, 0);
 
         {
             // create drag preview
@@ -882,8 +882,8 @@ function seat_create(gridX, gridY, id = null) {
     };
 
     element.ondrag = function (event) {
-        containerDomRect = container_ref.getBoundingClientRect();
-        assert(containerDomRect != null, "containerDomRect not null");
+        chartDomRect = chart_ref.getBoundingClientRect();
+        assert(chartDomRect != null, "chartDomRect not null");
 
         const [offsetX, offsetY] = elem_drag_offset_get(event.target);
         const [grid_offset_x, grid_offset_y] = grid_offset_get();
@@ -891,17 +891,17 @@ function seat_create(gridX, gridY, id = null) {
         const grid_offset_x_px = grid_offset_x * grid_cell_px;
         const grid_offset_y_px = grid_offset_y * grid_cell_px;
 
-        const grid_scroll_x_px = container_ref.scrollLeft;
-        const grid_scroll_y_px = container_ref.scrollTop;
+        const grid_scroll_x_px = chart_ref.scrollLeft;
+        const grid_scroll_y_px = chart_ref.scrollTop;
 
         const x =
             event.clientX -
-            containerDomRect.left -
+            chartDomRect.left -
             offsetX
             ;
         const y =
             event.clientY -
-            containerDomRect.top -
+            chartDomRect.top -
             offsetY
             ;
 
@@ -1291,7 +1291,7 @@ function elem_animate_move(element, move, center = false) {
 }
 
 function elem_drag_offset_set(elem, clientX, clientY) {
-    assert(containerDomRect != null, "containerDomRect not null");
+    assert(chartDomRect != null, "containerDomRect not null");
     assert(elem != null, "elem not null");
     assert(Number.isSafeInteger(clientX), "clientX is int", clientY);
     assert(Number.isSafeInteger(clientY), "clientY is int", clientY);
@@ -1330,11 +1330,11 @@ function elem_drag_offset_clear(elem) {
     delete elem.dataset.offsety;
 }
 
-function container_handle_drop_seat(event) {
+function chart_handle_drop_seat(event) {
     event.preventDefault();
     const seat_id = event.dataTransfer.getData("text/plain");
     console.log("ON DROP", seat_id);
-    assert(containerDomRect != null, "containerDomRect not null");
+    assert(chartDomRect != null, "chartDomRect not null");
 
     const seat_ref = seat_ref_get_by_id(seat_id);
 
@@ -1348,7 +1348,7 @@ function container_handle_drop_seat(event) {
 
     seat_ref.style.zIndex = 0;
 
-    container_ref.appendChild(seat_ref);
+    chart_ref.appendChild(seat_ref);
 
     action_stack_push({
         kind: "seat-move",
@@ -1360,10 +1360,10 @@ function container_handle_drop_seat(event) {
     seat_preview_ref.style.display = "none";
 }
 
-function container_handle_drop_selection(event) {
+function chart_handle_drop_selection(event) {
     event.preventDefault();
 
-    assert(containerDomRect != null, "containerDomRect not null");
+    assert(chartDomRect != null, "chartDomRect not null");
 
     const [offsetX, offsetY] = elem_drag_offset_get(selection_ref);
 
@@ -1371,8 +1371,8 @@ function container_handle_drop_selection(event) {
 
     const [gridX, gridY] = px_point_to_grid_round(
         gridCellPx,
-        event.clientX - containerDomRect.left - offsetX,
-        event.clientY - containerDomRect.top - offsetY
+        event.clientX - chartDomRect.left - offsetX,
+        event.clientY - chartDomRect.top - offsetY
     );
 
     const {
@@ -1502,16 +1502,16 @@ function student_create(name, id = null) {
 function grid_offset_set(x, y) {
     assert(Number.isSafeFloat(x), 'grid offset x is safe integer');
     assert(Number.isSafeFloat(y), 'grid offset y is safe integer');
-    container_ref.style.setProperty(GRID_PROP_OFFSET_X, x);
-    container_ref.style.setProperty(GRID_PROP_OFFSET_Y, y);
+    chart_ref.style.setProperty(GRID_PROP_OFFSET_X, x);
+    chart_ref.style.setProperty(GRID_PROP_OFFSET_Y, y);
 }
 
 /**
 * @returns {[x: number, y: number]}
 */
 function grid_offset_get() {
-    const x = Number.parseFloat(container_ref.style.getPropertyValue(GRID_PROP_OFFSET_X));
-    const y = Number.parseFloat(container_ref.style.getPropertyValue(GRID_PROP_OFFSET_Y));
+    const x = Number.parseFloat(chart_ref.style.getPropertyValue(GRID_PROP_OFFSET_X));
+    const y = Number.parseFloat(chart_ref.style.getPropertyValue(GRID_PROP_OFFSET_Y));
     assert(Number.isSafeFloat(x), 'grid offset x is safe integer');
     assert(Number.isSafeFloat(y), 'grid offset y is safe integer');
     return [x, y];
@@ -1527,11 +1527,11 @@ function grid_offset_update(x, y) {
 * @returns {[x: number, y: number]}
 */
 function grid_center_estimate() {
-    const container_dom_rect = container_ref.getBoundingClientRect();
+    const chart_dom_rect = chart_ref.getBoundingClientRect();
     const grid_cell_px = grid_cell_px_get();
 
-    const center_x = container_dom_rect.width / 2;
-    const center_y = container_dom_rect.height / 2;
+    const center_x = chart_dom_rect.width / 2;
+    const center_y = chart_dom_rect.height / 2;
 
     return px_point_to_grid_round(grid_cell_px, center_x, center_y);
 }
@@ -1665,7 +1665,7 @@ function action_stack_undo() {
             if (action.student_id != null) {
                 seat_student_set(seat_ref, student_ref_get_by_id(action.student_id));
             }
-            container_ref.appendChild(seat_ref);
+            chart_ref.appendChild(seat_ref);
             break;
         }
         case "student-seat-assign": {
@@ -1717,7 +1717,7 @@ function action_stack_undo() {
                         seat_student_set(seat_ref, student_ref);
                     }
                 }
-                container_ref.appendChild(seat_ref);
+                chart_ref.appendChild(seat_ref);
             }
             break;
         }
@@ -1758,7 +1758,7 @@ function action_stack_redo() {
                 action.loc.gridY,
                 action.seat_id
             );
-            container_ref.appendChild(seat_ref);
+            chart_ref.appendChild(seat_ref);
             break;
         }
         case "seat-delete": {
@@ -1954,7 +1954,7 @@ async function init() {
 
     // }}}
 
-    // {{{ container
+    // {{{ chart
     {
         const gridCellPx_initial = Math.floor(
             // FIXME: use initial grid w
@@ -1962,36 +1962,36 @@ async function init() {
         );
 
         // TODO: init all "*_initial" grid properties here
-        container_ref.style.setProperty(
+        chart_ref.style.setProperty(
             "--grid-cell-px",
             gridCellPx_initial + "px"
         );
-        container_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
-        container_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
+        chart_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
+        chart_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
         // TODO: use existing seat data to calculate w/h
         grid_offset_set(0, 0)
 
-        container_ref.ondragover = function (event) {
+        chart_ref.ondragover = function (event) {
             event.preventDefault();
         };
 
         const GRID_LINE_COLOR = '#e0e7ff'; // '#e5e5e5'
-        container_ref.style.backgroundImage = `
+        chart_ref.style.backgroundImage = `
             linear-gradient(to right, ${GRID_LINE_COLOR} 1px, transparent 1px),
             linear-gradient(to bottom, ${GRID_LINE_COLOR} 1px, transparent 1px)
             `;
 
-        container_ref.style.backgroundSize = `var(--grid-cell-px) var(--grid-cell-px)`;
-        container_ref.style.backgroundPosition = `left calc(-1 * var(${GRID_PROP_OFFSET_X}) * var(--grid-cell-px)) top calc(-1 * var(${GRID_PROP_OFFSET_Y}) * var(--grid-cell-px))`;
+        chart_ref.style.backgroundSize = `var(--grid-cell-px) var(--grid-cell-px)`;
+        chart_ref.style.backgroundPosition = `left calc(-1 * var(${GRID_PROP_OFFSET_X}) * var(--grid-cell-px)) top calc(-1 * var(${GRID_PROP_OFFSET_Y}) * var(--grid-cell-px))`;
 
-        container_ref.ondrop = function (event) {
+        chart_ref.ondrop = function (event) {
             const kind = event.dataTransfer.getData(DRAG_DATA_TYPE_KIND);
             switch (kind) {
                 case DRAG_DATA_TYPE_KIND_SEAT:
-                    container_handle_drop_seat(event);
+                    chart_handle_drop_seat(event);
                     break;
                 case DRAG_DATA_TYPE_KIND_SELECTION:
-                    container_handle_drop_selection(event);
+                    chart_handle_drop_selection(event);
                     break;
                 case "":
                 default:
@@ -2028,7 +2028,7 @@ async function init() {
 
         })
 
-        container_ref.addEventListener("wheel", function (event) {
+        chart_ref.addEventListener("wheel", function (event) {
             if (event.ctrlKey) {
                 return;
             }
@@ -2038,13 +2038,13 @@ async function init() {
             grid_offset_update(delta_x, delta_y);
         })
 
-        container_ref.addEventListener("mousedown", function (event) {
+        chart_ref.addEventListener("mousedown", function (event) {
             if (event.button == 1) {
-                container_ref.dataset['moving'] = "";
+                chart_ref.dataset['moving'] = "";
             }
         })
-        container_ref.addEventListener("mousemove", function (event) {
-            if (!('moving' in container_ref.dataset)) {
+        chart_ref.addEventListener("mousemove", function (event) {
+            if (!('moving' in chart_ref.dataset)) {
                 return;
             }
             const grid_cell_px = grid_cell_px_get();
@@ -2052,18 +2052,18 @@ async function init() {
             const delta_y = -event.movementY / grid_cell_px;
             window.requestAnimationFrame(() => grid_offset_update(delta_x, delta_y));
         });
-        container_ref.addEventListener("mouseup", function (event) {
-            if (!('moving' in container_ref.dataset)) {
+        chart_ref.addEventListener("mouseup", function (event) {
+            if (!('moving' in chart_ref.dataset)) {
                 return;
             }
-            delete container_ref.dataset['moving'];
+            delete chart_ref.dataset['moving'];
             const grid_cell_px = grid_cell_px_get();
             const delta_x = -event.movementX / grid_cell_px;
             const delta_y = -event.movementY / grid_cell_px;
             window.requestAnimationFrame(() => grid_offset_update(delta_x, delta_y));
         });
-        container_ref.addEventListener("mouseleave", function () {
-            delete container_ref.dataset['moving'];
+        chart_ref.addEventListener("mouseleave", function () {
+            delete chart_ref.dataset['moving'];
         })
     }
     // }}}
@@ -2072,7 +2072,7 @@ async function init() {
     {
         const seats = initial_chart_data.seats;
         for (const seat of seats) {
-            container.appendChild(seat_create(seat.gridX, seat.gridY, seat.id));
+            chart_ref.appendChild(seat_create(seat.gridX, seat.gridY, seat.id));
         }
 
         const students = initial_chart_data.students;
@@ -2102,7 +2102,7 @@ async function init() {
         seat_preview_ref.style.display = "none";
         seat_preview_ref.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
         seat_preview_ref.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
-        container_ref.appendChild(seat_preview_ref);
+        chart_ref.appendChild(seat_preview_ref);
     }
     // }}}
 
@@ -2124,7 +2124,7 @@ async function init() {
         // add to parent so that zoom still works if event triggers outside canvas
         // bounds and zoom is not interupted if zoom causes canvas to no longer be
         // under mouse (i.e. canvas shrinks)
-        container_ref.parentElement.addEventListener("wheel", function (event) {
+        chart_ref.parentElement.addEventListener("wheel", function (event) {
             if (!event.ctrlKey) {
                 return;
             }
@@ -2144,7 +2144,7 @@ async function init() {
             console.log("creating new seat");
             const [center_gridX, center_gridY] = grid_center_estimate();
             const seat_ref = seat_create(center_gridX - SEAT_GRID_W / 2, center_gridY - SEAT_GRID_H / 2);
-            container_ref.appendChild(seat_ref);
+            chart_ref.appendChild(seat_ref);
             action_stack_push({
                 kind: "seat-create",
                 seat_id: seat_ref.id,
@@ -2152,18 +2152,18 @@ async function init() {
             });
         });
 
-        container_ref.addEventListener("click", function (event) {
+        chart_ref.addEventListener("click", function (event) {
             if (!event.ctrlKey || is_creating_selection) {
                 return;
             }
             event.preventDefault();
 
-            containerDomRect = container_ref.getBoundingClientRect();
+            chartDomRect = chart_ref.getBoundingClientRect();
 
             const px_x =
-                event.clientX - containerDomRect.left;
+                event.clientX - chartDomRect.left;
             const px_y =
-                event.clientY - containerDomRect.top;
+                event.clientY - chartDomRect.top;
             const [center_gridX, center_gridY] = px_point_to_grid_round(
                 grid_cell_px_get(),
                 px_x,
@@ -2175,7 +2175,7 @@ async function init() {
 
             const seat_ref = seat_create(gridX, gridY);
 
-            container_ref.appendChild(seat_ref);
+            chart_ref.appendChild(seat_ref);
 
             action_stack_push({
                 kind: "seat-create",
@@ -2193,21 +2193,21 @@ async function init() {
             "absolute bg-cyan-300/20 ring-2 ring-blue-500 z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
         selection_ref.style.display = "none";
         selection_ref.draggable = true;
-        container_ref.appendChild(selection_ref);
+        chart_ref.appendChild(selection_ref);
 
         ////////////////////////
         // creating selection //
         ////////////////////////
 
-        container_ref.addEventListener("mousedown", function (event) {
+        chart_ref.addEventListener("mousedown", function (event) {
             if (event.ctrlKey || event.button != 0) {
                 return;
             }
-            containerDomRect = container_ref.getBoundingClientRect();
+            chartDomRect = chart_ref.getBoundingClientRect();
             {
                 // ensure not clicking something besides container
                 const path = event.composedPath();
-                if (path.at(0)?.id !== container_ref.id) {
+                if (path.at(0)?.id !== chart_ref.id) {
                     return;
                 }
             }
@@ -2218,8 +2218,8 @@ async function init() {
 
             const gridCellPx = grid_cell_px_get();
 
-            const x_px = event.clientX - containerDomRect.left
-            const y_px = event.clientY - containerDomRect.top
+            const x_px = event.clientX - chartDomRect.left
+            const y_px = event.clientY - chartDomRect.top
             const [gridX, gridY] = px_point_to_grid_round(gridCellPx, x_px, y_px);
             selected_region = {
                 start: { gridX, gridY },
@@ -2233,27 +2233,27 @@ async function init() {
             selection_force_appear_below_seats();
         });
 
-        container_ref.addEventListener("mousemove", function (event) {
-            if ('moving' in container_ref.dataset) {
+        chart_ref.addEventListener("mousemove", function (event) {
+            if ('moving' in chart_ref.dataset) {
                 return;
             }
             if (!is_creating_selection || selected_region == null) {
                 // selection_clear();
                 return;
             }
-            containerDomRect = container_ref.getBoundingClientRect();
+            chartDomRect = chart_ref.getBoundingClientRect();
 
             const gridCellPx = grid_cell_px_get();
 
-            const x_px = event.clientX - containerDomRect.left;
-            const y_px = event.clientY - containerDomRect.top;
+            const x_px = event.clientX - chartDomRect.left;
+            const y_px = event.clientY - chartDomRect.top;
             const [gridX, gridY] = px_point_to_grid_round(gridCellPx, x_px, y_px);
             selected_region_end_set(gridX, gridY);
 
             selection_update();
         });
 
-        container_ref.addEventListener("mouseup", function (event) {
+        chart_ref.addEventListener("mouseup", function (event) {
             if (!('started' in selection_ref.dataset)) {
                 // don't remove selection on mouse up where mouse down didn't start a selection
                 return;
@@ -2265,13 +2265,13 @@ async function init() {
                 return;
             }
 
-            containerDomRect = container_ref.getBoundingClientRect();
+            chartDomRect = chart_ref.getBoundingClientRect();
             console.log("mouse up");
 
             const gridCellPx = grid_cell_px_get();
 
-            const x_px = event.clientX - containerDomRect.left;
-            const y_px = event.clientY - containerDomRect.top;
+            const x_px = event.clientX - chartDomRect.left;
+            const y_px = event.clientY - chartDomRect.top;
             const [gridX, gridY] = px_point_to_grid_round(gridCellPx, x_px, y_px);
             selected_region_end_set(gridX, gridY);
 
@@ -2303,7 +2303,7 @@ async function init() {
                 DRAG_DATA_TYPE_KIND,
                 DRAG_DATA_TYPE_KIND_SELECTION
             );
-            event.dataTransfer.setDragImage(invisible_drag_preview, 0, 0);
+            event.dataTransfer.setDragImage(invisible_drag_preview_ref, 0, 0);
 
             const selection_ref = event.target;
             elem_drag_offset_set(selection_ref, event.clientX, event.clientY);
@@ -2315,8 +2315,8 @@ async function init() {
         };
 
         selection_ref.ondrag = function (event) {
-            containerDomRect = container_ref.getBoundingClientRect();
-            assert(containerDomRect != null, "containerDomRect not null");
+            chartDomRect = chart_ref.getBoundingClientRect();
+            assert(chartDomRect != null, "containerDomRect not null");
             assert(selected_region != null, "selected_region not null");
 
             const [offsetX, offsetY] = elem_drag_offset_get(event.target);
@@ -2325,8 +2325,8 @@ async function init() {
 
             const [gridX, gridY] = px_point_to_grid_round(
                 gridCellPx,
-                event.clientX - containerDomRect.left - offsetX,
-                event.clientY - containerDomRect.top - offsetY
+                event.clientX - chartDomRect.left - offsetX,
+                event.clientY - chartDomRect.top - offsetY
             );
 
 
