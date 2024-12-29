@@ -135,9 +135,8 @@ function grid_cell_px_get() {
 }
 
 function grid_cell_px_adjust(factor) {
-    const current_scale = Number.parseFloat(
-        container_ref.style.getPropertyValue(CONTAINER_PROP_SCALE) || "1"
-    );
+    const current_scale_str = container_ref.style.getPropertyValue(CONTAINER_PROP_SCALE);
+    const current_scale = current_scale_str ? Number.parseFloat(current_scale_str) : 1.0;
 
     assert(
         Number.isSafeFloat(current_scale),
@@ -146,6 +145,9 @@ function grid_cell_px_adjust(factor) {
     );
 
     const desired_scale = current_scale + factor;
+    if (desired_scale <= 0) {
+        return;
+    }
 
     const scale_transform = desired_scale / current_scale;
 
