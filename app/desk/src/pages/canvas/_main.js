@@ -1968,6 +1968,9 @@ async function init() {
         );
         chart_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
         chart_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
+
+        chart_ref.style.setProperty(CHART_PROP_SCALE, "1.0");
+
         // TODO: use existing seat data to calculate w/h
         grid_offset_set(0, 0)
 
@@ -1975,14 +1978,6 @@ async function init() {
             event.preventDefault();
         };
 
-        const GRID_LINE_COLOR = '#e0e7ff'; // '#e5e5e5'
-        chart_ref.style.backgroundImage = `
-            linear-gradient(to right, ${GRID_LINE_COLOR} 1px, transparent 1px),
-            linear-gradient(to bottom, ${GRID_LINE_COLOR} 1px, transparent 1px)
-            `;
-
-        chart_ref.style.backgroundSize = `var(--grid-cell-px) var(--grid-cell-px)`;
-        chart_ref.style.backgroundPosition = `left calc(-1 * var(${GRID_PROP_OFFSET_X}) * var(--grid-cell-px)) top calc(-1 * var(${GRID_PROP_OFFSET_Y}) * var(--grid-cell-px))`;
 
         chart_ref.ondrop = function (event) {
             const kind = event.dataTransfer.getData(DRAG_DATA_TYPE_KIND);

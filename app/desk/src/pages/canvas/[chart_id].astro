@@ -3,9 +3,51 @@ import Layout from "@/layout.astro";
 import ToolTip from "@/components/ToolTip.astro";
 ---
 <Layout title="Deskribe Seating Chart Editor">
-<script>
-    import "./_main.js";
-</script>
+    <script>
+        import "./_main.js";
+    </script>
+    <style>
+        .grid-background {
+          --circle-width: 1px;
+          --circle: circle at var(--circle-width) var(--circle-width);
+          /* Map color transparency to --scale for each level of the grid */
+          --bg-color-1: rgba(0, 0, 0, 1);
+          --bg-color-2: rgba(0, 0, 0, clamp(0, var(--scale), 1));
+          --bg-color-3: rgba(0, 0, 0, clamp(0, calc(var(--scale) - 0.1), 1));
+          --bg-color-4: rgba(0, 0, 0, clamp(0, calc(var(--scale) - 1), 1));
+          --bg-color-5: rgba(0, 0, 0, clamp(0, calc(var(--scale) - 4), 1));
+
+          /* Draw points for each level of grid as set of a background image. First background is on top.*/
+          background-image:
+            radial-gradient(var(--circle), var(--bg-color-1) var(--circle-width), transparent 0),
+            radial-gradient(var(--circle), var(--bg-color-2) var(--circle-width), transparent 0),
+            radial-gradient(var(--circle), var(--bg-color-3) var(--circle-width), transparent 0),
+            radial-gradient(var(--circle), var(--bg-color-4) var(--circle-width), transparent 0),
+            radial-gradient(var(--circle), var(--bg-color-5) var(--circle-width), transparent 0);
+
+           /* Each level of the grid should be a factor of --size. */
+          --bg-size: calc(var(--grid-cell-px) / pow(2, 3));
+
+          --sections: 2;
+          /* Divide each part of grid into 4 sections. */
+          --bg-size-1: calc(var(--bg-size) * pow(var(--sections), 5));
+          --bg-size-2: calc(var(--bg-size) * pow(var(--sections), 4));
+          --bg-size-3: calc(var(--bg-size) * pow(var(--sections), 3));
+          --bg-size-4: calc(var(--bg-size) * pow(var(--sections), 2));
+          --bg-size-5: calc(var(--bg-size) * var(--sections));
+
+          background-size:
+            var(--bg-size-1) var(--bg-size-1),
+            var(--bg-size-2) var(--bg-size-2),
+            var(--bg-size-3) var(--bg-size-3),
+            var(--bg-size-4) var(--bg-size-4),
+            var(--bg-size-5) var(--bg-size-5);
+
+          background-position: 
+                left calc(-1 * var(--grid-offset-x) * var(--grid-cell-px) - var(--circle-width))
+                top  calc(-1 * var(--grid-offset-y) * var(--grid-cell-px) - var(--circle-width));
+        }
+    </style>
     <div id="app" class="h-screen flex bg-purple-100">
         <aside id="sidebar" class="w-64 h-screen bg-white flex-none">
             <div class="w-64 p-4 overflow-y-auto text-black">
@@ -108,7 +150,7 @@ import ToolTip from "@/components/ToolTip.astro";
                     </button>
                 </div>
             </div>
-            <div id="container" class="chart w-full relative bg-white rounded-lg shadow-lg shadow-gray-400 overflow-hidden m-2 h-[calc(100vh-120px)]"></div>
+            <div id="container" class="grid-background w-full relative bg-white rounded-lg shadow-lg shadow-gray-400 overflow-hidden m-2 h-[calc(100vh-120px)]"></div>
         </div>
     </div>
 </Layout>
