@@ -2503,10 +2503,11 @@ async function init() {
       const [center_gridX, center_gridY] = grid_center_estimate();
       const seat_ref = seat_create(center_gridX - SEAT_GRID_W / 2, center_gridY - SEAT_GRID_H / 2);
       chart_ref.appendChild(seat_ref);
+      const [gridX, gridY] = seat_abs_loc_get(seat_ref);
       action_stack_push({
         kind: "seat-create",
         seat_id: seat_ref.id,
-        loc: { gridX: 0, gridY: 0 },
+        loc: { gridX, gridY },
       });
     });
 
@@ -2535,10 +2536,11 @@ async function init() {
 
       chart_ref.appendChild(seat_ref);
 
+      const [seat_gridX, seat_gridY] = seat_abs_loc_get(seat_ref);
       action_stack_push({
         kind: "seat-create",
         seat_id: seat_ref.id,
-        loc: { gridX, gridY },
+        loc: { gridX: seat_gridX, gridY: seat_gridY },
       });
     });
   }
