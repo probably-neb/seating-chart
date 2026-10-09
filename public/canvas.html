@@ -13,33 +13,46 @@
               --circle-width: 1px;
               --circle: circle at var(--circle-width) var(--circle-width);
               /* Transparency of each level of the grid, set by grid_cell_px_set in main.js */
-              --bg-color-1: rgba(0, 0, 0, var(--grid-dot-alpha-1, 1));
+              --bg-color-1: rgba(0, 0, 0, var(--grid-dot-alpha-1, 0));
               --bg-color-2: rgba(0, 0, 0, var(--grid-dot-alpha-2, 0));
               --bg-color-3: rgba(0, 0, 0, var(--grid-dot-alpha-3, 0));
               --bg-color-4: rgba(0, 0, 0, var(--grid-dot-alpha-4, 0));
               --bg-color-5: rgba(0, 0, 0, var(--grid-dot-alpha-5, 0));
+              --bg-color-6: rgba(0, 0, 0, var(--grid-dot-alpha-6, 0));
+              --bg-color-7: rgba(0, 0, 0, var(--grid-dot-alpha-7, 0));
+              --bg-color-8: rgba(0, 0, 0, var(--grid-dot-alpha-8, 0));
+              --bg-color-9: rgba(0, 0, 0, var(--grid-dot-alpha-9, 0));
               /* Draw points for each level of grid as set of a background image. First background is on top.*/
               background-image:
                 radial-gradient(var(--circle), var(--bg-color-1) var(--circle-width), transparent 0),
                 radial-gradient(var(--circle), var(--bg-color-2) var(--circle-width), transparent 0),
                 radial-gradient(var(--circle), var(--bg-color-3) var(--circle-width), transparent 0),
                 radial-gradient(var(--circle), var(--bg-color-4) var(--circle-width), transparent 0),
-                radial-gradient(var(--circle), var(--bg-color-5) var(--circle-width), transparent 0);
-               /* Each level of the grid should be a factor of --size. */
-              --bg-size: calc(var(--grid-cell-px) / pow(2, 3));
-              --sections: 2;
-              /* Divide each part of grid into 4 sections. */
-              --bg-size-1: calc(var(--bg-size) * pow(var(--sections), 5));
-              --bg-size-2: calc(var(--bg-size) * pow(var(--sections), 4));
-              --bg-size-3: calc(var(--bg-size) * pow(var(--sections), 3));
-              --bg-size-4: calc(var(--bg-size) * pow(var(--sections), 2));
-              --bg-size-5: calc(var(--bg-size) * var(--sections));
+                radial-gradient(var(--circle), var(--bg-color-5) var(--circle-width), transparent 0),
+                radial-gradient(var(--circle), var(--bg-color-6) var(--circle-width), transparent 0),
+                radial-gradient(var(--circle), var(--bg-color-7) var(--circle-width), transparent 0),
+                radial-gradient(var(--circle), var(--bg-color-8) var(--circle-width), transparent 0),
+                radial-gradient(var(--circle), var(--bg-color-9) var(--circle-width), transparent 0);
+              /* Spacing of each level in grid cells, coarsest first, matches GRID_DOT_LEVEL_SPACINGS in main.js */
+              --bg-size-1: calc(var(--grid-cell-px) * 64);
+              --bg-size-2: calc(var(--grid-cell-px) * 32);
+              --bg-size-3: calc(var(--grid-cell-px) * 16);
+              --bg-size-4: calc(var(--grid-cell-px) * 8);
+              --bg-size-5: calc(var(--grid-cell-px) * 4);
+              --bg-size-6: calc(var(--grid-cell-px) * 2);
+              --bg-size-7: calc(var(--grid-cell-px) * 1);
+              --bg-size-8: calc(var(--grid-cell-px) * 0.5);
+              --bg-size-9: calc(var(--grid-cell-px) * 0.25);
               background-size:
                 var(--bg-size-1) var(--bg-size-1),
                 var(--bg-size-2) var(--bg-size-2),
                 var(--bg-size-3) var(--bg-size-3),
                 var(--bg-size-4) var(--bg-size-4),
-                var(--bg-size-5) var(--bg-size-5);
+                var(--bg-size-5) var(--bg-size-5),
+                var(--bg-size-6) var(--bg-size-6),
+                var(--bg-size-7) var(--bg-size-7),
+                var(--bg-size-8) var(--bg-size-8),
+                var(--bg-size-9) var(--bg-size-9);
               background-position:
                     left calc(-1 * var(--grid-offset-x) * var(--grid-cell-px) - var(--circle-width))
                     top  calc(-1 * var(--grid-offset-y) * var(--grid-cell-px) - var(--circle-width));

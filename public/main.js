@@ -106,7 +106,7 @@ const ZOOM_BTN_SCALE_FACTOR = 0.1;
 const VIEW_FIT_MARGIN_GRID = SEAT_GRID_W;
 
 // spacing of each .grid-background dot level in grid cells, see canvas.html
-const GRID_DOT_LEVEL_SPACINGS = [4, 2, 1, 1 / 2, 1 / 4];
+const GRID_DOT_LEVEL_SPACINGS = [64, 32, 16, 8, 4, 2, 1, 1 / 2, 1 / 4];
 const GRID_DOT_FADE_START_PX = 10;
 const GRID_DOT_FADE_END_PX = 20;
 const VIEW_FIT_MAX_SCALE = 1.0;
