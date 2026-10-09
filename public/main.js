@@ -110,6 +110,7 @@ const VIEW_FIT_MARGIN_GRID = SEAT_GRID_W;
 const GRID_DOT_LEVEL_SPACINGS = [64, 32, 16, 8, 4, 2, 1, 1 / 2, 1 / 4];
 const GRID_DOT_RADIUS_PX = 1;
 const GRID_DOT_FADE_START_PX = 10;
+const GRID_CELL_PX_REFERENCE = 18;
 const GRID_DOT_FADE_END_PX = 20;
 const VIEW_FIT_MAX_SCALE = 1.0;
 const ZOOM_DISPLAY_ID = "zoom-display";
@@ -126,10 +127,10 @@ assert(topbar_ref != null, "top bar not null");
 const STUDENT_CLASSLIST_SIDEBAR =
   "ring-2 ring-blue-500/50 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black";
 
-// sized relative to --grid-cell-px so it scales with the seat, at 100% zoom
-// (18px cells) this is text-xs with px-2 py-1, a 2px border and rounded-md
+// laid out at its size for GRID_CELL_PX_REFERENCE cells, then scaled with
+// the seat by --grid-cell-scale so it stays in proportion at every zoom
 const STUDENT_CLASSLIST_SEATING =
-  "block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap border-black bg-white text-black font-semibold text-[length:calc(var(--grid-cell-px)*2/3)] leading-[1.333] px-[0.667em] py-[0.333em] border-[length:calc(var(--grid-cell-px)/9)] rounded-[calc(var(--grid-cell-px)/3)]";
+  "block shrink-0 overflow-hidden text-ellipsis whitespace-nowrap border-2 border-black rounded-md px-2 py-1 text-xs font-semibold bg-white text-black max-w-[calc(var(--grid-cell-px-reference)*var(--seat-grid-w)-4px)] scale-[var(--grid-cell-scale)]";
 
 
 /** @returns {asserts val} */
@@ -156,6 +157,10 @@ function grid_cell_px_dim(v) {
  */
 function grid_cell_px_set(grid_cell_px) {
   chart_ref.style.setProperty("--grid-cell-px", grid_cell_px + "px");
+  chart_ref.style.setProperty(
+    "--grid-cell-scale",
+    grid_cell_px / GRID_CELL_PX_REFERENCE
+  );
   grid_dots_draw_schedule();
 }
 
@@ -1252,6 +1257,9 @@ function seat_create(gridX, gridY, id = null) {
   element.className = elementClassName;
   element.id = id ?? ID.generate_for("seat");
   element.tabIndex = 0;
+  element.addEventListener("mouseover", function () {
+    element.title = seat_student_get(element)?.textContent ?? "";
+  });
   element.draggable = true;
   element.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
   element.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
@@ -1869,7 +1877,6 @@ function student_create(name, id = null) {
   const student_ref = document.createElement("div");
   student_ref.className = STUDENT_CLASSLIST_SIDEBAR;
   student_ref.textContent = name;
-  student_ref.title = name;
   student_ref.dataset[STUDENT_DATA_IDENTIFIER] = "";
 
   student_ref.id = id ?? ID.generate_for("student");
@@ -2493,6 +2500,10 @@ async function init() {
     // TODO: init all "*_initial" grid properties here
     grid_cell_px_set(gridCellPx_initial);
     chart_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
+    chart_ref.style.setProperty(
+      "--grid-cell-px-reference",
+      GRID_CELL_PX_REFERENCE + "px"
+    );
     chart_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
 
     chart_ref.style.setProperty(CHART_PROP_SCALE, "1.0");
