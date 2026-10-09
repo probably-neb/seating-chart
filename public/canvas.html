@@ -12,12 +12,12 @@
             .grid-background {
               --circle-width: 1px;
               --circle: circle at var(--circle-width) var(--circle-width);
-              /* Map color transparency to --scale for each level of the grid */
-              --bg-color-1: rgba(0, 0, 0, 1);
-              --bg-color-2: rgba(0, 0, 0, clamp(0, var(--scale), 1));
-              --bg-color-3: rgba(0, 0, 0, clamp(0, calc(var(--scale) - 0.1), 1));
-              --bg-color-4: rgba(0, 0, 0, clamp(0, calc(var(--scale) - 1), 1));
-              --bg-color-5: rgba(0, 0, 0, clamp(0, calc(var(--scale) - 4), 1));
+              /* Transparency of each level of the grid, set by grid_cell_px_set in main.js */
+              --bg-color-1: rgba(0, 0, 0, var(--grid-dot-alpha-1, 1));
+              --bg-color-2: rgba(0, 0, 0, var(--grid-dot-alpha-2, 0));
+              --bg-color-3: rgba(0, 0, 0, var(--grid-dot-alpha-3, 0));
+              --bg-color-4: rgba(0, 0, 0, var(--grid-dot-alpha-4, 0));
+              --bg-color-5: rgba(0, 0, 0, var(--grid-dot-alpha-5, 0));
               /* Draw points for each level of grid as set of a background image. First background is on top.*/
               background-image:
                 radial-gradient(var(--circle), var(--bg-color-1) var(--circle-width), transparent 0),

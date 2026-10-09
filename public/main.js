@@ -104,6 +104,11 @@ const STUDENT_DATA_IDENTIFIER = "student";
 // zoom
 const ZOOM_BTN_SCALE_FACTOR = 0.1;
 const VIEW_FIT_MARGIN_GRID = SEAT_GRID_W;
+
+// spacing of each .grid-background dot level in grid cells, see canvas.html
+const GRID_DOT_LEVEL_SPACINGS = [4, 2, 1, 1 / 2, 1 / 4];
+const GRID_DOT_FADE_START_PX = 10;
+const GRID_DOT_FADE_END_PX = 20;
 const VIEW_FIT_MAX_SCALE = 1.0;
 const ZOOM_DISPLAY_ID = "zoom-display";
 
@@ -137,6 +142,26 @@ Number.isSafeFloat = function (val) {
 function grid_cell_px_dim(v) {
   assert(v.startsWith("--"), "grid cell px dim must reference a variable");
   return `calc(var(--grid-cell-px) * var(${v}))`;
+}
+
+/**
+ * Sets the size of a grid cell and fades out the background dot levels that
+ * would be too close together to read at that size
+ *
+ * @param {number} grid_cell_px
+ */
+function grid_cell_px_set(grid_cell_px) {
+  chart_ref.style.setProperty("--grid-cell-px", grid_cell_px + "px");
+  for (let i = 0; i < GRID_DOT_LEVEL_SPACINGS.length; i++) {
+    const spacing_px = grid_cell_px * GRID_DOT_LEVEL_SPACINGS[i];
+    const alpha = clamp(
+      (spacing_px - GRID_DOT_FADE_START_PX) /
+        (GRID_DOT_FADE_END_PX - GRID_DOT_FADE_START_PX),
+      0,
+      1
+    );
+    chart_ref.style.setProperty(`--grid-dot-alpha-${i + 1}`, alpha);
+  }
 }
 
 function grid_cell_px_get() {
@@ -194,7 +219,7 @@ function grid_cell_px_adjust(factor, anchor_x_px, anchor_y_px) {
     offset_y + anchor_y_px / current_value - anchor_y_px / new_value
   );
 
-  chart_ref.style.setProperty("--grid-cell-px", new_value + "px");
+  grid_cell_px_set(new_value);
 
   zoom_display_update(desired_scale);
 
@@ -1889,7 +1914,7 @@ function view_fit_seats() {
   );
   const scale = Math.min(fit_grid_cell_px / base_grid_cell_px, VIEW_FIT_MAX_SCALE);
   const grid_cell_px = base_grid_cell_px * scale;
-  chart_ref.style.setProperty("--grid-cell-px", grid_cell_px + "px");
+  grid_cell_px_set(grid_cell_px);
   chart_ref.style.setProperty(CHART_PROP_SCALE, scale);
   zoom_display_update(scale);
 
@@ -2402,10 +2427,7 @@ async function init() {
     );
 
     // TODO: init all "*_initial" grid properties here
-    chart_ref.style.setProperty(
-      "--grid-cell-px",
-      gridCellPx_initial + "px"
-    );
+    grid_cell_px_set(gridCellPx_initial);
     chart_ref.style.setProperty(SEAT_PROP_GRID_W, SEAT_GRID_W);
     chart_ref.style.setProperty(SEAT_PROP_GRID_H, SEAT_GRID_H);
 
