@@ -2435,11 +2435,28 @@ async function init() {
       grid_offset_update(delta_x, delta_y);
     })
 
-    chart_ref.addEventListener("mousedown", function (event) {
-      if (event.button == 1) {
-        chart_ref.dataset['moving'] = "";
+    // middle or shift drag pans. Caught before anything in the chart sees
+    // it so it never starts a selection or moves seats
+    window.addEventListener("mousedown", function (event) {
+      const is_pan = event.button == 1 || (event.button == 0 && event.shiftKey);
+      if (!is_pan || !chart_ref.contains(event.target)) {
+        return;
       }
-    })
+      chart_ref.dataset['moving'] = "";
+      event.preventDefault();
+      event.stopPropagation();
+    }, { capture: true });
+    window.addEventListener("click", function (event) {
+      if (event.shiftKey && chart_ref.contains(event.target)) {
+        event.stopPropagation();
+      }
+    }, { capture: true });
+    window.addEventListener("dragstart", function (event) {
+      if ('moving' in chart_ref.dataset) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, { capture: true });
     chart_ref.addEventListener("mousemove", function (event) {
       if (!('moving' in chart_ref.dataset)) {
         return;
