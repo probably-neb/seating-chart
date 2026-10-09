@@ -103,6 +103,8 @@ const STUDENT_DATA_IDENTIFIER = "student";
 
 // zoom
 const ZOOM_BTN_SCALE_FACTOR = 0.1;
+const VIEW_FIT_MARGIN_GRID = SEAT_GRID_W;
+const VIEW_FIT_MAX_SCALE = 1.0;
 const ZOOM_DISPLAY_ID = "zoom-display";
 
 // sidebar
@@ -1852,10 +1854,12 @@ function grid_offset_update(x, y) {
 
 
 /**
- * Pans so the middle of the seats is in the middle of the chart. Leaves the
- * offset alone if there are no seats
+ * Zooms out until the seats fit in the chart with VIEW_FIT_MARGIN_GRID
+ * around them (never zooming in past VIEW_FIT_MAX_SCALE), then pans so the
+ * middle of the seats is in the middle of the chart. Leaves the view alone if
+ * there are no seats
  */
-function grid_offset_center_on_seats() {
+function view_fit_seats() {
   let min_x = Infinity;
   let min_y = Infinity;
   let max_x = -Infinity;
@@ -1873,7 +1877,22 @@ function grid_offset_center_on_seats() {
   }
 
   const chart_dom_rect = chart_ref.getBoundingClientRect();
-  const grid_cell_px = grid_cell_px_get();
+
+  const current_scale = Number.parseFloat(
+    chart_ref.style.getPropertyValue(CHART_PROP_SCALE)
+  );
+  assert(Number.isSafeFloat(current_scale), "current_scale is safe float");
+  const base_grid_cell_px = grid_cell_px_get() / current_scale;
+  const fit_grid_cell_px = Math.min(
+    chart_dom_rect.width / (max_x - min_x + VIEW_FIT_MARGIN_GRID * 2),
+    chart_dom_rect.height / (max_y - min_y + VIEW_FIT_MARGIN_GRID * 2)
+  );
+  const scale = Math.min(fit_grid_cell_px / base_grid_cell_px, VIEW_FIT_MAX_SCALE);
+  const grid_cell_px = base_grid_cell_px * scale;
+  chart_ref.style.setProperty("--grid-cell-px", grid_cell_px + "px");
+  chart_ref.style.setProperty(CHART_PROP_SCALE, scale);
+  zoom_display_update(scale);
+
   grid_offset_set(
     (min_x + max_x) / 2 - chart_dom_rect.width / 2 / grid_cell_px,
     (min_y + max_y) / 2 - chart_dom_rect.height / 2 / grid_cell_px
@@ -2507,7 +2526,7 @@ async function init() {
     for (const seat of seats) {
       chart_ref.appendChild(seat_create(seat.gridX, seat.gridY, seat.id));
     }
-    grid_offset_center_on_seats();
+    view_fit_seats();
 
     const students = initial_chart_data.students;
     for (const student of students) {
