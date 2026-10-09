@@ -34,6 +34,9 @@ const GRID_POS_TRANSFORM_NO_OFFSET =
 const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
 
+const SEAT_SNAP_HYSTERESIS_GRID = 0.4;
+const SEAT_SNAP_SEARCH_MAX_GRID = 100;
+
 const SEAT_PROP_GRID_W = "--seat-grid-w";
 const SEAT_PROP_GRID_H = "--seat-grid-h";
 
@@ -715,50 +718,57 @@ function seat_is_valid_position(seat_ref, gridX, gridY) {
   return is_not_overlapping;
 }
 
-function closest_non_overlapping_pos(dragging_seat_ref, absX, absY) {
-  // console.time("closest non overlapping pos circ");
-
+/**
+ * Nearest grid position to absX, absY (px) where dragging_seat_ref doesn't
+ * overlap another seat. If current is still valid it is kept unless another
+ * position is closer by more than SEAT_SNAP_HYSTERESIS_GRID
+ */
+function closest_non_overlapping_pos(dragging_seat_ref, absX, absY, current = null) {
   const gridCellPx = grid_cell_px_get();
+  const [targetX, targetY] = px_point_to_grid_unsafe(gridCellPx, absX, absY);
+  const centerX = Math.round(targetX);
+  const centerY = Math.round(targetY);
 
-  const [gridX, gridY] = px_point_to_grid_round(gridCellPx, absX, absY);
-
-  if (seat_is_valid_position(dragging_seat_ref, gridX, gridY)) {
-    // console.timeEnd("closest non overlapping pos circ");
-    return { gridX, gridY };
-  }
-
-  const [absGridX, absGridY] = px_point_to_grid_unsafe(gridCellPx, absX, absY);
-  const [centerX, centerY] = seat_center_exact(absGridX, absGridY);
-
-  // FIXME: make non arbitrary
-  const max_radius = 100;
-
-  for (let radius = 1; radius <= max_radius; radius++) {
-    for (let angle = 0; angle < 360; angle++) {
-      const x = Math.round(
-        centerX + radius * Math.cos((angle * Math.PI) / 180) - SEAT_GRID_W / 2
-      );
-      const y = Math.round(
-        centerY + radius * Math.sin((angle * Math.PI) / 180) - SEAT_GRID_H / 2
-      );
-
-      if (seat_is_valid_position(dragging_seat_ref, x, y)) {
-        // console.timeEnd("closest non overlapping pos circ");
-        // console.log('angle', angle, 'radius', radius)
-        console.log('cnop', { x, y })
-        return { gridX: x, gridY: y };
+  let best = null;
+  let best_distance = Infinity;
+  for (let ring = 0; ring <= SEAT_SNAP_SEARCH_MAX_GRID; ring++) {
+    // every position in this ring is at least ring - 0.5 from the target
+    if (best_distance <= ring - 0.5) {
+      break;
+    }
+    for (let dy = -ring; dy <= ring; dy++) {
+      const dx_step = Math.abs(dy) == ring ? 1 : 2 * ring;
+      for (let dx = -ring; dx <= ring; dx += dx_step) {
+        const gridX = centerX + dx;
+        const gridY = centerY + dy;
+        const distance = Math.hypot(gridX - targetX, gridY - targetY);
+        if (
+          distance < best_distance &&
+          seat_is_valid_position(dragging_seat_ref, gridX, gridY)
+        ) {
+          best = { gridX, gridY };
+          best_distance = distance;
+        }
       }
     }
   }
   // FIXME: handle better
-  throw new Error("No valid position found");
-}
+  assert(best != null, "No valid position found");
 
-/**
- * @returns {[centerX: number, centerY: number]} [centerX, centerY]
- */
-function seat_center_exact(gridX, gridY) {
-  return [gridX + SEAT_GRID_W / 2, gridY + SEAT_GRID_H / 2];
+  if (
+    current != null &&
+    seat_is_valid_position(dragging_seat_ref, current.gridX, current.gridY)
+  ) {
+    const current_distance = Math.hypot(
+      current.gridX - targetX,
+      current.gridY - targetY
+    );
+    if (current_distance <= best_distance + SEAT_SNAP_HYSTERESIS_GRID) {
+      return current;
+    }
+  }
+
+  return best;
 }
 
 function calculate_distance(x1, y1, x2, y2) {
@@ -1048,10 +1058,14 @@ function seat_create(gridX, gridY, id = null) {
 
     element.style.transform = `translate(${x}px, ${y}px)`;
 
-    const snapped_loc = closest_non_overlapping_pos(element, x, y);
+    assert(seat_preview_ref != null, "preview not null");
+    const [preview_x, preview_y] = elem_grid_pos_get(seat_preview_ref);
+    const snapped_loc = closest_non_overlapping_pos(element, x, y, {
+      gridX: preview_x,
+      gridY: preview_y,
+    });
     console.log("snapped_loc", snapped_loc)
     {
-      assert(seat_preview_ref != null, "preview not null");
       elem_grid_pos_set(seat_preview_ref, snapped_loc.gridX, snapped_loc.gridY);
     }
   };
@@ -2242,7 +2256,7 @@ async function init() {
   {
     seat_preview_ref.id = "seat-preview";
     seat_preview_ref.className =
-      "absolute bg-blue-300 border-2 border-indigo-500";
+      "absolute bg-blue-300 border-2 border-indigo-500 transition-transform duration-75 ease-out";
     seat_preview_ref.style.display = "none";
     seat_preview_ref.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
     seat_preview_ref.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
