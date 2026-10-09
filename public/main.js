@@ -487,9 +487,136 @@ function svg_elem_create(tag, attrs = {}) {
 }
 
 /**
- * Replaces the selection rectangle with the union of the selected seats
- * each grown by SELECTION_PAD_GRID with rounded corners, so seats close
- * together share one outline and seats far apart get their own
+ * Outline of the union of the selected seats each grown by
+ * SELECTION_PAD_GRID, as svg path data in selection grid units. Seats close
+ * together share one outline, seats far apart get their own. The union is
+ * traced on the grid first so touching seats merge without gaps, then every
+ * corner is rounded by up to SELECTION_PAD_GRID
+ *
+ * @returns {string}
+ */
+function selection_shape_path() {
+  const boxes = [];
+  for (const seat_ref of selected_seat_refs_get()) {
+    const [gridX, gridY] = elem_grid_pos_get(seat_ref);
+    boxes.push([
+      gridX - SELECTION_PAD_GRID,
+      gridY - SELECTION_PAD_GRID,
+      gridX + SEAT_GRID_W + SELECTION_PAD_GRID,
+      gridY + SEAT_GRID_H + SELECTION_PAD_GRID,
+    ]);
+  }
+  if (boxes.length == 0) {
+    return "";
+  }
+
+  const min_x = Math.min(...boxes.map((box) => box[0]));
+  const min_y = Math.min(...boxes.map((box) => box[1]));
+  const width = Math.max(...boxes.map((box) => box[2])) - min_x;
+  const height = Math.max(...boxes.map((box) => box[3])) - min_y;
+
+  const filled = new Uint8Array(width * height);
+  for (const [left, top, right, bottom] of boxes) {
+    for (let y = top - min_y; y < bottom - min_y; y++) {
+      filled.fill(1, y * width + left - min_x, y * width + right - min_x);
+    }
+  }
+  const is_filled = (x, y) =>
+    x >= 0 && y >= 0 && x < width && y < height && filled[y * width + x] == 1;
+
+  // boundary edges between filled and empty cells, directed so the filled
+  // cell is on the right, keyed by start vertex
+  /** @type {Map<string, Array<[number, number]>>} */
+  const edges = new Map();
+  const edge_add = (x1, y1, x2, y2) => {
+    const key = x1 + "," + y1;
+    if (!edges.has(key)) edges.set(key, []);
+    edges.get(key).push([x2, y2]);
+  };
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!is_filled(x, y)) continue;
+      if (!is_filled(x, y - 1)) edge_add(x, y, x + 1, y);
+      if (!is_filled(x + 1, y)) edge_add(x + 1, y, x + 1, y + 1);
+      if (!is_filled(x, y + 1)) edge_add(x + 1, y + 1, x, y + 1);
+      if (!is_filled(x - 1, y)) edge_add(x, y + 1, x, y);
+    }
+  }
+  const cross = (ax, ay, bx, by) => ax * by - ay * bx;
+
+  let d = "";
+  while (edges.size > 0) {
+    // start where the outline doesn't touch another one so the first step
+    // is unambiguous
+    let start_key = edges.keys().next().value;
+    for (const [key, outs] of edges) {
+      if (outs.length == 1) {
+        start_key = key;
+        break;
+      }
+    }
+
+    /** @type {Array<[number, number]>} */
+    const corners = [];
+    const [start_x, start_y] = start_key.split(",").map(Number);
+    let [x, y] = [start_x, start_y];
+    let [dir_x, dir_y] = [0, 0];
+    do {
+      const key = x + "," + y;
+      const outs = edges.get(key);
+      let next_index = 0;
+      // diagonally touching cells make two outlines meet at a vertex, take
+      // the right turn so they stay separate
+      for (let i = 1; i < outs.length; i++) {
+        const [nx, ny] = outs[i];
+        if (cross(dir_x, dir_y, nx - x, ny - y) > 0) next_index = i;
+      }
+      const [nx, ny] = outs.splice(next_index, 1)[0];
+      if (outs.length == 0) edges.delete(key);
+
+      const [next_dir_x, next_dir_y] = [nx - x, ny - y];
+      if (next_dir_x != dir_x || next_dir_y != dir_y) {
+        corners.push([x, y]);
+      }
+      [dir_x, dir_y] = [next_dir_x, next_dir_y];
+      [x, y] = [nx, ny];
+    } while (x != start_x || y != start_y);
+
+    // the start vertex is only a corner if the outline turns there
+    const [first_x, first_y] = corners[0];
+    const [second_x, second_y] = corners[1];
+    const [last_x, last_y] = corners[corners.length - 1];
+    if (
+      cross(first_x - last_x, first_y - last_y, second_x - first_x, second_y - first_y) == 0
+    ) {
+      corners.shift();
+    }
+
+    for (let i = 0; i < corners.length; i++) {
+      const [px, py] = corners[(i + corners.length - 1) % corners.length];
+      const [cx, cy] = corners[i];
+      const [nx, ny] = corners[(i + 1) % corners.length];
+      const in_len = Math.abs(cx - px) + Math.abs(cy - py);
+      const out_len = Math.abs(nx - cx) + Math.abs(ny - cy);
+      const radius = Math.min(SELECTION_PAD_GRID, in_len / 2, out_len / 2);
+      const [in_x, in_y] = [(cx - px) / in_len, (cy - py) / in_len];
+      const [out_x, out_y] = [(nx - cx) / out_len, (ny - cy) / out_len];
+      // right turns are outer corners, left turns inner ones
+      const sweep = cross(in_x, in_y, out_x, out_y) > 0 ? 1 : 0;
+      const arc_start_x = cx - in_x * radius + min_x;
+      const arc_start_y = cy - in_y * radius + min_y;
+      const arc_end_x = cx + out_x * radius + min_x;
+      const arc_end_y = cy + out_y * radius + min_y;
+      d += `${i == 0 ? "M" : "L"}${arc_start_x} ${arc_start_y}`;
+      d += `A${radius} ${radius} 0 0 ${sweep} ${arc_end_x} ${arc_end_y}`;
+    }
+    d += "Z";
+  }
+  return d;
+}
+
+/**
+ * Replaces the selection rectangle with the outline from selection_shape_path
  */
 function selection_shape_render() {
   selection_shape_remove();
@@ -520,33 +647,23 @@ function selection_shape_render() {
     })
   );
 
-  const ring = svg_elem_create("g", {
+  const path = selection_shape_path();
+  mask.appendChild(svg_elem_create("path", { d: path, fill: "black" }));
+
+  const ring = svg_elem_create("path", {
+    d: path,
     mask: `url(#${SELECTION_SHAPE_MASK_ID})`,
     fill: "none",
     "stroke-width": SELECTION_SHAPE_RING_PX * 2,
+    "vector-effect": "non-scaling-stroke",
     class: "stroke-blue-500 group-data-[invalid]:stroke-melon-dark",
   });
 
-  const fill = svg_elem_create("g", {
+  const fill = svg_elem_create("path", {
+    d: path,
     opacity: 0.2,
     class: "fill-cyan-300 group-data-[invalid]:fill-melon pointer-events-auto",
   });
-
-  for (const seat_ref of selected_seat_refs_get()) {
-    const [gridX, gridY] = elem_grid_pos_get(seat_ref);
-    const attrs = {
-      x: gridX - SELECTION_PAD_GRID,
-      y: gridY - SELECTION_PAD_GRID,
-      width: SEAT_GRID_W + SELECTION_PAD_GRID * 2,
-      height: SEAT_GRID_H + SELECTION_PAD_GRID * 2,
-      rx: SELECTION_PAD_GRID,
-    };
-    mask.appendChild(svg_elem_create("rect", { ...attrs, fill: "black" }));
-    ring.appendChild(
-      svg_elem_create("rect", { ...attrs, "vector-effect": "non-scaling-stroke" })
-    );
-    fill.appendChild(svg_elem_create("rect", attrs));
-  }
 
   const defs = svg_elem_create("defs");
   defs.appendChild(mask);
