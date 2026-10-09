@@ -81,6 +81,8 @@ const invisible_drag_preview_ref = document.createElement("span");
   app.appendChild(invisible_drag_preview_ref);
 }
 
+const drag_pointer = { clientX: 0, clientY: 0 };
+
 // student
 const STUDENT_DATA_SEAT_ID = "seatid";
 const student_refs = [];
@@ -895,12 +897,12 @@ function seat_create(gridX, gridY, id = null) {
     const grid_scroll_y_px = chart_ref.scrollTop;
 
     const x =
-      event.clientX -
+      drag_pointer.clientX -
       chartDomRect.left -
       offsetX
       ;
     const y =
-      event.clientY -
+      drag_pointer.clientY -
       chartDomRect.top -
       offsetY
       ;
@@ -1951,6 +1953,17 @@ async function init() {
 
   // }}}
 
+  // {{{ drag pointer
+  {
+    const drag_pointer_update = function (event) {
+      drag_pointer.clientX = event.clientX;
+      drag_pointer.clientY = event.clientY;
+    };
+    document.addEventListener("dragstart", drag_pointer_update, { capture: true });
+    document.addEventListener("dragover", drag_pointer_update, { capture: true });
+  }
+  // }}}
+
   // {{{ chart
   {
     const gridCellPx_initial = Math.floor(
@@ -2317,8 +2330,8 @@ async function init() {
 
       const [gridX, gridY] = px_point_to_grid_round(
         gridCellPx,
-        event.clientX - chartDomRect.left - offsetX,
-        event.clientY - chartDomRect.top - offsetY
+        drag_pointer.clientX - chartDomRect.left - offsetX,
+        drag_pointer.clientY - chartDomRect.top - offsetY
       );
 
 
