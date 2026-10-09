@@ -680,28 +680,33 @@ function selection_shape_remove() {
 }
 
 /**
- * @param {number} startX
- * @param {number} startY
- * @param {number} endX
- * @param {number} endY
+ * Clears any selection, then selects exactly the seats with seat_ids
  *
- * Used to manually create a selection
- * clears selection if already exists,
- * then creates new selection from start to end and calculates selected seats within region
+ * @param {Array<string>} seat_ids
  */
-function selection_create(startX, startY, endX, endY) {
-  assert(Number.isSafeInteger(startX), "startX is int", startX);
-  assert(Number.isSafeInteger(startY), "startY is int", startY);
-  assert(Number.isSafeInteger(endX), "endX is int", endX);
-  assert(Number.isSafeInteger(endY), "endY is int", endY);
-
+function selection_create_from_seats(seat_ids) {
   selection_clear();
+
+  const ids = new Set(seat_ids);
+  let startX = Infinity;
+  let startY = Infinity;
+  for (const seat_ref of seat_refs) {
+    if (seat_ref == null || !ids.has(seat_ref.id)) continue;
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    startX = Math.min(startX, gridX);
+    startY = Math.min(startY, gridY);
+  }
+  assert(Number.isSafeInteger(startX), "selected seats found", seat_ids);
+
   selected_region = {
     start: { gridX: startX, gridY: startY },
-    end: { gridX: endX, gridY: endY },
+    end: { gridX: startX, gridY: startY },
   };
-  const selected_seat_offsets = selected_seats_compute();
-  assert(selected_seat_offsets != null, "selected seats found");
+  const selected_seat_offsets = seat_refs.map((seat_ref) => {
+    if (seat_ref == null || !ids.has(seat_ref.id)) return null;
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    return { gridX: gridX - startX, gridY: gridY - startY };
+  });
 
   selected_seats_update(selection_fit_to_seats(selected_seat_offsets));
   selection_update();
@@ -854,16 +859,17 @@ function seat_position_is_free(positions, gridX, gridY) {
 }
 
 /**
- * Nearest grid position to targetX, targetY (grid units, not rounded) where
- * dragging_seat_ref doesn't overlap another seat. If current is still valid
- * it is kept unless another position is closer by more than
- * SEAT_SNAP_HYSTERESIS_GRID
+ * Nearest grid position to targetX, targetY (grid units, not rounded) for
+ * which is_free returns true
+ *
+ * @param {number} targetX
+ * @param {number} targetY
+ * @param {(gridX: number, gridY: number) => boolean} is_free
+ * @returns {{best: {gridX: number, gridY: number} | null, best_distance: number}}
  */
-function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, current = null) {
+function grid_nearest(targetX, targetY, is_free) {
   const centerX = Math.round(targetX);
   const centerY = Math.round(targetY);
-
-  const positions = seat_positions_index([dragging_seat_ref]);
 
   let best = null;
   let best_distance = Infinity;
@@ -878,16 +884,28 @@ function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, curren
         const gridX = centerX + dx;
         const gridY = centerY + dy;
         const distance = Math.hypot(gridX - targetX, gridY - targetY);
-        if (
-          distance < best_distance &&
-          seat_position_is_free(positions, gridX, gridY)
-        ) {
+        if (distance < best_distance && is_free(gridX, gridY)) {
           best = { gridX, gridY };
           best_distance = distance;
         }
       }
     }
   }
+  return { best, best_distance };
+}
+
+/**
+ * Nearest grid position to targetX, targetY (grid units, not rounded) where
+ * dragging_seat_ref doesn't overlap another seat. If current is still valid
+ * it is kept unless another position is closer by more than
+ * SEAT_SNAP_HYSTERESIS_GRID
+ */
+function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, current = null) {
+  const positions = seat_positions_index([dragging_seat_ref]);
+
+  const { best, best_distance } = grid_nearest(targetX, targetY, (gridX, gridY) =>
+    seat_position_is_free(positions, gridX, gridY)
+  );
   // FIXME: handle better
   assert(best != null, "No valid position found");
 
@@ -1865,7 +1883,7 @@ let action_stack_index = -1;
 let action_stack = [];
 
 /**
- * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats | Action_Selection_Delete} Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats | Action_Selection_Delete | Action_Selection_Paste} Action
  */
 
 /**
@@ -1915,6 +1933,7 @@ let action_stack = [];
 /**
  * @typedef {Object} Action_Selection_Move
  * @property {'selection-move'} kind
+ * @property {Array<string>} seat_ids
  * @property {GridPoint} from_start
  * @property {GridPoint} from_end
  * @property {GridPoint} dest_start
@@ -1936,6 +1955,14 @@ let action_stack = [];
 /**
  * @typedef {Object} Action_Selection_Delete
  * @property {'selection-delete'} kind
+ * @property {GridPoint} start
+ * @property {GridPoint} end
+ * @property {Action_Clear_Seats["seats"]} seats
+ */
+
+/**
+ * @typedef {Object} Action_Selection_Paste
+ * @property {'selection-paste'} kind
  * @property {GridPoint} start
  * @property {GridPoint} end
  * @property {Action_Clear_Seats["seats"]} seats
@@ -2008,15 +2035,10 @@ function action_stack_undo() {
       break;
     }
     case "selection-move": {
-      selection_create(
-        action.dest_start.gridX,
-        action.dest_start.gridY,
-        action.dest_end.gridX,
-        action.dest_end.gridY
-      );
+      selection_create_from_seats(action.seat_ids);
       assert(selected_region != null, "selection exists");
-      selected_region.start = action.from_start;
-      selected_region.end = action.from_end;
+      selected_region.start = { ...action.from_start };
+      selected_region.end = { ...action.from_end };
       selection_update();
       break;
     }
@@ -2042,12 +2064,14 @@ function action_stack_undo() {
     }
     case "selection-delete": {
       seats_restore(action.seats);
-      selection_create(
-        action.start.gridX,
-        action.start.gridY,
-        action.end.gridX,
-        action.end.gridY
-      );
+      selection_create_from_seats(action.seats.map((seat) => seat.id));
+      break;
+    }
+    case "selection-paste": {
+      selection_clear();
+      for (const seat of action.seats) {
+        seat_delete(seat_ref_get_by_id(seat.id));
+      }
       break;
     }
     default:
@@ -2108,19 +2132,10 @@ function action_stack_redo() {
       break;
     }
     case "selection-move": {
-      // create selection at original location so it includes
-      // seats that were selected and so we make sure it exists
-      // (selection clear is not an action)
-      selection_create(
-        action.from_start.gridX,
-        action.from_start.gridY,
-        action.from_end.gridX,
-        action.from_end.gridY
-      );
+      selection_create_from_seats(action.seat_ids);
       assert(selected_region != null, "selection exists");
-      // then move it to where it came from
-      selected_region.start = action.dest_start;
-      selected_region.end = action.dest_end;
+      selected_region.start = { ...action.dest_start };
+      selected_region.end = { ...action.dest_end };
       selection_update();
       break;
     }
@@ -2137,6 +2152,11 @@ function action_stack_redo() {
       for (const seat of action.seats) {
         seat_delete(seat_ref_get_by_id(seat.id));
       }
+      break;
+    }
+    case "selection-paste": {
+      seats_restore(action.seats);
+      selection_create_from_seats(action.seats.map((seat) => seat.id));
       break;
     }
     default:
@@ -2749,6 +2769,7 @@ async function init() {
 
         action_stack_push({
           kind: "selection-move",
+          seat_ids: [...selected_seat_refs_get()].map((seat_ref) => seat_ref.id),
           from_start: { gridX: from_startX, gridY: from_startY },
           from_end: { gridX: from_endX, gridY: from_endY },
           dest_start: { gridX: dest_startX, gridY: dest_startY },
@@ -2846,28 +2867,47 @@ async function init() {
         "height" in selection_data && typeof selection_data.height == "number"
       );
 
-      // FIXME: implement checking if mouse is over container and getting mouse position
-      // instead
-      const [startX, startY] = grid_center_estimate();
-
-      const endX = startX + selection_data.width;
-      const endY = startY + selection_data.height;
-
       selection_clear();
 
-      selected_region = {
-        start: { gridX: startX, gridY: startY },
-        end: { gridX: endX, gridY: endY },
+      // FIXME: implement checking if mouse is over container and getting mouse position
+      // instead
+      const [center_gridX, center_gridY] = grid_center_estimate();
+      const offsets = selection_data.selected_offsets;
+      const positions = seat_positions_index([]);
+      const { best: start } = grid_nearest(
+        center_gridX - selection_data.width / 2,
+        center_gridY - selection_data.height / 2,
+        (startX, startY) =>
+          offsets.every(({ gridX, gridY }) =>
+            seat_position_is_free(positions, startX + gridX, startY + gridY)
+          )
+      );
+      assert(start != null, "no free space to paste selection");
+
+      const end = {
+        gridX: start.gridX + selection_data.width,
+        gridY: start.gridY + selection_data.height,
       };
+      selected_region = { start: { ...start }, end: { ...end } };
 
       selection_update();
       selection_force_appear_above_seats();
 
-      for (const { gridX, gridY } of selection_data.selected_offsets) {
-        const new_seat_ref = seat_create(startX + gridX, startY + gridY);
+      const seats = [];
+      for (const { gridX, gridY } of offsets) {
+        const new_seat_ref = seat_create(start.gridX + gridX, start.gridY + gridY);
         seat_make_selected(new_seat_ref, gridX, gridY);
+        seats.push({
+          id: new_seat_ref.id,
+          gridX: start.gridX + gridX,
+          gridY: start.gridY + gridY,
+          student_id: null,
+        });
       }
+      selection_update();
       selection_shape_render();
+
+      action_stack_push({ kind: "selection-paste", start, end, seats });
 
       console.log("paste:", selection_data, event);
     });
