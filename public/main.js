@@ -719,13 +719,12 @@ function seat_is_valid_position(seat_ref, gridX, gridY) {
 }
 
 /**
- * Nearest grid position to absX, absY (px) where dragging_seat_ref doesn't
- * overlap another seat. If current is still valid it is kept unless another
- * position is closer by more than SEAT_SNAP_HYSTERESIS_GRID
+ * Nearest grid position to targetX, targetY (grid units, not rounded) where
+ * dragging_seat_ref doesn't overlap another seat. If current is still valid
+ * it is kept unless another position is closer by more than
+ * SEAT_SNAP_HYSTERESIS_GRID
  */
-function closest_non_overlapping_pos(dragging_seat_ref, absX, absY, current = null) {
-  const gridCellPx = grid_cell_px_get();
-  const [targetX, targetY] = px_point_to_grid_unsafe(gridCellPx, absX, absY);
+function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, current = null) {
   const centerX = Math.round(targetX);
   const centerY = Math.round(targetY);
 
@@ -996,11 +995,10 @@ function seat_create(gridX, gridY, id = null) {
   element.dataset[SEAT_DATA_IDENTIFIER] = "";
   seat_refs.push(element);
 
-  const gridCellPx = grid_cell_px_get();
   const { gridX: snapX, gridY: snapY } = closest_non_overlapping_pos(
     element,
-    gridX * gridCellPx,
-    gridY * gridCellPx
+    gridX,
+    gridY
   );
   seat_loc_set(element, snapX, snapY);
 
@@ -1060,7 +1058,8 @@ function seat_create(gridX, gridY, id = null) {
 
     assert(seat_preview_ref != null, "preview not null");
     const [preview_x, preview_y] = elem_grid_pos_get(seat_preview_ref);
-    const snapped_loc = closest_non_overlapping_pos(element, x, y, {
+    const [target_x, target_y] = px_point_to_grid_unsafe(grid_cell_px, x, y);
+    const snapped_loc = closest_non_overlapping_pos(element, target_x, target_y, {
       gridX: preview_x,
       gridY: preview_y,
     });
@@ -1679,6 +1678,35 @@ function grid_offset_update(x, y) {
 
 
 /**
+ * Pans so the middle of the seats is in the middle of the chart. Leaves the
+ * offset alone if there are no seats
+ */
+function grid_offset_center_on_seats() {
+  let min_x = Infinity;
+  let min_y = Infinity;
+  let max_x = -Infinity;
+  let max_y = -Infinity;
+  for (const seat_ref of seat_refs) {
+    if (seat_ref == null) continue;
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    min_x = Math.min(min_x, gridX);
+    min_y = Math.min(min_y, gridY);
+    max_x = Math.max(max_x, gridX + SEAT_GRID_W);
+    max_y = Math.max(max_y, gridY + SEAT_GRID_H);
+  }
+  if (min_x == Infinity) {
+    return;
+  }
+
+  const chart_dom_rect = chart_ref.getBoundingClientRect();
+  const grid_cell_px = grid_cell_px_get();
+  grid_offset_set(
+    (min_x + max_x) / 2 - chart_dom_rect.width / 2 / grid_cell_px,
+    (min_y + max_y) / 2 - chart_dom_rect.height / 2 / grid_cell_px
+  );
+}
+
+/**
 * @returns {[x: number, y: number]}
 */
 function grid_center_estimate() {
@@ -2286,6 +2314,7 @@ async function init() {
     for (const seat of seats) {
       chart_ref.appendChild(seat_create(seat.gridX, seat.gridY, seat.id));
     }
+    grid_offset_center_on_seats();
 
     const students = initial_chart_data.students;
     for (const student of students) {
