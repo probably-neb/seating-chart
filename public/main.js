@@ -63,6 +63,16 @@ const SELECTION_PROP_GRID_POS_X = "--selection-grid-x";
 const SELECTION_PROP_GRID_POS_Y = "--selection-grid-y";
 
 const SELECTION_CLIPBOARD_DATA_TYPE = "deskribe/selection";
+const SELECTION_PAD_GRID = 1;
+const SELECTION_SHAPE_RING_PX = 2;
+const SELECTION_SHAPE_MASK_ID = "selection-shape-outside";
+
+const SELECTION_CLASSLIST_CREATING =
+  "absolute bg-cyan-300/20 ring-2 ring-blue-500 z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
+const SELECTION_CLASSLIST_FITTED = "group absolute z-5 pointer-events-none";
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
 const selection_ref = document.createElement("div");
 let is_creating_selection = false;
 /** @type {{anchor: {gridX: number, gridY: number}, start: {gridX: number, gridY: number}, end: {gridX: number, gridY: number}} | undefined}*/
@@ -355,6 +365,7 @@ function selection_clear() {
     seat_grid_pos_revert_to_abs_loc(seat);
     seat.draggable = true;
   }
+  selection_shape_remove();
   selection_ref.style.display = "none";
   selected_region = null;
   is_creating_selection = false;
@@ -421,6 +432,133 @@ function selected_seats_compute() {
 }
 
 /**
+ * Shrinks the selected region to the selected seats plus SELECTION_PAD_GRID
+ * on each side
+ *
+ * @param {Array<{gridX: number, gridY: number} | null>} selected_seat_offsets offsets from the current region start, as returned by selected_seats_compute
+ * @returns {Array<{gridX: number, gridY: number} | null>} offsets from the new region start
+ */
+function selection_fit_to_seats(selected_seat_offsets) {
+  assert(selected_region != null, "selected_region not null");
+
+  let min_x = Infinity;
+  let min_y = Infinity;
+  let max_x = -Infinity;
+  let max_y = -Infinity;
+  for (const offset of selected_seat_offsets) {
+    if (offset == null) continue;
+    min_x = Math.min(min_x, offset.gridX);
+    min_y = Math.min(min_y, offset.gridY);
+    max_x = Math.max(max_x, offset.gridX + SEAT_GRID_W);
+    max_y = Math.max(max_y, offset.gridY + SEAT_GRID_H);
+  }
+  assert(Number.isSafeInteger(min_x), "fitting selection with no seats");
+
+  const shift_x = min_x - SELECTION_PAD_GRID;
+  const shift_y = min_y - SELECTION_PAD_GRID;
+
+  const { gridX: startX, gridY: startY } = selected_region.start;
+  selected_region.start = { gridX: startX + shift_x, gridY: startY + shift_y };
+  selected_region.end = {
+    gridX: startX + max_x + SELECTION_PAD_GRID,
+    gridY: startY + max_y + SELECTION_PAD_GRID,
+  };
+
+  return selected_seat_offsets.map((offset) =>
+    offset == null
+      ? null
+      : { gridX: offset.gridX - shift_x, gridY: offset.gridY - shift_y }
+  );
+}
+
+/**
+ * @param {string} tag
+ * @param {Record<string, string | number>} attrs
+ */
+function svg_elem_create(tag, attrs = {}) {
+  const elem = document.createElementNS(SVG_NS, tag);
+  for (const [name, value] of Object.entries(attrs)) {
+    elem.setAttribute(name, String(value));
+  }
+  return elem;
+}
+
+/**
+ * Replaces the selection rectangle with the union of the selected seats
+ * each grown by SELECTION_PAD_GRID with rounded corners, so seats close
+ * together share one outline and seats far apart get their own
+ */
+function selection_shape_render() {
+  selection_shape_remove();
+
+  const [width, height] = selection_dims_get();
+
+  const svg = svg_elem_create("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    class: "absolute inset-0 w-full h-full overflow-visible",
+    "data-selection-shape": "",
+  });
+
+  const mask = svg_elem_create("mask", {
+    id: SELECTION_SHAPE_MASK_ID,
+    maskUnits: "userSpaceOnUse",
+    x: -width,
+    y: -height,
+    width: width * 3,
+    height: height * 3,
+  });
+  mask.appendChild(
+    svg_elem_create("rect", {
+      x: -width,
+      y: -height,
+      width: width * 3,
+      height: height * 3,
+      fill: "white",
+    })
+  );
+
+  const ring = svg_elem_create("g", {
+    mask: `url(#${SELECTION_SHAPE_MASK_ID})`,
+    fill: "none",
+    "stroke-width": SELECTION_SHAPE_RING_PX * 2,
+    class: "stroke-blue-500 group-data-[invalid]:stroke-melon-dark",
+  });
+
+  const fill = svg_elem_create("g", {
+    opacity: 0.2,
+    class: "fill-cyan-300 group-data-[invalid]:fill-melon pointer-events-auto",
+  });
+
+  for (const seat_ref of selected_seat_refs_get()) {
+    const [gridX, gridY] = elem_grid_pos_get(seat_ref);
+    const attrs = {
+      x: gridX - SELECTION_PAD_GRID,
+      y: gridY - SELECTION_PAD_GRID,
+      width: SEAT_GRID_W + SELECTION_PAD_GRID * 2,
+      height: SEAT_GRID_H + SELECTION_PAD_GRID * 2,
+      rx: SELECTION_PAD_GRID,
+    };
+    mask.appendChild(svg_elem_create("rect", { ...attrs, fill: "black" }));
+    ring.appendChild(
+      svg_elem_create("rect", { ...attrs, "vector-effect": "non-scaling-stroke" })
+    );
+    fill.appendChild(svg_elem_create("rect", attrs));
+  }
+
+  const defs = svg_elem_create("defs");
+  defs.appendChild(mask);
+  svg.append(defs, fill, ring);
+
+  selection_ref.className = SELECTION_CLASSLIST_FITTED;
+  selection_ref.prepend(svg);
+}
+
+function selection_shape_remove() {
+  selection_ref.querySelector("[data-selection-shape]")?.remove();
+  selection_ref.className = SELECTION_CLASSLIST_CREATING;
+}
+
+/**
  * @param {number} startX
  * @param {number} startY
  * @param {number} endX
@@ -444,8 +582,9 @@ function selection_create(startX, startY, endX, endY) {
   const selected_seat_offsets = selected_seats_compute();
   assert(selected_seat_offsets != null, "selected seats found");
 
-  selected_seats_update(selected_seat_offsets);
+  selected_seats_update(selection_fit_to_seats(selected_seat_offsets));
   selection_update();
+  selection_shape_render();
 }
 
 /**
@@ -837,7 +976,7 @@ function seat_ref_get_by_id(seat_id) {
 function seat_create(gridX, gridY, id = null) {
   const element = document.createElement("div");
   const elementClassName =
-    "bg-cerulean border-2 border-cerulean-dark text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-cerulean-light data-[studentdragover]:border-cerulean-light data-[studentdragover]:border-4 data-[invalid]:border-melon-dark flex items-center justify-center focus:ring-2 focus:ring-blue-500";
+    "pointer-events-auto bg-cerulean border-2 border-cerulean-dark text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-cerulean-light data-[studentdragover]:border-cerulean-light data-[studentdragover]:border-4 data-[invalid]:border-melon-dark flex items-center justify-center focus:ring-2 focus:ring-blue-500";
   element.className = elementClassName;
   element.id = id ?? ID.generate_for("seat");
   element.tabIndex = 0;
@@ -2194,8 +2333,7 @@ async function init() {
   // {{{ selection
   {
     selection_ref.id = "selection";
-    selection_ref.className =
-      "absolute bg-cyan-300/20 ring-2 ring-blue-500 z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
+    selection_ref.className = SELECTION_CLASSLIST_CREATING;
     selection_ref.style.display = "none";
     selection_ref.draggable = true;
     chart_ref.appendChild(selection_ref);
@@ -2288,8 +2426,9 @@ async function init() {
         return;
       }
 
+      selected_seats_update(selection_fit_to_seats(selected_seats));
       selection_update();
-      selected_seats_update(selected_seats);
+      selection_shape_render();
       is_creating_selection = false;
       selection_ref.draggable = "true";
       selection_force_appear_above_seats();
@@ -2488,6 +2627,7 @@ async function init() {
         const new_seat_ref = seat_create(startX + gridX, startY + gridY);
         seat_make_selected(new_seat_ref, gridX, gridY);
       }
+      selection_shape_render();
 
       console.log("paste:", selection_data, event);
     });
