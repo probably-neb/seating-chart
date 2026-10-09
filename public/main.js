@@ -164,12 +164,15 @@ function grid_cell_px_set(grid_cell_px) {
   grid_dots_draw_schedule();
 }
 
-let grid_dots_frame = 0;
+let grid_dots_draw_pending = false;
 
 function grid_dots_draw_schedule() {
-  if (grid_dots_frame != 0) return;
-  grid_dots_frame = window.requestAnimationFrame(() => {
-    grid_dots_frame = 0;
+  if (grid_dots_draw_pending) return;
+  grid_dots_draw_pending = true;
+  // a microtask runs before the next render, so the dots move in the same
+  // frame as the seats
+  queueMicrotask(() => {
+    grid_dots_draw_pending = false;
     grid_dots_draw();
   });
 }
