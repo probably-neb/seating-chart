@@ -1,0 +1,54 @@
+@import "tailwindcss" source("../public");
+
+/* https://coolors.co/palette/227c9d-1da0a8-17c3b2-ffcb77-ffe2b3-fef9ef-feb3b1-fe6d73 */
+@theme {
+    --color-cerulean: hsl(196 64% 37%);
+    --color-cerulean-dark: hsl(196 64% 25%);
+    --color-cerulean-light: hsl(196 64% 45%);
+    --color-moonstone: hsl(183 71% 39%);
+    --color-moonstone-dark: hsl(183 71% 29%);
+    --color-light-sea-green: hsl(174 79% 43%);
+    --color-light-sea-green-dark: hsl(174 79% 33%);
+    --color-sunset: hsl(37 100% 73%);
+    --color-sunset-light: hsl(37 100% 83%);
+    --color-sunset-dark: hsl(37 100% 53%);
+    --color-sunset-dark-extra: hsl(37 100% 33%);
+    --color-peach: hsl(37 100% 85%);
+    --color-floral-white: hsl(40 88% 97%);
+    --color-floral-white-dark: hsl(40 88% 97%);
+    --color-melon: hsl(2 97% 85%);
+    --color-melon-dark: hsl(2 97% 75%);
+    --color-melon-dark-extra: hsl(2 97% 45%);
+    --color-light-red: hsl(358 99% 71%);
+    --color-light-red-dark: hsl(358 99% 61%);
+}
+
+@layer base {
+    :root {
+        font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+
+        color-scheme: light dark;
+        color: rgba(255, 255, 255, 0.87);
+        background-color: #242424;
+
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* keep the tailwind v3 defaults this app was styled with */
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
+}

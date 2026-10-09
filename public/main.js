@@ -1,7 +1,7 @@
 // vim: foldmethod=marker
 
-import ID from "@/scripts/id";
-import * as Replicache from "@/scripts/rep";
+import ID from "/id.js";
+import * as Store from "/store.js";
 const app = document.getElementById("app");
 assert(app != null, "app not null");
 
@@ -100,7 +100,7 @@ const topbar_ref = document.getElementById("top-bar");
 assert(topbar_ref != null, "top bar not null");
 
 const STUDENT_CLASSLIST_SIDEBAR =
-    "ring-2 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black";
+    "ring-2 ring-blue-500/50 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black";
 
 const STUDENT_CLASSLIST_SEATING =
     "border-2 border-black rounded-md w-min px-2 py-1 flex items-center justify-center font-semibold text-xs bg-white text-black break-normal";
@@ -1911,15 +1911,13 @@ async function chart_save() {
 
     console.log("save_chart", data);
 
-    console.time("save_chart_replicache");
-    await Replicache.seating_chart_save(data);
-    console.timeEnd("save_chart_replicache");
+    console.time("save_chart_store");
+    await Store.chart_save(data);
+    console.timeEnd("save_chart_store");
     console.timeEnd("save_chart");
 }
 
 async function init() {
-    Replicache.ensure_init();
-
     // {{{ load
     const url_path = window.location.pathname.replace(/\/$/, ""); // pathname without trailing slash;
     chart_id = url_path.split("/").at(-1);
@@ -1944,8 +1942,7 @@ async function init() {
     const grid_w_initial = 60;
     const grid_h_initial = 30;
 
-    const rep = Replicache.get_assert_init();
-    const existing_chart_data = await Replicache.seating_chart_get(chart_id);
+    const existing_chart_data = await Store.chart_get(chart_id);
     if (existing_chart_data) {
         initial_chart_data = existing_chart_data;
     }

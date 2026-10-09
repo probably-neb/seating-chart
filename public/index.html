@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width" />
+        <title>Deskribe</title>
+        <link rel="stylesheet" href="/styles.css" />
+        <script type="module" src="/index.js"></script>
+    </head>
+    <body class="w-screen h-screen">
+        <div class="px-4 py-8 bg-white text-black w-full h-full">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold">Your Seating Charts</h1>
+                <a id="create-chart" class="px-3 py-2 rounded-lg bg-peach border-b-4 border-b-lime-800">Create new chart</a>
+            </header>
+            <div id="content" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+    </body>
+</html>

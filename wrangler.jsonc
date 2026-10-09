@@ -1,0 +1,26 @@
+{
+    "$schema": "https://unpkg.com/wrangler@4.149.0/config-schema.json",
+    "name": "seating-chart",
+    "main": "src/worker.js",
+    "compatibility_date": "2026-09-01",
+    // runs before `wrangler dev` and `wrangler deploy`, so deploys never ship stale css
+    "build": {
+        "command": "tailwindcss -i src/styles.css -o public/styles.css --minify"
+    },
+    "assets": {
+        "directory": "public",
+        "binding": "ASSETS",
+        // everything else is served straight from public/ without invoking the worker
+        "run_worker_first": ["/api/*", "/canvas/*"]
+    },
+    "kv_namespaces": [
+        // no id: wrangler creates the namespace on first deploy and `wrangler dev` uses a local one
+        { "binding": "CHARTS" }
+    ],
+    // only reachable through the custom domain, which sits behind Cloudflare Access,
+    // the *.workers.dev url would skip Access and expose every chart
+    "workers_dev": false,
+    "preview_urls": false
+    // TODO: set before deploying
+    // "routes": [{ "pattern": "seating.example.com", "custom_domain": true }]
+}

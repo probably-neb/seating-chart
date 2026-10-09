@@ -1,2 +1,20 @@
 [tools]
 node = "latest"
+"aqua:tailwindlabs/tailwindcss" = "4.3.3"
+"npm:wrangler" = "4.149.0"
+
+[tasks.css]
+description = "Build public/styles.css"
+run = "tailwindcss -i src/styles.css -o public/styles.css --minify"
+
+[tasks."css:watch"]
+description = "Rebuild public/styles.css on change"
+run = "tailwindcss -i src/styles.css -o public/styles.css --watch=always"
+
+[tasks."worker:dev"]
+description = "Run the worker and static files locally with a local KV store"
+run = "wrangler dev"
+
+[tasks.dev]
+description = "Local dev server at http://localhost:8787"
+depends = ["css:watch", "worker:dev"]
