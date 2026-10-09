@@ -105,8 +105,10 @@ const STUDENT_DATA_IDENTIFIER = "student";
 const ZOOM_BTN_SCALE_FACTOR = 0.1;
 const VIEW_FIT_MARGIN_GRID = SEAT_GRID_W;
 
-// spacing of each .grid-background dot level in grid cells, see canvas.html
+// spacing of each background dot level in grid cells, coarsest first. Each
+// level's spacing is half the one before it
 const GRID_DOT_LEVEL_SPACINGS = [64, 32, 16, 8, 4, 2, 1, 1 / 2, 1 / 4];
+const GRID_DOT_RADIUS_PX = 1;
 const GRID_DOT_FADE_START_PX = 10;
 const GRID_DOT_FADE_END_PX = 20;
 const VIEW_FIT_MAX_SCALE = 1.0;
@@ -152,15 +154,73 @@ function grid_cell_px_dim(v) {
  */
 function grid_cell_px_set(grid_cell_px) {
   chart_ref.style.setProperty("--grid-cell-px", grid_cell_px + "px");
-  for (let i = 0; i < GRID_DOT_LEVEL_SPACINGS.length; i++) {
-    const spacing_px = grid_cell_px * GRID_DOT_LEVEL_SPACINGS[i];
+  grid_dots_draw_schedule();
+}
+
+let grid_dots_frame = 0;
+
+function grid_dots_draw_schedule() {
+  if (grid_dots_frame != 0) return;
+  grid_dots_frame = window.requestAnimationFrame(() => {
+    grid_dots_frame = 0;
+    grid_dots_draw();
+  });
+}
+
+/**
+ * Draws the background dots on the #grid-dots canvas. Every dot is drawn
+ * once, faded by the spacing of the coarsest level it belongs to, so dots
+ * from different levels never double up. Levels fade out as their dots get
+ * closer than GRID_DOT_FADE_END_PX on screen
+ */
+function grid_dots_draw() {
+  const canvas_ref = document.getElementById("grid-dots");
+  if (!(canvas_ref instanceof HTMLCanvasElement)) return;
+  const ctx = canvas_ref.getContext("2d");
+  if (ctx == null) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const width = chart_ref.clientWidth;
+  const height = chart_ref.clientHeight;
+  if (canvas_ref.width != Math.round(width * dpr) || canvas_ref.height != Math.round(height * dpr)) {
+    canvas_ref.width = Math.round(width * dpr);
+    canvas_ref.height = Math.round(height * dpr);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas_ref.width, canvas_ref.height);
+
+  const grid_cell_px = grid_cell_px_get();
+  const [offset_x, offset_y] = grid_offset_get();
+  const radius = Math.round(GRID_DOT_RADIUS_PX * dpr);
+
+  for (let level = 0; level < GRID_DOT_LEVEL_SPACINGS.length; level++) {
+    const spacing = GRID_DOT_LEVEL_SPACINGS[level];
     const alpha = clamp(
-      (spacing_px - GRID_DOT_FADE_START_PX) /
+      (grid_cell_px * spacing - GRID_DOT_FADE_START_PX) /
         (GRID_DOT_FADE_END_PX - GRID_DOT_FADE_START_PX),
       0,
       1
     );
-    chart_ref.style.setProperty(`--grid-dot-alpha-${i + 1}`, alpha);
+    if (alpha == 0) break;
+
+    const is_coarsest = level == 0;
+    const first_x = Math.ceil((offset_x - GRID_DOT_RADIUS_PX / grid_cell_px) / spacing);
+    const last_x = Math.floor((offset_x + width / grid_cell_px) / spacing);
+    const first_y = Math.ceil((offset_y - GRID_DOT_RADIUS_PX / grid_cell_px) / spacing);
+    const last_y = Math.floor((offset_y + height / grid_cell_px) / spacing);
+
+    ctx.beginPath();
+    for (let y = first_y; y <= last_y; y++) {
+      const py = Math.round((y * spacing - offset_y) * grid_cell_px * dpr);
+      for (let x = first_x; x <= last_x; x++) {
+        // even multiples are dots of the next coarser level, already drawn
+        if (!is_coarsest && x % 2 == 0 && y % 2 == 0) continue;
+        const px = Math.round((x * spacing - offset_x) * grid_cell_px * dpr);
+        ctx.rect(px - radius, py - radius, radius * 2, radius * 2);
+      }
+    }
+    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.fill();
   }
 }
 
@@ -1859,6 +1919,7 @@ function grid_offset_set(x, y) {
   assert(Number.isSafeFloat(y), 'grid offset y is safe integer');
   chart_ref.style.setProperty(GRID_PROP_OFFSET_X, x);
   chart_ref.style.setProperty(GRID_PROP_OFFSET_Y, y);
+  grid_dots_draw_schedule();
 }
 
 /**
@@ -2435,6 +2496,7 @@ async function init() {
 
     // TODO: use existing seat data to calculate w/h
     grid_offset_set(0, 0)
+    new ResizeObserver(grid_dots_draw_schedule).observe(chart_ref);
 
     chart_ref.ondragover = function (event) {
       event.preventDefault();
