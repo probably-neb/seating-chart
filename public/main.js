@@ -125,12 +125,12 @@ const topbar_ref = document.getElementById("top-bar");
 assert(topbar_ref != null, "top bar not null");
 
 const STUDENT_CLASSLIST_SIDEBAR =
-  "ring-2 ring-blue-500/50 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black";
+  "ring-2 ring-blue-500/50 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black cursor-pointer";
 
 // laid out at its size for GRID_CELL_PX_REFERENCE cells, then scaled with
 // the seat by --grid-cell-scale so it stays in proportion at every zoom
 const STUDENT_CLASSLIST_SEATING =
-  "block shrink-0 overflow-hidden text-ellipsis whitespace-nowrap border-2 border-black rounded-md px-2 py-1 text-xs font-semibold bg-white text-black max-w-[calc(var(--grid-cell-px-reference)*var(--seat-grid-w)-4px)] scale-[var(--grid-cell-scale)]";
+  "block shrink-0 overflow-hidden text-ellipsis whitespace-nowrap border-2 border-black rounded-md px-2 py-1 text-xs font-semibold bg-white text-black max-w-[calc(var(--grid-cell-px-reference)*var(--seat-grid-w)-4px)] scale-[var(--grid-cell-scale)] cursor-pointer in-data-[moving]:cursor-grabbing";
 
 
 /** @returns {asserts val} */
