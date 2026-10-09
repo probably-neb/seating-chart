@@ -6,7 +6,7 @@
   -- (x) delete seat
   -- (x) clear students
   -- (x) clear students
-  -- ( ) delete selection
+  -- (x) delete selection
   -- (x) selection move
   -- ( ) Undo Button
 
@@ -17,7 +17,7 @@
   -- (x) grid size changes
   -- (x) clear students
   -- (x) clear students
-  -- ( ) delete selection
+  -- (x) delete selection
   -- (x) selection move
   -- ( ) Redo Button
 
@@ -31,7 +31,7 @@
   - ( ) don't clear selection if invalid
   - ( ) always expect seats in seat_refs to be non null (use asserts!)
   - (?) when ctrl+click for creating seat, allow dragging to create multiple seats + show previews
-  - ( ) Deleting selection
+  - (x) Deleting selection
   - ( ) Clear all and clear students when selection is active should be scoped to selection
   - ( ) Remove selection if empty on clear all and clear students
   - ( ) Stop selection creation on mouseleave

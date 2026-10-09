@@ -1178,7 +1178,7 @@ function seat_create(gridX, gridY, id = null) {
 
   element.onkeydown = function (event) {
     const seat_ref = event.currentTarget;
-    if (!is_seat_ref(seat_ref)) {
+    if (!is_seat_ref(seat_ref) || seat_is_selected(seat_ref)) {
       return;
     }
     if (event.key === "Delete" || event.key === "Backspace") {
@@ -1700,7 +1700,7 @@ let action_stack_index = -1;
 let action_stack = [];
 
 /**
- * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats} Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats | Action_Selection_Delete} Action
  */
 
 /**
@@ -1766,6 +1766,14 @@ let action_stack = [];
  * @typedef {Object} Action_Clear_Seats
  * @property {'clear-seats'} kind
  * @property {Array<{id: string, gridX: number, gridY: number, student_id: string | null}>} seats
+ */
+
+/**
+ * @typedef {Object} Action_Selection_Delete
+ * @property {'selection-delete'} kind
+ * @property {GridPoint} start
+ * @property {GridPoint} end
+ * @property {Action_Clear_Seats["seats"]} seats
  */
 
 /**
@@ -1864,16 +1872,17 @@ function action_stack_undo() {
       break;
     }
     case "clear-seats": {
-      for (const seat of action.seats) {
-        const seat_ref = seat_create(seat.gridX, seat.gridY, seat.id);
-        if (seat.student_id != null) {
-          const student_ref = student_ref_get_by_id(seat.student_id);
-          if (is_student_ref(student_ref)) {
-            seat_student_set(seat_ref, student_ref);
-          }
-        }
-        chart_ref.appendChild(seat_ref);
-      }
+      seats_restore(action.seats);
+      break;
+    }
+    case "selection-delete": {
+      seats_restore(action.seats);
+      selection_create(
+        action.start.gridX,
+        action.start.gridY,
+        action.end.gridX,
+        action.end.gridY
+      );
       break;
     }
     default:
@@ -1958,6 +1967,13 @@ function action_stack_redo() {
       void chart_clear_seats();
       break;
     }
+    case "selection-delete": {
+      selection_clear();
+      for (const seat of action.seats) {
+        seat_delete(seat_ref_get_by_id(seat.id));
+      }
+      break;
+    }
     default:
       console.warn("tried to undo unknown action kind", action);
   }
@@ -2015,6 +2031,44 @@ function chart_clear_seats() {
     seat_delete(seat_ref);
   }
   return seats;
+}
+
+/**
+ * Deletes the selected seats and clears the selection
+ *
+ * @returns {Action_Selection_Delete["seats"]}
+ */
+function selection_delete() {
+  const selected_seats = [...selected_seat_refs_get()];
+  selection_clear();
+
+  const seats = [];
+  for (const seat_ref of selected_seats) {
+    const student_ref = seat_student_get(seat_ref);
+    const student_id = student_ref ? student_ref.id : null;
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    seats.push({ id: seat_ref.id, gridX, gridY, student_id });
+    seat_delete(seat_ref);
+  }
+  return seats;
+}
+
+/**
+ * Recreates seats removed by chart_clear_seats or selection_delete
+ *
+ * @param {Action_Clear_Seats["seats"]} seats
+ */
+function seats_restore(seats) {
+  for (const seat of seats) {
+    const seat_ref = seat_create(seat.gridX, seat.gridY, seat.id);
+    if (seat.student_id != null) {
+      const student_ref = student_ref_get_by_id(seat.student_id);
+      if (is_student_ref(student_ref)) {
+        seat_student_set(seat_ref, student_ref);
+      }
+    }
+    chart_ref.appendChild(seat_ref);
+  }
 }
 
 async function chart_save() {
@@ -2646,6 +2700,30 @@ async function init() {
       console.log("paste:", selection_data, event);
     });
   }
+  // }}}
+
+  // {{{ deleting selection
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Delete" && event.key !== "Backspace") {
+      return;
+    }
+    if (selected_region == null || is_creating_selection) {
+      return;
+    }
+    if (
+      event.target instanceof HTMLElement &&
+      (event.target.isContentEditable ||
+        event.target.closest("input, textarea, select") != null)
+    ) {
+      return;
+    }
+    event.preventDefault();
+
+    const start = { ...selected_region.start };
+    const end = { ...selected_region.end };
+    const seats = selection_delete();
+    action_stack_push({ kind: "selection-delete", start, end, seats });
+  });
   // }}}
 
   // {{{ student controls
