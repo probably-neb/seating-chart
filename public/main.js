@@ -126,8 +126,10 @@ assert(topbar_ref != null, "top bar not null");
 const STUDENT_CLASSLIST_SIDEBAR =
   "ring-2 ring-blue-500/50 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black";
 
+// sized relative to --grid-cell-px so it scales with the seat, at 100% zoom
+// (18px cells) this is text-xs with px-2 py-1, a 2px border and rounded-md
 const STUDENT_CLASSLIST_SEATING =
-  "border-2 border-black rounded-md w-min px-2 py-1 flex items-center justify-center font-semibold text-xs bg-white text-black break-normal";
+  "block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap border-black bg-white text-black font-semibold text-[length:calc(var(--grid-cell-px)*2/3)] leading-[1.333] px-[0.667em] py-[0.333em] border-[length:calc(var(--grid-cell-px)/9)] rounded-[calc(var(--grid-cell-px)/3)]";
 
 
 /** @returns {asserts val} */
@@ -1867,6 +1869,7 @@ function student_create(name, id = null) {
   const student_ref = document.createElement("div");
   student_ref.className = STUDENT_CLASSLIST_SIDEBAR;
   student_ref.textContent = name;
+  student_ref.title = name;
   student_ref.dataset[STUDENT_DATA_IDENTIFIER] = "";
 
   student_ref.id = id ?? ID.generate_for("student");
