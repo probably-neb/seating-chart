@@ -275,6 +275,7 @@ function selection_update() {
   // update selected seats abs loc
 
   const selected_seat_refs = selected_seat_refs_get();
+  const unselected_positions = seat_positions_index(selected_seat_refs);
 
   let found_invalid_seat_pos = false;
 
@@ -283,8 +284,8 @@ function selection_update() {
     const absX = startX + seat_gridX;
     const absY = startY + seat_gridY;
     seat_abs_loc_set(selected_seat_ref, absX, absY);
-    const is_invalid_pos = !seat_is_valid_position(
-      selected_seat_ref,
+    const is_invalid_pos = !seat_position_is_free(
+      unselected_positions,
       absX,
       absY
     );
@@ -815,24 +816,41 @@ function dbg_sleep(milliseconds) {
  * // TODO: check if seat is in bounds of grid
  * gridX and gridY are optional, if provided they will be used instead of the seat_ref's abs_loc
  */
-function seat_is_valid_position(seat_ref, gridX, gridY) {
-  if (gridX == null || gridY == null) {
-    [gridX, gridY] = seat_abs_loc_get(seat_ref);
+/**
+ * Top left positions of every seat except excluded_seat_refs, so many
+ * positions can be checked with seat_position_is_free without rereading
+ * every seat each time
+ *
+ * @param {Iterable<HTMLElement>} excluded_seat_refs
+ * @returns {Set<string>}
+ */
+function seat_positions_index(excluded_seat_refs) {
+  const excluded = new Set(excluded_seat_refs);
+  const positions = new Set();
+  for (const seat_ref of seat_refs) {
+    if (seat_ref == null || excluded.has(seat_ref)) continue;
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    positions.add(gridX + "," + gridY);
   }
-  let is_not_overlapping = true;
+  return positions;
+}
 
-  for (let i = 0; i < seat_refs.length && is_not_overlapping; i++) {
-    const other_seat_ref = seat_refs[i];
-    if (other_seat_ref == null || other_seat_ref == seat_ref) continue;
-    const [seat_gridX, seat_gridY] = seat_abs_loc_get(other_seat_ref);
-
-    const is_overlapping =
-      Math.abs(gridX - seat_gridX) < SEAT_GRID_W &&
-      Math.abs(gridY - seat_gridY) < SEAT_GRID_H;
-
-    is_not_overlapping = !is_overlapping;
+/**
+ * Whether a seat at gridX, gridY would not overlap any seat in positions
+ *
+ * @param {Set<string>} positions from seat_positions_index
+ * @param {number} gridX
+ * @param {number} gridY
+ */
+function seat_position_is_free(positions, gridX, gridY) {
+  for (let dy = 1 - SEAT_GRID_H; dy < SEAT_GRID_H; dy++) {
+    for (let dx = 1 - SEAT_GRID_W; dx < SEAT_GRID_W; dx++) {
+      if (positions.has(gridX + dx + "," + (gridY + dy))) {
+        return false;
+      }
+    }
   }
-  return is_not_overlapping;
+  return true;
 }
 
 /**
@@ -844,6 +862,8 @@ function seat_is_valid_position(seat_ref, gridX, gridY) {
 function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, current = null) {
   const centerX = Math.round(targetX);
   const centerY = Math.round(targetY);
+
+  const positions = seat_positions_index([dragging_seat_ref]);
 
   let best = null;
   let best_distance = Infinity;
@@ -860,7 +880,7 @@ function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, curren
         const distance = Math.hypot(gridX - targetX, gridY - targetY);
         if (
           distance < best_distance &&
-          seat_is_valid_position(dragging_seat_ref, gridX, gridY)
+          seat_position_is_free(positions, gridX, gridY)
         ) {
           best = { gridX, gridY };
           best_distance = distance;
@@ -873,7 +893,7 @@ function closest_non_overlapping_pos(dragging_seat_ref, targetX, targetY, curren
 
   if (
     current != null &&
-    seat_is_valid_position(dragging_seat_ref, current.gridX, current.gridY)
+    seat_position_is_free(positions, current.gridX, current.gridY)
   ) {
     const current_distance = Math.hypot(
       current.gridX - targetX,
@@ -2694,6 +2714,10 @@ async function init() {
         start: { gridX: startX, gridY: startY },
         end: { gridX: endX, gridY: endY },
       } = selected_region;
+
+      if (gridX == startX && gridY == startY) {
+        return;
+      }
 
       const width = endX - startX;
       const height = endY - startY;
