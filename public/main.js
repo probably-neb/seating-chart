@@ -2626,7 +2626,7 @@ async function init() {
         anchor: { gridX, gridY },
       };
       selection_update();
-      selection_ref.draggable = "false";
+      selection_ref.draggable = false;
       selection_ref.dataset['started'] = '';
       is_creating_selection = true;
       selection_force_appear_below_seats();
@@ -2686,7 +2686,7 @@ async function init() {
       selection_update();
       selection_shape_render();
       is_creating_selection = false;
-      selection_ref.draggable = "true";
+      selection_ref.draggable = true;
       selection_force_appear_above_seats();
     });
     ////////////////////////
@@ -2783,6 +2783,22 @@ async function init() {
 
         return;
       }
+
+      if (selected_region != null) {
+        selected_region.start = {
+          gridX: Number.parseInt(selection_ref.dataset.startx),
+          gridY: Number.parseInt(selection_ref.dataset.starty),
+        };
+        selected_region.end = {
+          gridX: Number.parseInt(selection_ref.dataset.endx),
+          gridY: Number.parseInt(selection_ref.dataset.endy),
+        };
+        selection_update();
+      }
+      delete selection_ref.dataset.startx;
+      delete selection_ref.dataset.starty;
+      delete selection_ref.dataset.endx;
+      delete selection_ref.dataset.endy;
     };
   }
   // }}}
