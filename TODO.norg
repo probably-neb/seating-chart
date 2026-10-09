@@ -57,9 +57,9 @@
   --- (x) handle wheel + scroll & scroll by grid_cell_px
   --- ( ) initially center x,y scrollbars to allow movement beyond visible area
   --- (?) hide but show when mouse moves close?
-  -- ( ) update grid offset on zoom
+  -- (x) update grid offset on zoom
   --- ( ) with buttons: heuristic ?= delta(grid_cell_px) > grid_cell_px
-  --- ( ) with keybind: center on mouse pos - ensure same pos is under mouse during zoom
+  --- (x) with keybind: center on mouse pos - ensure same pos is under mouse during zoom
   -- ( ) scroll when seat dragged off canvas
   -- ( ) update grid offset when undo/redoing to either center or restore view state from action
   -- ( ) determine whether can animate changes in grid_offset for smooth scrolling

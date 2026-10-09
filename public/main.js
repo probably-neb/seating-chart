@@ -151,7 +151,15 @@ function grid_cell_px_get() {
   return gridCellPx;
 }
 
-function grid_cell_px_adjust(factor) {
+/**
+ * Zooms by factor keeping the grid point at anchor_x_px, anchor_y_px (px
+ * from the chart's top left) in place. Defaults to the middle of the chart
+ *
+ * @param {number} factor
+ * @param {number} [anchor_x_px]
+ * @param {number} [anchor_y_px]
+ */
+function grid_cell_px_adjust(factor, anchor_x_px, anchor_y_px) {
   const current_scale_str = chart_ref.style.getPropertyValue(CHART_PROP_SCALE);
   const current_scale = current_scale_str ? Number.parseFloat(current_scale_str) : 1.0;
 
@@ -172,6 +180,17 @@ function grid_cell_px_adjust(factor) {
 
   const new_value = current_value * scale_transform;
   // console.log({ new_value, current_value, scale_transform });
+
+  if (anchor_x_px == null || anchor_y_px == null) {
+    const chart_dom_rect = chart_ref.getBoundingClientRect();
+    anchor_x_px = chart_dom_rect.width / 2;
+    anchor_y_px = chart_dom_rect.height / 2;
+  }
+  const [offset_x, offset_y] = grid_offset_get();
+  grid_offset_set(
+    offset_x + anchor_x_px / current_value - anchor_x_px / new_value,
+    offset_y + anchor_y_px / current_value - anchor_y_px / new_value
+  );
 
   chart_ref.style.setProperty("--grid-cell-px", new_value + "px");
 
@@ -2544,8 +2563,12 @@ async function init() {
         return;
       }
 
-      grid_cell_px_adjust(-event.deltaY / 250);
-      // TODO: center zoom on mouse position
+      const chart_dom_rect = chart_ref.getBoundingClientRect();
+      grid_cell_px_adjust(
+        -event.deltaY / 250,
+        clamp(event.clientX - chart_dom_rect.left, 0, chart_dom_rect.width),
+        clamp(event.clientY - chart_dom_rect.top, 0, chart_dom_rect.height)
+      );
 
       // TODO: consider this more deeply. Breaks site zoom when mouse over canvas
       event.preventDefault();
