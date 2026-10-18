@@ -57,7 +57,7 @@
     --btn-h: 34px;
     --btn-radius: 9px;
     --btn-border-w: 1px;
-    --btn-depth: 3px;
+    --btn-depth: 2px;
     --btn-bg: #fff;
     --btn-border: var(--line);
     --btn-depth-color: hsl(40 15% 80%);
@@ -73,7 +73,7 @@
     --seat-border: var(--color-cerulean-dark);
     --seat-border-w: 2px;
     --seat-radius: 6px;
-    --seat-shadow: 0 2px 0 hsl(196 64% 20% / 0.35);
+    --seat-shadow: 0 1.5px 0 hsl(196 64% 20% / 0.3);
     --seat-empty-bg: hsl(196 55% 94%);
     --seat-empty-border: hsl(196 40% 68%);
     --seat-empty-style: dashed;
@@ -123,7 +123,7 @@
 
     --radius: 18px;
     --radius-sm: 12px;
-    --shadow-panel: 4px 4px 0 var(--ink);
+    --shadow-panel: 3px 3px 0 var(--ink);
 
     --btn-h: 36px;
     --btn-radius: 12px;
@@ -142,7 +142,7 @@
     --seat-border: var(--ink);
     --seat-border-w: 2px;
     --seat-radius: 9px;
-    --seat-shadow: 3px 3px 0 var(--ink);
+    --seat-shadow: 2px 2px 0 var(--ink);
     --seat-empty-bg: #fff;
     --seat-empty-border: var(--ink);
     --seat-empty-style: dashed;
@@ -163,7 +163,7 @@
 
     --side-w: 280px;
     --outline-w: 2px;
-    --hard: 3px;
+    --hard: 2px;
 }
 
 [data-theme="pop"] {
@@ -171,7 +171,7 @@
     --seat-bg: var(--color-sunset);
     --seat-border: hsl(200 30% 14%);
     --seat-radius: 8px;
-    --seat-shadow: 2px 2px 0 hsl(200 30% 14%);
+    --seat-shadow: 1.5px 1.5px 0 hsl(200 30% 14%);
     --seat-empty-bg: #fff;
     --seat-empty-border: hsl(200 20% 45%);
     --drop: var(--color-light-sea-green);
@@ -195,9 +195,9 @@
 
     --radius: 14px;
     --radius-sm: 10px;
-    --shadow-panel: 3px 3px 0 var(--ink);
+    --shadow-panel: 2px 2px 0 var(--ink);
     --outline-w: 1.5px;
-    --hard: 2px;
+    --hard: 1.5px;
 
     --btn-border-w: 1.5px;
     --btn-depth: 0px;
@@ -209,7 +209,7 @@
     --grid-dot: hsl(200 30% 14% / 0.35);
 
     --seat-border: var(--ink);
-    --seat-shadow: 2px 2px 0 var(--ink);
+    --seat-shadow: 1.5px 1.5px 0 var(--ink);
     --seat-empty-bg: #fff;
     --seat-empty-border: var(--ink);
 
@@ -483,24 +483,14 @@
         margin: 0 4px;
         background: var(--line);
     }
-    .save {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        margin-left: 4px;
+    #save-button[data-state="error"] {
+        --btn-ink: var(--danger);
     }
-    .save-status {
-        padding: 0 6px;
-        font-size: 12px;
-        color: var(--ink-muted);
-        white-space: nowrap;
-    }
-    /* no room for "autosaves every 30s" in the dock */
-    .save-status[data-state="idle"] {
-        display: none;
-    }
-    .save-status[data-state="error"] {
-        color: var(--danger);
+    /* the save button is at the dock's right end, keep its tooltip on screen */
+    .app-header #save-button::after {
+        left: auto;
+        right: 0;
+        translate: none;
     }
     /* }}} */
 
@@ -650,6 +640,29 @@
     }
     .student-chip:hover::after {
         opacity: 0.7;
+    }
+    .student-actions {
+        display: flex;
+        gap: 6px;
+    }
+    .student-actions .btn {
+        --btn-h: 30px;
+        flex: 1;
+        font-size: 13px;
+    }
+    /* the sidebar is narrow, so its tooltips open up and hang off one edge */
+    .student-actions [data-tip]::after {
+        top: auto;
+        bottom: calc(100% + 8px);
+        left: 0;
+        translate: none;
+        width: max-content;
+        max-width: 200px;
+        white-space: normal;
+    }
+    .student-actions [data-tip]:last-child::after {
+        left: auto;
+        right: 0;
     }
     .shortcuts {
         flex: none;

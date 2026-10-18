@@ -35,17 +35,7 @@
 
                     <span class="tool-sep"></span>
 
-                    <button id="clear-students-button" class="btn btn-quiet" data-tip="Move every student back to the list">
-                        Unseat all
-                    </button>
-                    <button id="clear-button" class="btn btn-quiet btn-danger" data-tip="Remove every seat and unseat every student">
-                        Clear all
-                    </button>
-                </div>
-
-                <div class="save">
-                    <span id="save-status" class="save-status" data-state="idle">Autosaves every 30s</span>
-                    <button id="save-button" class="btn">Save</button>
+                    <button id="save-button" class="btn" data-tip="Autosaves every 30s">Save</button>
                 </div>
             </header>
 
@@ -69,6 +59,15 @@
 
                 <p class="sidebar-hint">Drag a name onto a seat</p>
                 <div id="students" class="student-list"></div>
+
+                <div class="student-actions">
+                    <button id="clear-students-button" class="btn" data-tip="Move every student back to the list">
+                        Unseat all
+                    </button>
+                    <button id="clear-button" class="btn btn-danger" data-tip="Remove every seat and unseat every student">
+                        Clear all
+                    </button>
+                </div>
 
                 <details class="shortcuts">
                     <summary>Shortcuts</summary>

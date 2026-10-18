@@ -2462,20 +2462,21 @@ async function chart_save() {
 
   console.log("save_chart", data);
 
-  const save_status_ref = document.getElementById("save-status");
-  save_status_ref.textContent = "Saving…";
-  delete save_status_ref.dataset.state;
+  // status lives in the save button's tooltip so the toolbar never changes size
+  const save_button_ref = document.getElementById("save-button");
+  save_button_ref.dataset.tip = "Saving…";
+  delete save_button_ref.dataset.state;
   console.time("save_chart_store");
   try {
     await Store.chart_save(data);
   } catch (err) {
-    save_status_ref.textContent = "Couldn't save";
-    save_status_ref.dataset.state = "error";
+    save_button_ref.dataset.tip = "Couldn't save, try again";
+    save_button_ref.dataset.state = "error";
     throw err;
   }
   console.timeEnd("save_chart_store");
-  save_status_ref.textContent =
-    "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const saved_at = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  save_button_ref.dataset.tip = `Saved at ${saved_at}, autosaves every 30s`;
   console.timeEnd("save_chart");
 }
 
