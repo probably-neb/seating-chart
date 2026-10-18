@@ -98,6 +98,8 @@ const drag_pointer = { clientX: 0, clientY: 0 };
 // student
 const STUDENT_DATA_SEAT_ID = "seatid";
 const student_refs = [];
+/** @type {HTMLElement | null} the student being dragged, if any */
+let student_dragging_ref = null;
 const STUDENT_DATA_IDENTIFIER = "student";
 
 // zoom
@@ -1902,6 +1904,8 @@ function student_create(name, id = null) {
 
   student_ref.id = id ?? ID.generate_for("student");
   student_ref.dataset.initial = name.trim().charAt(0).toUpperCase();
+  // for styles that don't have room for the full name
+  student_ref.dataset.first = name.trim().split(/\s+/)[0];
   student_ref.dataset.tone = String(1 + string_hash(student_ref.id) % STUDENT_TONE_COUNT);
 
   const student_index = student_refs.length;
@@ -1923,6 +1927,7 @@ function student_create(name, id = null) {
     event.dataTransfer.setData("deskribe/student", "");
 
     student_ref.style.zIndex = 50;
+    student_dragging_ref = student_ref;
   };
 
   student_ref.ondrag = function (event) {
@@ -1938,6 +1943,8 @@ function student_create(name, id = null) {
     const student_ref = event.currentTarget;
     elem_make_visible(student_ref);
     event.stopPropagation();
+    student_dragging_ref = null;
+    delete sidebar_ref.dataset[SEAT_DATA_STUDENT_DROP_INDICATION];
   };
 
   return student_ref;
@@ -2040,7 +2047,7 @@ let action_stack_index = -1;
 let action_stack = [];
 
 /**
- * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats | Action_Selection_Delete | Action_Selection_Paste} Action
+ * @typedef {Action_Seat_Move | Action_Seat_Create | Action_Seat_Delete | Action_Student_Seat_Assign | Action_Student_Unseat | Action_Student_Seat_Transfer | Action_Grid_Resize | Action_Selection_Move | Action_Clear_Students | Action_Clear_Seats | Action_Selection_Delete | Action_Selection_Paste} Action
  */
 
 /**
@@ -2075,6 +2082,13 @@ let action_stack = [];
 /**
  * @typedef {Object} Action_Student_Seat_Assign
  * @property {'student-seat-assign'} kind
+ * @property {string} student_id
+ * @property {string} seat_id
+ */
+
+/**
+ * @typedef {Object} Action_Student_Unseat
+ * @property {'student-unseat'} kind
  * @property {string} student_id
  * @property {string} seat_id
  */
@@ -2185,6 +2199,12 @@ function action_stack_undo() {
       student_make_unseated(student_ref);
       break;
     }
+    case "student-unseat": {
+      const student_ref = student_ref_get_by_id(action.student_id);
+      const seat_ref = seat_ref_get_by_id(action.seat_id);
+      seat_student_set(seat_ref, student_ref);
+      break;
+    }
     case "student-seat-transfer": {
       const student_ref = student_ref_get_by_id(action.student_id);
       const from_seat_ref = seat_ref_get_by_id(action.from_seat_id);
@@ -2280,6 +2300,10 @@ function action_stack_redo() {
       const student_ref = student_ref_get_by_id(action.student_id);
       const seat_ref = seat_ref_get_by_id(action.seat_id);
       seat_student_set(seat_ref, student_ref);
+      break;
+    }
+    case "student-unseat": {
+      student_make_unseated(student_ref_get_by_id(action.student_id));
       break;
     }
     case "student-seat-transfer": {
@@ -3162,6 +3186,29 @@ async function init() {
       sidebar_student_input.value = "";
       sidebar_student_list_ref.appendChild(student_create(name));
       sidebar_student_input.focus();
+    });
+
+    // dropping a seated student anywhere on the sidebar unseats them
+    const student_dragging_is_seated = () =>
+      student_dragging_ref != null && student_seat_get(student_dragging_ref) != null;
+    sidebar_ref.addEventListener("dragover", (event) => {
+      if (!student_dragging_is_seated()) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      sidebar_ref.dataset[SEAT_DATA_STUDENT_DROP_INDICATION] = "";
+    });
+    sidebar_ref.addEventListener("dragleave", (event) => {
+      if (event.relatedTarget instanceof Node && sidebar_ref.contains(event.relatedTarget)) return;
+      delete sidebar_ref.dataset[SEAT_DATA_STUDENT_DROP_INDICATION];
+    });
+    sidebar_ref.addEventListener("drop", (event) => {
+      delete sidebar_ref.dataset[SEAT_DATA_STUDENT_DROP_INDICATION];
+      if (!student_dragging_is_seated()) return;
+      event.preventDefault();
+      const student_ref = student_dragging_ref;
+      const seat_ref = student_seat_get(student_ref);
+      action_stack_push({ kind: "student-unseat", student_id: student_ref.id, seat_id: seat_ref.id });
+      student_make_unseated(student_ref);
     });
 
     // students move in and out of the list from all over, so watch it

@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width" />
         <title>Deskribe Seating Chart Editor</title>
         <link rel="stylesheet" href="/styles.css" />
+        <script src="/student-style.js"></script>
         <script type="module" src="/main.js"></script>
     </head>
     <body>
@@ -32,6 +33,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
                     </button>
 
+                    <button id="clear-button" class="btn btn-quiet btn-icon btn-danger" aria-label="Clear all" data-tip="Clear all: remove every seat and unseat everyone">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                    </button>
+
                     <span class="tool-sep"></span>
 
                     <button id="save-button" class="btn" data-tip="Autosaves every 30s">Save</button>
@@ -56,15 +61,12 @@
                     </button>
                 </form>
 
-                <p class="sidebar-hint">Drag a name onto a seat</p>
+                <p class="sidebar-hint">Drag a name onto a seat, or back here to unseat</p>
                 <div id="students" class="student-list"></div>
 
                 <div class="student-actions">
                     <button id="clear-students-button" class="btn" data-tip="Move every student back to the list">
                         Unseat all
-                    </button>
-                    <button id="clear-button" class="btn btn-danger" data-tip="Remove every seat and unseat every student">
-                        Clear all
                     </button>
                 </div>
 
@@ -100,6 +102,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                     </button>
                 </div>
+                <div data-student-style-picker></div>
             </main>
         </div>
     </body>
