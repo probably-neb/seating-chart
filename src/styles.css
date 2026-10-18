@@ -436,14 +436,16 @@
         flex: 1 1 auto;
         min-height: 48px;
         display: flex;
-        flex-direction: column;
-        gap: 6px;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: 8px 6px;
         margin: 0 -6px;
         padding: 4px 6px;
         overflow-y: auto;
     }
     .student-list:empty::after {
         content: "Everyone has a seat";
+        flex: 1 1 100%;
         padding: 16px 12px;
         border: 2px dashed var(--ink);
         border-radius: var(--radius-sm);
@@ -540,15 +542,31 @@
 
     /* {{{ students
        One element per student that moves between the list (.student-chip)
-       and a seat (.seat-label). textContent is the name, data-initial,
-       data-first is the short form for when there's no room,
-       data-tone picks their colour. [data-students] on <html> picks one of
-       the styles being tried out, see student-style.js */
+       and a seat (.seat-label), looking like the same pill in both places.
+       textContent is the full name, data-first the name shown on a seat
+       (with a last initial when first names clash), data-fit how to make it
+       fit, data-initial and data-tone the coloured initial */
 
-    /* the coloured initial, in the list and on a seat */
+    .student-chip,
+    .seat-label {
+        position: relative;
+        border: var(--outline);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink);
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: grab;
+    }
+    /* the coloured initial */
     .student-chip::before,
     .seat-label::before {
         content: attr(data-initial);
+        position: absolute;
+        top: 50%;
+        translate: 0 -50%;
         border: 1.5px solid var(--ink);
         border-radius: 999px;
         background: var(--tone);
@@ -558,214 +576,69 @@
     }
 
     .student-chip {
-        position: relative;
         flex: none;
-        height: 38px;
-        padding: 0 26px 0 42px;
-        border: var(--outline);
-        border-radius: var(--radius-sm);
-        background: var(--surface);
-        color: var(--ink);
-        font-size: 14px;
-        font-weight: 600;
-        line-height: 34px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        cursor: grab;
-    }
-    .student-chip::before {
-        position: absolute;
-        left: 7px;
-        top: 50%;
-        translate: 0 -50%;
-        width: 24px;
-        height: 24px;
-        font-size: 11px;
-        line-height: 21px;
-    }
-    /* grip */
-    .student-chip::after {
-        content: "";
-        position: absolute;
-        right: 9px;
-        top: 50%;
-        translate: 0 -50%;
-        width: 8px;
-        height: 14px;
-        background: radial-gradient(circle, var(--ink-muted) 1.2px, transparent 1.4px) 0 0 / 4px 4.67px;
-        opacity: 0;
-        transition: opacity 0.1s;
-    }
-    .student-chip:hover {
-        box-shadow: var(--shadow-hard);
-    }
-    .student-chip:hover::after {
-        opacity: 0.7;
-    }
-
-    /* laid out at its size for GRID_CELL_PX_REFERENCE cells, then scaled
-       with the seat by --grid-cell-scale so it stays in proportion at every
-       zoom */
-    .seat-label {
-        position: relative;
-        flex: none;
-        max-width: calc(var(--grid-cell-px-reference) * var(--seat-grid-w) - 8px);
-        padding: 5px 4px 3px;
-        border: 1.5px solid var(--ink);
-        border-radius: 7px;
-        background: var(--surface);
-        color: var(--ink);
-        font-family: var(--font-label);
-        font-size: 11.5px;
-        font-weight: 700;
-        line-height: 1.2;
-        text-align: center;
-        scale: var(--grid-cell-scale);
-        cursor: grab;
-    }
-    .seat-label > span {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        overflow: hidden;
-        hyphens: auto;
-        overflow-wrap: break-word;
-    }
-
-    /* name tag: the initial is pinned to the corner of a white tag */
-    .seat-label::before {
-        position: absolute;
-        left: -7px;
-        top: -10px;
-        width: 19px;
-        height: 19px;
-        font-size: 10px;
-        line-height: 16px;
-    }
-
-    /* badge: a big initial with the first name under it */
-    [data-students="badge"] .seat-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 3px;
-        padding: 0;
-        border: none;
-        background: none;
-    }
-    [data-students="badge"] .seat-label::before {
-        position: static;
-        width: 30px;
-        height: 30px;
-        border-width: 2px;
-        font-size: 14px;
-        line-height: 26px;
-    }
-    [data-students="badge"] .seat-label > span {
-        display: none;
-    }
-    [data-students="badge"] .seat-label::after {
-        content: attr(data-first);
-        max-width: 100%;
-        padding: 0 6px;
-        border: 1.5px solid var(--ink);
-        border-radius: 999px;
-        background: var(--surface);
-        font-size: 10.5px;
-        line-height: 1.5;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* desk colour: the student's colour fills their seat and their row */
-    [data-students="desk"] .seat:has(> .seat-label[data-tone="1"]) { --tone-h: 196; }
-    [data-students="desk"] .seat:has(> .seat-label[data-tone="2"]) { --tone-h: 168; }
-    [data-students="desk"] .seat:has(> .seat-label[data-tone="3"]) { --tone-h: 38; }
-    [data-students="desk"] .seat:has(> .seat-label[data-tone="4"]) { --tone-h: 2; }
-    [data-students="desk"] .seat:has(> .seat-label[data-tone="5"]) { --tone-h: 330; }
-    [data-students="desk"] .seat:has(> .seat-label[data-tone="6"]) { --tone-h: 262; }
-    [data-students="desk"] .seat:has(> .seat-label) {
-        background: hsl(var(--tone-h) var(--tone-s) var(--tone-l));
-    }
-    [data-students="desk"] .seat-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 0;
-        border: none;
-        background: none;
-    }
-    [data-students="desk"] .seat-label::before,
-    [data-students="desk"] .student-chip::before {
-        background: var(--surface);
-        color: var(--ink);
-    }
-    [data-students="desk"] .seat-label::before {
-        position: static;
-        width: 20px;
-        height: 20px;
-        font-size: 10px;
-        line-height: 17px;
-    }
-    [data-students="desk"] .student-chip {
-        background: var(--tone);
-    }
-
-    /* pill: the same pill in the list and on a seat, first name only when
-       seated */
-    [data-students="pill"] .student-list {
-        flex-direction: row;
-        flex-wrap: wrap;
-        align-content: flex-start;
-        gap: 8px 6px;
-    }
-    [data-students="pill"] .student-chip {
         max-width: 100%;
         height: 32px;
         padding: 0 12px 0 31px;
-        border-radius: 999px;
         font-size: 13px;
         line-height: 28px;
     }
-    [data-students="pill"] .student-chip::before {
+    .student-chip::before {
         left: 3px;
         width: 22px;
         height: 22px;
         font-size: 10px;
         line-height: 19px;
     }
-    [data-students="pill"] .student-chip::after {
-        display: none;
+    .student-chip:hover {
+        box-shadow: var(--shadow-hard);
     }
-    [data-students="pill"] .seat-label {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        max-width: calc(var(--grid-cell-px-reference) * var(--seat-grid-w) - 6px);
-        padding: 2px 6px 2px 2px;
-        border-radius: 999px;
-        font-size: 10.5px;
-    }
-    [data-students="pill"] .seat-label::before {
-        position: static;
+
+    /* laid out at its size for GRID_CELL_PX_REFERENCE cells, then scaled
+       with the seat by --grid-cell-scale so it stays in proportion at every
+       zoom. Allowed to stick out past the seat a little, like a sticker,
+       which buys a few more letters */
+    .seat-label {
         flex: none;
-        width: 17px;
-        height: 17px;
-        font-size: 9px;
-        line-height: 14px;
+        max-width: calc(var(--grid-cell-px-reference) * var(--seat-grid-w) + 8px);
+        padding: 1px 6px 1px 19px;
+        border-width: 1.5px;
+        font-family: var(--font-label);
+        font-size: 10.5px;
+        font-weight: 700;
+        line-height: 1.5;
+        scale: var(--grid-cell-scale);
     }
-    [data-students="pill"] .seat-label > span {
+    .seat-label[data-fit="1"] {
+        font-size: 9.5px;
+        line-height: 1.66;
+    }
+    /* too long for one line even at the smaller size */
+    .seat-label[data-fit="wrap"] {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        padding-block: 2px;
+        border-radius: 9px;
+        font-size: 9.5px;
+        line-height: 1.2;
+        white-space: normal;
+        hyphens: auto;
+        overflow-wrap: anywhere;
+    }
+    .seat-label > span {
         display: none;
     }
-    [data-students="pill"] .seat-label::after {
+    .seat-label::after {
         content: attr(data-first);
-        min-width: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    }
+    .seat-label::before {
+        left: 1px;
+        width: 15px;
+        height: 15px;
+        border-width: 1px;
+        font-size: 8.5px;
+        line-height: 13px;
     }
 
     /* dragging a seated student over the sidebar */
@@ -807,52 +680,6 @@
     }
     .selection[data-invalid] .selection-fill {
         fill: var(--invalid-fill);
-    }
-    /* }}} */
-
-    /* {{{ student style picker (design exploration only) */
-    .style-picker {
-        position: absolute;
-        z-index: 20;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        padding: 3px 3px 3px 12px;
-        border-radius: 999px;
-        background: hsl(222 25% 14% / 0.92);
-        color: #fff;
-        font-family: ui-sans-serif, system-ui, sans-serif;
-        font-size: 12px;
-    }
-    .style-picker > span {
-        margin-right: 4px;
-        opacity: 0.6;
-    }
-    .style-picker button {
-        display: grid;
-        place-items: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 999px;
-    }
-    .style-picker button:hover {
-        background: hsl(0 0% 100% / 0.14);
-    }
-    .style-picker svg {
-        width: 14px;
-        height: 14px;
-    }
-    .style-picker output {
-        min-width: 104px;
-        text-align: center;
-        font-weight: 600;
-    }
-    .style-picker output small {
-        margin-left: 6px;
-        font-weight: 400;
-        opacity: 0.55;
     }
     /* }}} */
 

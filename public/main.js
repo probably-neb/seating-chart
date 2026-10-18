@@ -1904,8 +1904,7 @@ function student_create(name, id = null) {
 
   student_ref.id = id ?? ID.generate_for("student");
   student_ref.dataset.initial = name.trim().charAt(0).toUpperCase();
-  // for styles that don't have room for the full name
-  student_ref.dataset.first = name.trim().split(/\s+/)[0];
+  student_ref.title = name;
   student_ref.dataset.tone = String(1 + string_hash(student_ref.id) % STUDENT_TONE_COUNT);
 
   const student_index = student_refs.length;
@@ -1947,7 +1946,93 @@ function student_create(name, id = null) {
     delete sidebar_ref.dataset[SEAT_DATA_STUDENT_DROP_INDICATION];
   };
 
+  student_seat_names_update();
   return student_ref;
+}
+
+const SOFT_HYPHEN = "\u00AD";
+const NAME_CONSONANT_PAIRS = new Set(["ch", "ck", "gh", "ph", "sh", "th", "wh"]);
+
+/**
+ * Adds soft hyphens where a name could reasonably break across lines.
+ * Browsers won't hyphenate capitalised words, so names never get automatic
+ * hyphenation. Rough syllable rules: before a consonant between two vowels
+ * (Oluwa-seun) or between two consonants (Bar-tholomew), keeping pairs like
+ * "ph" together (Christo-pher), and never leaving fewer than 3 letters on
+ * either side. Words that already have a hyphen are left alone
+ *
+ * @param {string} name
+ */
+function name_soft_hyphenate(name) {
+  const is_vowel = (char) => "aeiouyàáâäãåèéêëìíîïòóôöõùúûüæøœ".includes(char.toLowerCase());
+  const is_letter = (char) => char != null && char.toLowerCase() != char.toUpperCase();
+  return name
+    .split(" ")
+    .map((word) => {
+      // already has somewhere good to break
+      if (word.includes("-")) return word;
+      let result = "";
+      for (let i = 0; i < word.length; i++) {
+        const [prev, char, next, after] = [word[i - 1], word[i], word[i + 1], word[i + 2]];
+        const fits = i >= 3 && i <= word.length - 3 && is_letter(prev) && is_letter(char);
+        const pair = (char + (next ?? "")).toLowerCase();
+        const consonant_starts_syllable = NAME_CONSONANT_PAIRS.has(pair)
+          ? is_vowel(after ?? "")
+          : is_letter(next) && is_vowel(next);
+        const breaks =
+          fits &&
+          !is_vowel(char) &&
+          consonant_starts_syllable &&
+          (is_vowel(prev) || !NAME_CONSONANT_PAIRS.has((prev + char).toLowerCase()));
+        result += (breaks ? SOFT_HYPHEN : "") + char;
+      }
+      return result;
+    })
+    .join(" ");
+}
+
+/** hidden seat label used to measure names, see student_seat_names_update */
+const seat_name_probe_ref = document.createElement("div");
+
+/**
+ * Seats only have room for a first name. Adds the last initial where two
+ * students share a first name so they can still be told apart, then sets
+ * data-fit to the largest size the name fits at on one line, or "wrap" to
+ * let it run onto two
+ */
+function student_seat_names_update() {
+  if (seat_name_probe_ref.parentElement == null) {
+    seat_name_probe_ref.className = STUDENT_CLASSLIST_SEATING;
+    seat_name_probe_ref.style.position = "absolute";
+    seat_name_probe_ref.style.visibility = "hidden";
+    seat_name_probe_ref.style.pointerEvents = "none";
+    chart_ref.appendChild(seat_name_probe_ref);
+  }
+
+  const first_name_counts = new Map();
+  const names = student_refs.map((student_ref) => student_ref.textContent.trim().split(/\s+/));
+  for (const [first] of names) {
+    first_name_counts.set(first, (first_name_counts.get(first) ?? 0) + 1);
+  }
+  for (let i = 0; i < student_refs.length; i++) {
+    const words = names[i];
+    const seat_name =
+      first_name_counts.get(words[0]) > 1 && words.length > 1
+        ? `${words[0]} ${words.at(-1).charAt(0)}.`
+        : words[0];
+
+    seat_name_probe_ref.dataset.first = seat_name;
+    let fit = "wrap";
+    for (const size of ["0", "1"]) {
+      seat_name_probe_ref.dataset.fit = size;
+      if (seat_name_probe_ref.scrollWidth <= seat_name_probe_ref.clientWidth) {
+        fit = size;
+        break;
+      }
+    }
+    student_refs[i].dataset.first = fit == "wrap" ? name_soft_hyphenate(seat_name) : seat_name;
+    student_refs[i].dataset.fit = fit;
+  }
 }
 
 /**
