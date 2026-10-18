@@ -5,119 +5,110 @@
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="viewport" content="width=device-width" />
         <title>Deskribe Seating Chart Editor</title>
+        <script src="/theme.js"></script>
         <link rel="stylesheet" href="/styles.css" />
-        <script type="module" src="/tooltip.js"></script>
         <script type="module" src="/main.js"></script>
     </head>
-    <body class="w-screen h-screen">
-        <div id="app" class="h-screen flex bg-purple-100">
-            <aside id="sidebar" class="w-64 h-screen bg-white flex-none">
-                <div class="w-64 p-4 overflow-y-auto text-black">
-                    <h2 class="text-lg font-semibold mb-4">Seating Chart Creator</h2>
+    <body>
+        <div id="app" class="app">
+            <header id="top-bar" class="app-header">
+                <a class="brand" href="/">
+                    <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="11" height="11" rx="3" fill="var(--logo-1)"/><rect x="14" y="1" width="11" height="11" rx="3" fill="var(--logo-2)"/><rect x="1" y="14" width="11" height="11" rx="3" fill="var(--logo-3)"/><rect x="14" y="14" width="11" height="11" rx="5.5" fill="var(--logo-4)"/></svg>
+                    <span>Deskribe</span>
+                </a>
 
-                    <hr class="my-4" />
+                <div class="toolbar" role="toolbar" aria-label="Chart tools">
+                    <button id="add-seat-button" class="btn btn-primary" data-tip="Or ctrl + click anywhere on the chart">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        Add seat
+                    </button>
+                    <button class="btn btn-quiet btn-icon" disabled aria-label="Move" data-tip="Move tool, coming soon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+                    </button>
+                    <button class="btn btn-quiet btn-icon" disabled aria-label="Eraser" data-tip="Eraser, coming soon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21M22 21H7M5 11l9 9"/></svg>
+                    </button>
 
+                    <span class="tool-sep"></span>
+
+                    <button id="undo-button" class="btn btn-quiet btn-icon" aria-label="Undo" data-tip="Undo (ctrl + z)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                    </button>
+                    <button id="redo-button" class="btn btn-quiet btn-icon" aria-label="Redo" data-tip="Redo (ctrl + y)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+                    </button>
+
+                    <span class="tool-sep"></span>
+
+                    <button id="clear-students-button" class="btn btn-quiet" data-tip="Move every student back to the list">
+                        Unseat all
+                    </button>
+                    <button id="clear-button" class="btn btn-quiet btn-danger" data-tip="Remove every seat and unseat every student">
+                        Clear all
+                    </button>
                 </div>
 
-                <div class="mb-6">
-                    <h3 class="text-md font-semibold mb-2">Add Student</h3>
-                    <div class="flex space-x-2">
-                        <input
-                                id="student-name-input"
-                                type="text"
-                                placeholder="Student Name"
-                                class="h-9 px-3 py-2 bg-white text-black text-sm rounded-md w-40 ring-2 ring-pink-300 focus:ring-pink-500 focus:outline-hidden"
-                                />
+                <div class="save">
+                    <span id="save-status" class="save-status" data-state="idle">Autosaves every 30s</span>
+                    <button id="save-button" class="btn">Save</button>
+                </div>
+            </header>
 
-                                <button
-                                        id="add-student-button"
-                                        class="bg-pink-600 border-b-4 ring-1 ring-black border-b-pink-800 text-white rounded-lg w-9 focus:outline-hidden focus:ring-2 hover:bg-pink-700 text-2xl"
-                                        >
-                                        +
-                                </button>
-                    </div>
+            <aside id="sidebar" class="sidebar">
+                <a class="brand" href="/">
+                    <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="11" height="11" rx="3" fill="var(--logo-1)"/><rect x="14" y="1" width="11" height="11" rx="3" fill="var(--logo-2)"/><rect x="1" y="14" width="11" height="11" rx="3" fill="var(--logo-3)"/><rect x="14" y="14" width="11" height="11" rx="5.5" fill="var(--logo-4)"/></svg>
+                    <span>Deskribe<small>All charts</small></span>
+                </a>
+
+                <div class="sidebar-head">
+                    <h2>Students</h2>
+                    <span id="student-count" class="count"></span>
                 </div>
 
-                <div>
-                    <h3 class="text-md font-semibold mb-2">Students</h3>
-                    <div id="students" class="flex flex-col space-y-2"></div>
-                </div>
+                <form id="add-student-form" class="add-student">
+                    <input id="student-name-input" type="text" placeholder="Add a student" autocomplete="off" aria-label="Student name" />
+                    <button id="add-student-button" type="submit" class="btn btn-primary btn-icon" aria-label="Add student">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                </form>
+
+                <p class="sidebar-hint">Drag a name onto a seat</p>
+                <div id="students" class="student-list"></div>
+
+                <details class="shortcuts">
+                    <summary>Shortcuts</summary>
+                    <dl>
+                        <dt><kbd>ctrl</kbd> + click</dt><dd>Add a seat</dd>
+                        <dt>Drag empty space</dt><dd>Select seats</dd>
+                        <dt><kbd>shift</kbd> + drag</dt><dd>Pan (or middle mouse)</dd>
+                        <dt>Scroll</dt><dd>Pan</dd>
+                        <dt><kbd>ctrl</kbd> + scroll</dt><dd>Zoom</dd>
+                        <dt><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd></dt><dd>Nudge the view</dd>
+                        <dt><kbd>del</kbd></dt><dd>Delete selection or seat</dd>
+                        <dt><kbd>ctrl</kbd> + <kbd>c</kbd> / <kbd>v</kbd></dt><dd>Copy, paste seats</dd>
+                        <dt><kbd>ctrl</kbd> + <kbd>z</kbd> / <kbd>y</kbd></dt><dd>Undo, redo</dd>
+                    </dl>
+                </details>
             </aside>
-            <div class="flex-1 p-4">
-                <div
-                    id="top-bar"
-                    class="bg-white shadow-md rounded-lg p-2 mb-4 flex justify-between items-center text-black"
-                    >
-                    <div class="space-x-2">
-                        <button
-                                id="zoom-out"
-                                class="ring-1 ring-sunset-dark-extra rounded-md px-2 font-semibold text-md border-b-2 border-b-sunset-dark-extra bg-sunset-dark w-6 text-center hover:bg-sunset-dark">
-                            -
-                        </button>
-                        <span
-                                id="zoom-display"
-                                class="border border-black px-2 py-1 w-16 h-8 text-center inline-block"
-                                >
-                                100% <!-- PLACEHOLDER -->
-                        </span>
-                        <button
-                                id="zoom-in"
-                                class="ring-1 ring-light-sea-green-dark rounded-md px-2 font-semibold text-md border-b-2 border-b-light-sea-green-dark bg-light-sea-green w-6 text-center hover:bg-light-sea-green-dark"
-                                >
-                                +
-                        </button>
-                        <button>TODO(MOVE)</button>
-                        <button>TODO(ERASER)</button>
-                    </div>
-                    <div class="space-x-2">
-                        <button
-                            id="add-seat-button"
-                            class="bg-cerulean rounded-md px-2 text-white border-b-4 border-b-cerulean-dark"
-                        >
-                            Add Seats
-                        </button>
-                        <deskribe-tooltip class="inline-block relative">
-                            <button
-                                    id="clear-button"
-                                    class="bg-light-red rounded-md px-2 text-white border-b-4 border-b-light-red-dark"
-                                    >
-                                    Clear All
-                            </button>
-                            <div role="tooltip" inert class="pointer-events-none fixed z-50 transition-opacity duration-100 p-2 bg-white text-black ring-1 ring-black ring-offset-2" style="display: none; opacity: 0;">
-                                Make all students unseated and remove all seats
-                            </div>
-                        </deskribe-tooltip>
-                        <deskribe-tooltip class="inline-block relative">
-                            <button
-                                    id="clear-students-button"
-                                    class="bg-light-red rounded-md px-2 text-white border-b-4 border-b-light-red-dark"
-                                    >
-                                    Clear Students
-                            </button>
-                            <div role="tooltip" inert class="pointer-events-none fixed z-50 transition-opacity duration-100 p-2 bg-white text-black ring-1 ring-black ring-offset-2" style="display: none; opacity: 0;">
-                                Make all students unseated
-                            </div>
-                        </deskribe-tooltip>
-                    </div>
-                    <div class="space-x-2">
-                        <button id="undo-button" class="ring-1 ring-melon-dark-extra rounded-md px-2 font-semibold text-lg border-b-2 border-b-melon-dark-extra text-white bg-melon-dark text-center">
-                            Undo
-                        </button>
-                        <button id="redo-button" class="ring-1 ring-light-sea-green-dark rounded-md px-2 font-semibold text-lg border-b-2 border-b-light-sea-green-dark bg-light-sea-green text-white text-center">
-                            Redo
-                        </button>
-                        <button
-                                id="save-button"
-                                class="text-xl bg-sunset-dark rounded-md px-2 text-white border-b-4 border-sunset-dark-extra"
-                                >
-                                Save
-                        </button>
-                    </div>
+
+            <main class="stage">
+                <div id="container" class="chart">
+                    <canvas id="grid-dots"></canvas>
                 </div>
-                <div id="container" class="select-none data-[moving]:cursor-grabbing w-full relative bg-white rounded-lg shadow-lg shadow-gray-400 overflow-hidden m-2 h-[calc(100vh-120px)]">
-                    <canvas id="grid-dots" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                <div class="zoom">
+                    <button id="zoom-out" class="btn btn-quiet btn-icon" aria-label="Zoom out" data-tip="Zoom out">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M5 12h14"/></svg>
+                    </button>
+                    <output id="zoom-display">100%</output>
+                    <button id="zoom-in" class="btn btn-quiet btn-icon" aria-label="Zoom in" data-tip="Zoom in">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                    <button id="zoom-fit" class="btn btn-quiet btn-icon" aria-label="Fit to seats" data-tip="Fit to seats">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                    </button>
                 </div>
-            </div>
+            </main>
         </div>
+        <div data-theme-picker></div>
     </body>
 </html>

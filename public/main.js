@@ -70,9 +70,8 @@ const SELECTION_PAD_GRID = 1;
 const SELECTION_SHAPE_RING_PX = 2;
 const SELECTION_SHAPE_MASK_ID = "selection-shape-outside";
 
-const SELECTION_CLASSLIST_CREATING =
-  "absolute bg-cyan-300/20 ring-2 ring-blue-500 z-5 data-[invalid]:bg-melon/20 data-[invalid]:ring-melon-dark";
-const SELECTION_CLASSLIST_FITTED = "group absolute z-5 pointer-events-none";
+const SELECTION_CLASSLIST_CREATING = "selection selection-creating";
+const SELECTION_CLASSLIST_FITTED = "selection selection-fitted";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -120,17 +119,10 @@ const sidebar_ref = document.getElementById("sidebar");
 assert(sidebar_ref != null, "sidebar not null");
 const sidebar_student_list_ref = sidebar_ref.querySelector("#students");
 
-// top bar
-const topbar_ref = document.getElementById("top-bar");
-assert(topbar_ref != null, "top bar not null");
-
-const STUDENT_CLASSLIST_SIDEBAR =
-  "ring-2 ring-blue-500/50 rounded-md w-40 h-8 flex items-center justify-center font-semibold text-xs bg-white text-black cursor-pointer";
-
-// laid out at its size for GRID_CELL_PX_REFERENCE cells, then scaled with
-// the seat by --grid-cell-scale so it stays in proportion at every zoom
-const STUDENT_CLASSLIST_SEATING =
-  "block shrink-0 overflow-hidden text-ellipsis whitespace-nowrap border-2 border-black rounded-md px-2 py-1 text-xs font-semibold bg-white text-black max-w-[calc(var(--grid-cell-px-reference)*var(--seat-grid-w)-4px)] scale-[var(--grid-cell-scale)] cursor-pointer in-data-[moving]:cursor-grabbing";
+// styles for these live in src/styles.css so each theme can restyle them
+const STUDENT_CLASSLIST_SIDEBAR = "student-chip";
+const STUDENT_CLASSLIST_SEATING = "seat-label";
+const STUDENT_TONE_COUNT = 6;
 
 
 /** @returns {asserts val} */
@@ -166,6 +158,13 @@ function grid_cell_px_set(grid_cell_px) {
 
 let grid_dots_draw_pending = false;
 
+/** read from the theme, refreshed on "themechange" */
+let grid_dot_color = "";
+
+function grid_dot_color_update() {
+  grid_dot_color = getComputedStyle(chart_ref).getPropertyValue("--grid-dot").trim() || "black";
+}
+
 function grid_dots_draw_schedule() {
   if (grid_dots_draw_pending) return;
   grid_dots_draw_pending = true;
@@ -197,6 +196,7 @@ function grid_dots_draw() {
     canvas_ref.height = Math.round(height * dpr);
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
   ctx.clearRect(0, 0, canvas_ref.width, canvas_ref.height);
 
   const grid_cell_px = grid_cell_px_get();
@@ -229,7 +229,8 @@ function grid_dots_draw() {
         ctx.rect(px - radius, py - radius, radius * 2, radius * 2);
       }
     }
-    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = grid_dot_color;
     ctx.fill();
   }
 }
@@ -773,13 +774,12 @@ function selection_shape_render() {
     fill: "none",
     "stroke-width": SELECTION_SHAPE_RING_PX * 2,
     "vector-effect": "non-scaling-stroke",
-    class: "stroke-blue-500 group-data-[invalid]:stroke-melon-dark",
+    class: "selection-ring",
   });
 
   const fill = svg_elem_create("path", {
     d: path,
-    opacity: 0.2,
-    class: "fill-cyan-300 group-data-[invalid]:fill-melon pointer-events-auto",
+    class: "selection-fill pointer-events-auto",
   });
 
   const defs = svg_elem_create("defs");
@@ -1255,9 +1255,7 @@ function seat_ref_get_by_id(seat_id) {
 
 function seat_create(gridX, gridY, id = null) {
   const element = document.createElement("div");
-  const elementClassName =
-    "pointer-events-auto bg-cerulean border-2 border-cerulean-dark text-center text-xl font-bold absolute data-[selected]:ring-2 data-[selected]:ring-cerulean-light data-[studentdragover]:border-cerulean-light data-[studentdragover]:border-4 data-[invalid]:border-melon-dark flex items-center justify-center focus:ring-2 focus:ring-blue-500";
-  element.className = elementClassName;
+  element.className = "seat";
   element.id = id ?? ID.generate_for("seat");
   element.tabIndex = 0;
   element.addEventListener("mouseover", function () {
@@ -1876,13 +1874,35 @@ function student_make_unseated(student_ref) {
   sidebar_student_list_ref.appendChild(student_ref);
 }
 
+/** @param {string} str */
+function string_hash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function student_count_update() {
+  const unseated = sidebar_student_list_ref.children.length;
+  const total = student_refs.length;
+  document.getElementById("student-count").textContent =
+    total == 0 ? "" : `${total - unseated} of ${total} seated`;
+}
+
 function student_create(name, id = null) {
   const student_ref = document.createElement("div");
   student_ref.className = STUDENT_CLASSLIST_SIDEBAR;
-  student_ref.textContent = name;
+  // wrapped so a seat can clamp the name to a few lines without the padding
+  // showing the start of the next one
+  const name_ref = document.createElement("span");
+  name_ref.textContent = name;
+  student_ref.appendChild(name_ref);
   student_ref.dataset[STUDENT_DATA_IDENTIFIER] = "";
 
   student_ref.id = id ?? ID.generate_for("student");
+  student_ref.dataset.initial = name.trim().charAt(0).toUpperCase();
+  student_ref.dataset.tone = String(1 + string_hash(student_ref.id) % STUDENT_TONE_COUNT);
 
   const student_index = student_refs.length;
   student_refs.push(student_ref);
@@ -2442,9 +2462,20 @@ async function chart_save() {
 
   console.log("save_chart", data);
 
+  const save_status_ref = document.getElementById("save-status");
+  save_status_ref.textContent = "Saving…";
+  delete save_status_ref.dataset.state;
   console.time("save_chart_store");
-  await Store.chart_save(data);
+  try {
+    await Store.chart_save(data);
+  } catch (err) {
+    save_status_ref.textContent = "Couldn't save";
+    save_status_ref.dataset.state = "error";
+    throw err;
+  }
   console.timeEnd("save_chart_store");
+  save_status_ref.textContent =
+    "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   console.timeEnd("save_chart");
 }
 
@@ -2513,7 +2544,12 @@ async function init() {
 
     // TODO: use existing seat data to calculate w/h
     grid_offset_set(0, 0)
+    grid_dot_color_update();
     new ResizeObserver(grid_dots_draw_schedule).observe(chart_ref);
+    document.addEventListener("themechange", function () {
+      grid_dot_color_update();
+      grid_dots_draw_schedule();
+    });
 
     chart_ref.ondragover = function (event) {
       event.preventDefault();
@@ -2539,6 +2575,10 @@ async function init() {
     document.addEventListener('keydown', function (event) {
       // FIXME: Return if something other than the
       if (event.altKey || event.ctrlKey || event.shiftKey || event.metaKey) {
+        return;
+      }
+      // typing a name shouldn't pan the chart
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select")) {
         return;
       }
       if (event.key == 'a' || event.key == "ArrowLeft") {
@@ -2651,8 +2691,7 @@ async function init() {
   // {{{ seat preview
   {
     seat_preview_ref.id = "seat-preview";
-    seat_preview_ref.className =
-      "absolute bg-blue-300 border-2 border-indigo-500 transition-transform duration-75 ease-out";
+    seat_preview_ref.className = "seat-preview";
     seat_preview_ref.style.display = "none";
     seat_preview_ref.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
     seat_preview_ref.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
@@ -2674,6 +2713,7 @@ async function init() {
     zoom_btn_out.addEventListener("click", function () {
       grid_cell_px_adjust(-ZOOM_BTN_SCALE_FACTOR);
     });
+    document.getElementById("zoom-fit").addEventListener("click", view_fit_seats);
 
     // add to parent so that zoom still works if event triggers outside canvas
     // bounds and zoom is not interupted if zoom causes canvas to no longer be
@@ -3116,23 +3156,23 @@ async function init() {
 
   // {{{ student controls
   {
-    const sidebar_student_add = sidebar_ref.querySelector(
-      "#add-student-button"
-    );
-    const sidebar_student_input = sidebar_ref.querySelector(
-      "#student-name-input"
-    );
+    const sidebar_student_input = document.getElementById("student-name-input");
 
-    sidebar_student_add.onclick = () => {
-      // TODO: make sidebar_student_input a local here (i.e. do document.getElementById) as this is only place it is used
-      const name = sidebar_student_input.value;
+    document.getElementById("add-student-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = sidebar_student_input.value.trim();
       if (!name) return;
       sidebar_student_input.value = "";
       sidebar_student_list_ref.appendChild(student_create(name));
       sidebar_student_input.focus();
-    };
+    });
 
-    topbar_ref.querySelector("#clear-button").addEventListener("click", () => {
+    // students move in and out of the list from all over, so watch it
+    // rather than updating the count at each one
+    new MutationObserver(student_count_update).observe(sidebar_student_list_ref, { childList: true });
+    student_count_update();
+
+    document.getElementById("clear-button").addEventListener("click", () => {
       const seats = chart_clear_seats();
       action_stack_push({
         kind: "clear-seats",
@@ -3140,8 +3180,8 @@ async function init() {
       });
     });
 
-    topbar_ref
-      .querySelector("#clear-students-button")
+    document
+      .getElementById("clear-students-button")
       .addEventListener("click", () => {
         const student_id_to_seat_id = chart_clear_students();
         action_stack_push({
@@ -3184,8 +3224,8 @@ async function init() {
       action_stack_redo();
     }
   });
-  topbar_ref.querySelector("#undo-button").addEventListener("click", action_stack_undo)
-  topbar_ref.querySelector("#redo-button").addEventListener("click", action_stack_redo)
+  document.getElementById("undo-button").addEventListener("click", action_stack_undo)
+  document.getElementById("redo-button").addEventListener("click", action_stack_redo)
   // }}}
 }
 

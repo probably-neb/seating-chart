@@ -5,16 +5,25 @@
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="viewport" content="width=device-width" />
         <title>Deskribe</title>
+        <script src="/theme.js"></script>
         <link rel="stylesheet" href="/styles.css" />
         <script type="module" src="/index.js"></script>
     </head>
-    <body class="w-screen h-screen">
-        <div class="px-4 py-8 bg-white text-black w-full h-full">
-            <header class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold">Your Seating Charts</h1>
-                <a id="create-chart" class="px-3 py-2 rounded-lg bg-peach border-b-4 border-b-lime-800">Create new chart</a>
-            </header>
-            <div id="content" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <body>
+        <div class="index">
+            <a class="brand" href="/">
+                <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="11" height="11" rx="3" fill="var(--logo-1)"/><rect x="14" y="1" width="11" height="11" rx="3" fill="var(--logo-2)"/><rect x="1" y="14" width="11" height="11" rx="3" fill="var(--logo-3)"/><rect x="14" y="14" width="11" height="11" rx="5.5" fill="var(--logo-4)"/></svg>
+                <span>Deskribe</span>
+            </a>
+            <div class="index-title">
+                <h1>Your seating charts</h1>
+                <a id="create-chart" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    New chart
+                </a>
+            </div>
+            <div id="content" class="chart-grid"></div>
         </div>
+        <div data-theme-picker></div>
     </body>
 </html>

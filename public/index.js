@@ -3,6 +3,7 @@ import ID from "/id.js";
 
 const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
+const PREVIEW_PAD_GRID = 2;
 
 const content_ref = document.getElementById("content");
 if (content_ref == null) {
@@ -13,67 +14,64 @@ const new_chart_id = ID.generate_for("chart");
 const new_chart_href = "/canvas/" + new_chart_id;
 document.getElementById("create-chart").setAttribute("href", new_chart_href);
 
-class ChartPreview extends HTMLElement {
-    async connectedCallback() {
-        const chart_id = this.dataset["chart_id"];
-        if (!chart_id) {
-            return;
-        }
-        const seating_chart = await Store.chart_get(chart_id);
-        if (!seating_chart) return;
+/**
+ * Miniature of the chart, fitted to its seats
+ *
+ * @param {import("/store.js").SeatingChart} seating_chart
+ */
+function chart_preview_svg(seating_chart) {
+    const seated_ids = new Set(seating_chart.students.map((student) => student.seatID));
 
-        // seats can be anywhere on the infinite canvas, fit the view to them
-        let min_x = 0, min_y = 0, max_x = 1, max_y = 1;
-        if (seating_chart.seats.length > 0) {
-            min_x = Math.min(...seating_chart.seats.map((seat) => seat.gridX));
-            min_y = Math.min(...seating_chart.seats.map((seat) => seat.gridY));
-            max_x = Math.max(...seating_chart.seats.map((seat) => seat.gridX + SEAT_GRID_W));
-            max_y = Math.max(...seating_chart.seats.map((seat) => seat.gridY + SEAT_GRID_H));
-        }
-
-        let svgContent = `<svg width="100%" height="100%" viewBox="${min_x} ${min_y} ${max_x - min_x} ${max_y - min_y}">
-            <defs>
-                <pattern id="grid" width="1" height="1" patternUnits="userSpaceOnUse">
-                    <path d="M 1 0 L 0 0 0 1" fill="none" stroke="darkgray" stroke-width="0.05"/>
-                </pattern>
-            </defs>
-            <rect x="${min_x}" y="${min_y}" width="100%" height="100%" fill="url(#grid)" />`;
-
-        console.log("seats", seating_chart.seats, chart_id);
-        for (const seat of seating_chart.seats) {
-            svgContent += `<rect x="${seat.gridX}" y="${seat.gridY}" width="${SEAT_GRID_W}" height="${SEAT_GRID_H}" fill="lightgray" stroke="darkgray" stroke-width="0.1" />`;
-        }
-
-        svgContent += "</svg>";
-        this.innerHTML = svgContent;
+    // seats can be anywhere on the infinite canvas, fit the view to them
+    let min_x = 0, min_y = 0, max_x = SEAT_GRID_W, max_y = SEAT_GRID_H;
+    if (seating_chart.seats.length > 0) {
+        min_x = Math.min(...seating_chart.seats.map((seat) => seat.gridX));
+        min_y = Math.min(...seating_chart.seats.map((seat) => seat.gridY));
+        max_x = Math.max(...seating_chart.seats.map((seat) => seat.gridX + SEAT_GRID_W));
+        max_y = Math.max(...seating_chart.seats.map((seat) => seat.gridY + SEAT_GRID_H));
     }
+    min_x -= PREVIEW_PAD_GRID;
+    min_y -= PREVIEW_PAD_GRID;
+    max_x += PREVIEW_PAD_GRID;
+    max_y += PREVIEW_PAD_GRID;
+
+    let svg = `<svg viewBox="${min_x} ${min_y} ${max_x - min_x} ${max_y - min_y}" preserveAspectRatio="xMidYMid meet">
+        <defs>
+            <pattern id="dots" width="2" height="2" patternUnits="userSpaceOnUse">
+                <circle class="preview-dot" cx="1" cy="1" r="0.12" />
+            </pattern>
+        </defs>
+        <rect x="${min_x - 100}" y="${min_y - 100}" width="${max_x - min_x + 200}" height="${max_y - min_y + 200}" fill="url(#dots)" />`;
+    for (const seat of seating_chart.seats) {
+        const empty = seated_ids.has(seat.id) ? "" : "data-empty";
+        svg += `<rect class="preview-seat" ${empty} x="${seat.gridX + 0.1}" y="${seat.gridY + 0.1}" width="${SEAT_GRID_W - 0.2}" height="${SEAT_GRID_H - 0.2}" rx="0.5" />`;
+    }
+    return svg + "</svg>";
 }
-customElements.define("desk-chart-preview", ChartPreview);
+
+/** @param {number} n @param {string} what */
+function plural(n, what) {
+    return `${n} ${what}${n == 1 ? "" : "s"}`;
+}
 
 {
     const ids = await Store.chart_ids_list();
-    content_ref.innerHTML = ""; // Clear existing content
+    const charts = await Promise.all(ids.map((id) => Store.chart_get(id)));
+    content_ref.innerHTML = "";
     if (ids.length == 0) {
-        content_ref.innerHTML = "No seating charts";
+        content_ref.innerHTML = `<p class="chart-grid-empty">No seating charts yet. Make your first one with <b>New chart</b>.</p>`;
     }
-    for (const id of ids) {
-        const card = document.createElement("div");
-        card.className = "shadow-lg rounded-md px-4 py-8 bg-white text-black"; // Add appropriate classes
+    for (const seating_chart of charts) {
+        if (seating_chart == null) continue;
+        const seated = seating_chart.students.filter((student) => student.seatID != null).length;
+        const card = document.createElement("a");
+        card.className = "chart-card";
+        card.href = `/canvas/${seating_chart.id}`;
         card.innerHTML = `
-            <div class="card-header pb-4">
-                <div class="flex justify-between items-start">
-                    <h3 class="card-title text-xl">${id}</h3>
-                    <a href="/canvas/${id}" class="px-3 py-2 rounded-lg bg-light-sea-green border-b-4 border-b-lime-800">Edit</a>
-                </div>
-            </div>
-            <div class="card-content pb-2">
-                <div class="aspect-video relative mb-4 ring-3 ring-gray-500">
-                    <desk-chart-preview data-chart_id="${id}"></desk-chart-preview>
-                </div>
-            </div>
-            <div class="card-footer flex justify-between text-sm text-muted-foreground">
-                <p>Created: ${new Date().toLocaleDateString()}</p>
-                <p>0 seats</p>
+            <div class="chart-card-preview">${chart_preview_svg(seating_chart)}</div>
+            <div class="chart-card-body">
+                <h3>Untitled chart<small>${seating_chart.id.slice(-6)}</small></h3>
+                <p>${plural(seating_chart.seats.length, "seat")} · ${seated}/${seating_chart.students.length} seated</p>
             </div>
         `;
         content_ref.appendChild(card);
