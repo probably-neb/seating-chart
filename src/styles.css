@@ -529,6 +529,29 @@
         border-color: var(--invalid);
         border-style: solid;
     }
+    /* seats flush against each other are drawn as one shape: one border
+       between them and square corners where they meet. The left or top seat
+       of a pair drops its border on that side, so the line between them is
+       the other seat's border, which is also exactly where the first seat's
+       hard shadow lands, so it doesn't matter which one paints on top */
+    .seat[data-join~="t"] {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+    .seat[data-join~="r"] {
+        border-right-width: 0;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .seat[data-join~="b"] {
+        border-bottom-width: 0;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .seat[data-join~="l"] {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
     .seat-preview {
         position: absolute;
         top: 0;
@@ -545,7 +568,7 @@
        and a seat (.seat-label), looking like the same pill in both places.
        textContent is the full name, data-first the name shown on a seat
        (with a last initial when first names clash), data-fit how to make it
-       fit, data-initial and data-tone the coloured initial */
+       fit (see student_seat_names_update), data-initial and data-tone the coloured initial */
 
     .student-chip,
     .seat-label {
@@ -597,10 +620,12 @@
     /* laid out at its size for GRID_CELL_PX_REFERENCE cells, then scaled
        with the seat by --grid-cell-scale so it stays in proportion at every
        zoom. Allowed to stick out past the seat a little, like a sticker,
-       which buys a few more letters */
+       which buys a few more letters, unless it would run into the label of
+       a seat joined beside it */
     .seat-label {
+        --label-overhang: 4px;
         flex: none;
-        max-width: calc(var(--grid-cell-px-reference) * var(--seat-grid-w) + 8px);
+        max-width: calc(var(--grid-cell-px-reference) * var(--seat-grid-w) + 2 * var(--label-overhang));
         padding: 1px 6px 1px 19px;
         border-width: 1.5px;
         font-family: var(--font-label);
@@ -608,6 +633,10 @@
         font-weight: 700;
         line-height: 1.5;
         scale: var(--grid-cell-scale);
+    }
+    .seat:is([data-join~="l"], [data-join~="r"]) > .seat-label,
+    .seat-label[data-joined] {
+        --label-overhang: -3px;
     }
     .seat-label[data-fit="1"] {
         font-size: 9.5px;

@@ -1104,6 +1104,64 @@ function seat_abs_loc_set(seat_ref, gridX, gridY) {
 
   seat_ref.dataset.x = gridX;
   seat_ref.dataset.y = gridY;
+  seat_joins_update_schedule();
+}
+
+let seat_joins_update_pending = false;
+
+function seat_joins_update_schedule() {
+  if (seat_joins_update_pending) return;
+  seat_joins_update_pending = true;
+  // a microtask runs before the next render, so seats join in the same
+  // frame they move
+  queueMicrotask(() => {
+    seat_joins_update_pending = false;
+    seat_joins_update();
+  });
+}
+
+/**
+ * Seats that sit exactly edge to edge are drawn as one shape. Sets
+ * data-join on each seat to the sides ("t r b l") another seat is flush
+ * against, which src/styles.css uses to share one border between them and
+ * square off the corners where they meet. A seat being dragged joins
+ * nothing until it's dropped.
+ *
+ * Also picks the label size for seated students, since a seat joined on
+ * the left or right leaves its label less room
+ */
+function seat_joins_update() {
+  /** @type {Map<string, HTMLElement>} */
+  const seats_by_pos = new Map();
+  for (const seat_ref of seat_refs) {
+    if (seat_ref == null || "dragging" in seat_ref.dataset) continue;
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    seats_by_pos.set(gridX + "," + gridY, seat_ref);
+  }
+  for (const seat_ref of seat_refs) {
+    if (seat_ref == null) continue;
+    const joins = [];
+    if (!("dragging" in seat_ref.dataset)) {
+      const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+      if (seats_by_pos.has(gridX + "," + (gridY - SEAT_GRID_H))) joins.push("t");
+      if (seats_by_pos.has(gridX + SEAT_GRID_W + "," + gridY)) joins.push("r");
+      if (seats_by_pos.has(gridX + "," + (gridY + SEAT_GRID_H))) joins.push("b");
+      if (seats_by_pos.has(gridX - SEAT_GRID_W + "," + gridY)) joins.push("l");
+    }
+    if (joins.length > 0) {
+      seat_ref.dataset.join = joins.join(" ");
+    } else {
+      delete seat_ref.dataset.join;
+    }
+
+    const student_ref = seat_student_get(seat_ref);
+    if (student_ref != null) {
+      const is_joined_sideways = joins.includes("l") || joins.includes("r");
+      student_ref.dataset.fit = is_joined_sideways
+        ? student_ref.dataset.fitJoined
+        : student_ref.dataset.fitAlone;
+    }
+  }
 }
 
 /**
@@ -1170,6 +1228,8 @@ function seat_student_set(seat_ref, student_ref) {
   seat_ref.appendChild(student_ref);
   // TODO: assert seat_ref.id is valid id
   student_ref.dataset[STUDENT_DATA_SEAT_ID] = seat_ref.id;
+  // label size depends on whether this seat is joined to its neighbours
+  seat_joins_update_schedule();
 }
 
 /**
@@ -1289,6 +1349,9 @@ function seat_create(gridX, gridY, id = null) {
 
     selection_clear();
 
+    element.dataset.dragging = "";
+    seat_joins_update_schedule();
+
     event.dataTransfer.setData("text/plain", seat_ref.id); // TODO: deskribe/id mime type
     event.dataTransfer.setData(DRAG_DATA_TYPE_KIND, DRAG_DATA_TYPE_KIND_SEAT);
     elem_drag_offset_set(event.target, event.clientX, event.clientY);
@@ -1345,6 +1408,8 @@ function seat_create(gridX, gridY, id = null) {
 
   element.ondragend = function (event) {
     preview_hide();
+    delete element.dataset.dragging;
+    seat_joins_update_schedule();
 
     const seat_ref = event.target;
 
@@ -1496,6 +1561,7 @@ function seat_delete(seat_ref) {
   }
 
   seat_ref.remove();
+  seat_joins_update_schedule();
 }
 
 function clamp(n, min, max) {
@@ -1996,9 +2062,12 @@ const seat_name_probe_ref = document.createElement("div");
 
 /**
  * Seats only have room for a first name. Adds the last initial where two
- * students share a first name so they can still be told apart, then sets
- * data-fit to the largest size the name fits at on one line, or "wrap" to
- * let it run onto two
+ * students share a first name so they can still be told apart, then works
+ * out the largest size the name fits at on one line, or "wrap" to let it
+ * run onto two. Measured twice, for a seat by itself where the label may
+ * stick out past the edges (data-fit-alone) and for one joined on the left
+ * or right where it can't (data-fit-joined). seat_joins_update copies the
+ * right one into data-fit
  */
 function student_seat_names_update() {
   if (seat_name_probe_ref.parentElement == null) {
@@ -2021,18 +2090,24 @@ function student_seat_names_update() {
         ? `${words[0]} ${words.at(-1).charAt(0)}.`
         : words[0];
 
-    seat_name_probe_ref.dataset.first = seat_name;
-    let fit = "wrap";
-    for (const size of ["0", "1"]) {
-      seat_name_probe_ref.dataset.fit = size;
-      if (seat_name_probe_ref.scrollWidth <= seat_name_probe_ref.clientWidth) {
-        fit = size;
-        break;
+    // soft hyphens are invisible unless the name wraps
+    const seat_name_hyphenated = name_soft_hyphenate(seat_name);
+    seat_name_probe_ref.dataset.first = seat_name_hyphenated;
+    const fit_measure = (is_joined) => {
+      seat_name_probe_ref.toggleAttribute("data-joined", is_joined);
+      for (const size of ["0", "1"]) {
+        seat_name_probe_ref.dataset.fit = size;
+        if (seat_name_probe_ref.scrollWidth <= seat_name_probe_ref.clientWidth) {
+          return size;
+        }
       }
-    }
-    student_refs[i].dataset.first = fit == "wrap" ? name_soft_hyphenate(seat_name) : seat_name;
-    student_refs[i].dataset.fit = fit;
+      return "wrap";
+    };
+    student_refs[i].dataset.first = seat_name_hyphenated;
+    student_refs[i].dataset.fitAlone = fit_measure(false);
+    student_refs[i].dataset.fitJoined = fit_measure(true);
   }
+  seat_joins_update_schedule();
 }
 
 /**
