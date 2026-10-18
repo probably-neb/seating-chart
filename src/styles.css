@@ -131,6 +131,7 @@
     --btn-depth: 0px;
     --btn-bg: #fff;
     --btn-border: var(--ink);
+    --btn-depth-color: var(--ink);
     --btn-ink: var(--ink);
 
     --tip-bg: var(--ink);
@@ -202,6 +203,7 @@
     --btn-border-w: 1.5px;
     --btn-depth: 0px;
     --btn-border: var(--ink);
+    --btn-depth-color: var(--ink);
 
     --tip-bg: var(--ink);
 
@@ -980,6 +982,10 @@
     }
     :is([data-theme="sticker"], [data-theme="outline"]) .btn {
         box-shadow: var(--hard) var(--hard) 0 var(--ink);
+    }
+    /* room inside the outlined dock for its buttons' shadows */
+    :is([data-theme="sticker"], [data-theme="outline"]) .app-header {
+        padding: 7px 9px 9px 7px;
     }
     :is([data-theme="sticker"], [data-theme="outline"]) .btn:active:not(:disabled) {
         transform: translate(var(--hard), var(--hard));
