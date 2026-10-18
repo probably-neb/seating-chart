@@ -2,6 +2,7 @@
 
 import ID from "/id.js";
 import * as Store from "/store.js";
+import { boxes_outline_path, seat_shapes_render, svg_elem_create } from "/shape.js";
 const app = document.getElementById("app");
 assert(app != null, "app not null");
 
@@ -35,6 +36,8 @@ const SEAT_GRID_W = 4;
 const SEAT_GRID_H = 4;
 
 const SEAT_SNAP_HYSTERESIS_GRID = 0.4;
+// corner radius of a seat's outline, matches --seat-radius at GRID_CELL_PX_REFERENCE
+const SEAT_RADIUS_GRID = 0.5;
 const SEAT_SNAP_SEARCH_MAX_GRID = 100;
 
 const SEAT_PROP_GRID_W = "--seat-grid-w";
@@ -48,6 +51,9 @@ const SEAT_DATA_STUDENT_DROP_INDICATION = "studentdragover";
 let seat_refs = [];
 
 const seat_preview_ref = document.createElement("div");
+
+/** every seat and the drag preview drawn as merged shapes, see seat_shapes_update */
+const seat_shapes_ref = svg_elem_create("svg", { class: "seat-shapes", "aria-hidden": "true" });
 
 // chart
 const CHART_PROP_SCALE = "--scale";
@@ -73,7 +79,6 @@ const SELECTION_SHAPE_MASK_ID = "selection-shape-outside";
 const SELECTION_CLASSLIST_CREATING = "selection selection-creating";
 const SELECTION_CLASSLIST_FITTED = "selection selection-fitted";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
 
 const selection_ref = document.createElement("div");
 let is_creating_selection = false;
@@ -333,10 +338,17 @@ function zoom_display_update(scale) {
 function preview_show(gridX, gridY) {
   elem_grid_pos_set(seat_preview_ref, gridX, gridY);
   seat_preview_ref.style.display = "block";
+  seat_shapes_update_schedule();
+}
+
+function preview_move(gridX, gridY) {
+  elem_grid_pos_set(seat_preview_ref, gridX, gridY);
+  seat_shapes_update_schedule();
 }
 
 function preview_hide() {
   seat_preview_ref.style.display = "none";
+  seat_shapes_update_schedule();
 }
 
 function selection_region_is_normalized() {
@@ -595,144 +607,22 @@ function selection_fit_to_seats(selected_seat_offsets) {
 }
 
 /**
- * @param {string} tag
- * @param {Record<string, string | number>} attrs
- */
-function svg_elem_create(tag, attrs = {}) {
-  const elem = document.createElementNS(SVG_NS, tag);
-  for (const [name, value] of Object.entries(attrs)) {
-    elem.setAttribute(name, String(value));
-  }
-  return elem;
-}
-
-/**
- * Outline of the union of the selected seats each grown by
- * SELECTION_PAD_GRID, as svg path data in selection grid units. Seats close
- * together share one outline, seats far apart get their own. The union is
- * traced on the grid first so touching seats merge without gaps, then every
- * corner is rounded by up to SELECTION_PAD_GRID
+ * Outline of the union of the selected seats each grown by pad, as svg path
+ * data in selection grid units
  *
+ * @param {number} pad
+ * @param {number} outer_radius
+ * @param {number} inner_radius
  * @returns {string}
  */
-function selection_shape_path() {
+function selection_shape_path(pad, outer_radius, inner_radius) {
+  /** @type {Array<import("/shape.js").Box>} */
   const boxes = [];
   for (const seat_ref of selected_seat_refs_get()) {
     const [gridX, gridY] = elem_grid_pos_get(seat_ref);
-    boxes.push([
-      gridX - SELECTION_PAD_GRID,
-      gridY - SELECTION_PAD_GRID,
-      gridX + SEAT_GRID_W + SELECTION_PAD_GRID,
-      gridY + SEAT_GRID_H + SELECTION_PAD_GRID,
-    ]);
+    boxes.push([gridX - pad, gridY - pad, gridX + SEAT_GRID_W + pad, gridY + SEAT_GRID_H + pad]);
   }
-  if (boxes.length == 0) {
-    return "";
-  }
-
-  const min_x = Math.min(...boxes.map((box) => box[0]));
-  const min_y = Math.min(...boxes.map((box) => box[1]));
-  const width = Math.max(...boxes.map((box) => box[2])) - min_x;
-  const height = Math.max(...boxes.map((box) => box[3])) - min_y;
-
-  const filled = new Uint8Array(width * height);
-  for (const [left, top, right, bottom] of boxes) {
-    for (let y = top - min_y; y < bottom - min_y; y++) {
-      filled.fill(1, y * width + left - min_x, y * width + right - min_x);
-    }
-  }
-  const is_filled = (x, y) =>
-    x >= 0 && y >= 0 && x < width && y < height && filled[y * width + x] == 1;
-
-  // boundary edges between filled and empty cells, directed so the filled
-  // cell is on the right, keyed by start vertex
-  /** @type {Map<string, Array<[number, number]>>} */
-  const edges = new Map();
-  const edge_add = (x1, y1, x2, y2) => {
-    const key = x1 + "," + y1;
-    if (!edges.has(key)) edges.set(key, []);
-    edges.get(key).push([x2, y2]);
-  };
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (!is_filled(x, y)) continue;
-      if (!is_filled(x, y - 1)) edge_add(x, y, x + 1, y);
-      if (!is_filled(x + 1, y)) edge_add(x + 1, y, x + 1, y + 1);
-      if (!is_filled(x, y + 1)) edge_add(x + 1, y + 1, x, y + 1);
-      if (!is_filled(x - 1, y)) edge_add(x, y + 1, x, y);
-    }
-  }
-  const cross = (ax, ay, bx, by) => ax * by - ay * bx;
-
-  let d = "";
-  while (edges.size > 0) {
-    // start where the outline doesn't touch another one so the first step
-    // is unambiguous
-    let start_key = edges.keys().next().value;
-    for (const [key, outs] of edges) {
-      if (outs.length == 1) {
-        start_key = key;
-        break;
-      }
-    }
-
-    /** @type {Array<[number, number]>} */
-    const corners = [];
-    const [start_x, start_y] = start_key.split(",").map(Number);
-    let [x, y] = [start_x, start_y];
-    let [dir_x, dir_y] = [0, 0];
-    do {
-      const key = x + "," + y;
-      const outs = edges.get(key);
-      let next_index = 0;
-      // diagonally touching cells make two outlines meet at a vertex, take
-      // the right turn so they stay separate
-      for (let i = 1; i < outs.length; i++) {
-        const [nx, ny] = outs[i];
-        if (cross(dir_x, dir_y, nx - x, ny - y) > 0) next_index = i;
-      }
-      const [nx, ny] = outs.splice(next_index, 1)[0];
-      if (outs.length == 0) edges.delete(key);
-
-      const [next_dir_x, next_dir_y] = [nx - x, ny - y];
-      if (next_dir_x != dir_x || next_dir_y != dir_y) {
-        corners.push([x, y]);
-      }
-      [dir_x, dir_y] = [next_dir_x, next_dir_y];
-      [x, y] = [nx, ny];
-    } while (x != start_x || y != start_y);
-
-    // the start vertex is only a corner if the outline turns there
-    const [first_x, first_y] = corners[0];
-    const [second_x, second_y] = corners[1];
-    const [last_x, last_y] = corners[corners.length - 1];
-    if (
-      cross(first_x - last_x, first_y - last_y, second_x - first_x, second_y - first_y) == 0
-    ) {
-      corners.shift();
-    }
-
-    for (let i = 0; i < corners.length; i++) {
-      const [px, py] = corners[(i + corners.length - 1) % corners.length];
-      const [cx, cy] = corners[i];
-      const [nx, ny] = corners[(i + 1) % corners.length];
-      const in_len = Math.abs(cx - px) + Math.abs(cy - py);
-      const out_len = Math.abs(nx - cx) + Math.abs(ny - cy);
-      const radius = Math.min(SELECTION_PAD_GRID, in_len / 2, out_len / 2);
-      const [in_x, in_y] = [(cx - px) / in_len, (cy - py) / in_len];
-      const [out_x, out_y] = [(nx - cx) / out_len, (ny - cy) / out_len];
-      // right turns are outer corners, left turns inner ones
-      const sweep = cross(in_x, in_y, out_x, out_y) > 0 ? 1 : 0;
-      const arc_start_x = cx - in_x * radius + min_x;
-      const arc_start_y = cy - in_y * radius + min_y;
-      const arc_end_x = cx + out_x * radius + min_x;
-      const arc_end_y = cy + out_y * radius + min_y;
-      d += `${i == 0 ? "M" : "L"}${arc_start_x} ${arc_start_y}`;
-      d += `A${radius} ${radius} 0 0 ${sweep} ${arc_end_x} ${arc_end_y}`;
-    }
-    d += "Z";
-  }
-  return d;
+  return boxes_outline_path(boxes, outer_radius, inner_radius);
 }
 
 /**
@@ -767,7 +657,9 @@ function selection_shape_render() {
     })
   );
 
-  const path = selection_shape_path();
+  const path = selection_shape_path(SELECTION_PAD_GRID, SELECTION_PAD_GRID, SELECTION_PAD_GRID);
+  // the seats' own outline, so the tint only covers the space around them
+  const seats_path = selection_shape_path(0, SEAT_RADIUS_GRID, 0);
   mask.appendChild(svg_elem_create("path", { d: path, fill: "black" }));
 
   const ring = svg_elem_create("path", {
@@ -780,7 +672,8 @@ function selection_shape_render() {
   });
 
   const fill = svg_elem_create("path", {
-    d: path,
+    d: path + seats_path,
+    "fill-rule": "evenodd",
     class: "selection-fill pointer-events-auto",
   });
 
@@ -1104,60 +997,87 @@ function seat_abs_loc_set(seat_ref, gridX, gridY) {
 
   seat_ref.dataset.x = gridX;
   seat_ref.dataset.y = gridY;
-  seat_joins_update_schedule();
+  seat_shapes_update_schedule();
 }
 
-let seat_joins_update_pending = false;
+let seat_shapes_update_pending = false;
 
-function seat_joins_update_schedule() {
-  if (seat_joins_update_pending) return;
-  seat_joins_update_pending = true;
-  // a microtask runs before the next render, so seats join in the same
-  // frame they move
+function seat_shapes_update_schedule() {
+  if (seat_shapes_update_pending) return;
+  seat_shapes_update_pending = true;
+  // a microtask runs before the next render, so the shapes move in the same
+  // frame as the seats
   queueMicrotask(() => {
-    seat_joins_update_pending = false;
-    seat_joins_update();
+    seat_shapes_update_pending = false;
+    seat_shapes_update();
   });
 }
 
 /**
- * Seats that sit exactly edge to edge are drawn as one shape. Sets
- * data-join on each seat to the sides ("t r b l") another seat is flush
- * against, which src/styles.css uses to share one border between them and
- * square off the corners where they meet. A seat being dragged joins
- * nothing until it's dropped.
+ * Draws every seat into #seat-shapes, so seats that touch merge into one
+ * shape with a single divider between them (shape.js). Seat elements are
+ * transparent and only hold the student, except the one being dragged,
+ * which draws itself while the drag preview takes its place in the shapes.
  *
- * Also picks the label size for seated students, since a seat joined on
- * the left or right leaves its label less room
+ * Also picks the label size for seated students, since a seat with another
+ * against its left or right side leaves its label less room
  */
-function seat_joins_update() {
-  /** @type {Map<string, HTMLElement>} */
-  const seats_by_pos = new Map();
-  for (const seat_ref of seat_refs) {
-    if (seat_ref == null || "dragging" in seat_ref.dataset) continue;
-    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
-    seats_by_pos.set(gridX + "," + gridY, seat_ref);
+function seat_shapes_update() {
+  /** @type {Set<string>} */
+  const seated_ids = new Set();
+  for (const student_ref of student_refs) {
+    const seat_id = student_ref.dataset[STUDENT_DATA_SEAT_ID];
+    if (seat_id) seated_ids.add(seat_id);
   }
+
+  /** @type {Array<HTMLElement | null>} */
+  const shape_seat_refs = [];
+  /** @type {Array<import("/shape.js").SeatShape>} */
+  const shapes = [];
   for (const seat_ref of seat_refs) {
     if (seat_ref == null) continue;
-    const joins = [];
-    if (!("dragging" in seat_ref.dataset)) {
-      const [gridX, gridY] = seat_abs_loc_get(seat_ref);
-      if (seats_by_pos.has(gridX + "," + (gridY - SEAT_GRID_H))) joins.push("t");
-      if (seats_by_pos.has(gridX + SEAT_GRID_W + "," + gridY)) joins.push("r");
-      if (seats_by_pos.has(gridX + "," + (gridY + SEAT_GRID_H))) joins.push("b");
-      if (seats_by_pos.has(gridX - SEAT_GRID_W + "," + gridY)) joins.push("l");
+    if ("dragging" in seat_ref.dataset) {
+      delete seat_ref.dataset.joined;
+      continue;
     }
-    if (joins.length > 0) {
-      seat_ref.dataset.join = joins.join(" ");
-    } else {
-      delete seat_ref.dataset.join;
-    }
+    const [gridX, gridY] = seat_abs_loc_get(seat_ref);
+    shape_seat_refs.push(seat_ref);
+    shapes.push({
+      box: [gridX, gridY, gridX + SEAT_GRID_W, gridY + SEAT_GRID_H],
+      kind: seated_ids.has(seat_ref.id) ? "seated" : "empty",
+    });
+  }
+  if (seat_preview_ref.style.display != "none" && seat_preview_ref.isConnected) {
+    const [gridX, gridY] = elem_grid_pos_get(seat_preview_ref);
+    shape_seat_refs.push(null);
+    shapes.push({
+      box: [gridX, gridY, gridX + SEAT_GRID_W, gridY + SEAT_GRID_H],
+      kind: "preview",
+    });
+  }
 
+  if (shapes.length == 0) {
+    seat_shapes_ref.replaceChildren();
+    return;
+  }
+  const min_x = Math.min(...shapes.map((shape) => shape.box[0]));
+  const min_y = Math.min(...shapes.map((shape) => shape.box[1]));
+  const width = Math.max(...shapes.map((shape) => shape.box[2])) - min_x;
+  const height = Math.max(...shapes.map((shape) => shape.box[3])) - min_y;
+  elem_grid_pos_set(seat_shapes_ref, min_x, min_y);
+  seat_shapes_ref.style.setProperty("--shapes-w", width);
+  seat_shapes_ref.style.setProperty("--shapes-h", height);
+  seat_shapes_ref.setAttribute("viewBox", `${min_x} ${min_y} ${width} ${height}`);
+
+  const is_joined_sideways = seat_shapes_render(seat_shapes_ref, shapes, SEAT_RADIUS_GRID, "seat-shapes");
+
+  for (let i = 0; i < shapes.length; i++) {
+    const seat_ref = shape_seat_refs[i];
+    if (seat_ref == null) continue;
+    seat_ref.toggleAttribute("data-joined", is_joined_sideways[i]);
     const student_ref = seat_student_get(seat_ref);
     if (student_ref != null) {
-      const is_joined_sideways = joins.includes("l") || joins.includes("r");
-      student_ref.dataset.fit = is_joined_sideways
+      student_ref.dataset.fit = is_joined_sideways[i]
         ? student_ref.dataset.fitJoined
         : student_ref.dataset.fitAlone;
     }
@@ -1229,7 +1149,7 @@ function seat_student_set(seat_ref, student_ref) {
   // TODO: assert seat_ref.id is valid id
   student_ref.dataset[STUDENT_DATA_SEAT_ID] = seat_ref.id;
   // label size depends on whether this seat is joined to its neighbours
-  seat_joins_update_schedule();
+  seat_shapes_update_schedule();
 }
 
 /**
@@ -1249,6 +1169,7 @@ function seat_student_pop(seat_ref) {
   );
 
   delete student.dataset[STUDENT_DATA_SEAT_ID];
+  seat_shapes_update_schedule();
   return student;
 }
 
@@ -1350,7 +1271,7 @@ function seat_create(gridX, gridY, id = null) {
     selection_clear();
 
     element.dataset.dragging = "";
-    seat_joins_update_schedule();
+    seat_shapes_update_schedule();
 
     event.dataTransfer.setData("text/plain", seat_ref.id); // TODO: deskribe/id mime type
     event.dataTransfer.setData(DRAG_DATA_TYPE_KIND, DRAG_DATA_TYPE_KIND_SEAT);
@@ -1402,14 +1323,14 @@ function seat_create(gridX, gridY, id = null) {
     });
     console.log("snapped_loc", snapped_loc)
     {
-      elem_grid_pos_set(seat_preview_ref, snapped_loc.gridX, snapped_loc.gridY);
+      preview_move(snapped_loc.gridX, snapped_loc.gridY);
     }
   };
 
   element.ondragend = function (event) {
     preview_hide();
     delete element.dataset.dragging;
-    seat_joins_update_schedule();
+    seat_shapes_update_schedule();
 
     const seat_ref = event.target;
 
@@ -1561,7 +1482,7 @@ function seat_delete(seat_ref) {
   }
 
   seat_ref.remove();
-  seat_joins_update_schedule();
+  seat_shapes_update_schedule();
 }
 
 function clamp(n, min, max) {
@@ -1851,7 +1772,7 @@ function chart_handle_drop_seat(event) {
     dest: { gridX, gridY },
   });
 
-  seat_preview_ref.style.display = "none";
+  preview_hide();
 }
 
 function chart_handle_drop_selection(event) {
@@ -1938,6 +1859,7 @@ function student_make_unseated(student_ref) {
     student_ref
   );
   delete student_ref.dataset[STUDENT_DATA_SEAT_ID];
+  seat_shapes_update_schedule();
 
   sidebar_student_list_ref.appendChild(student_ref);
 }
@@ -2066,7 +1988,7 @@ const seat_name_probe_ref = document.createElement("div");
  * out the largest size the name fits at on one line, or "wrap" to let it
  * run onto two. Measured twice, for a seat by itself where the label may
  * stick out past the edges (data-fit-alone) and for one joined on the left
- * or right where it can't (data-fit-joined). seat_joins_update copies the
+ * or right where it can't (data-fit-joined). seat_shapes_update copies the
  * right one into data-fit
  */
 function student_seat_names_update() {
@@ -2107,7 +2029,7 @@ function student_seat_names_update() {
     student_refs[i].dataset.fitAlone = fit_measure(false);
     student_refs[i].dataset.fitJoined = fit_measure(true);
   }
-  seat_joins_update_schedule();
+  seat_shapes_update_schedule();
 }
 
 /**
@@ -2877,6 +2799,13 @@ async function init() {
     seat_preview_ref.style.width = grid_cell_px_dim(SEAT_PROP_GRID_W);
     seat_preview_ref.style.height = grid_cell_px_dim(SEAT_PROP_GRID_H);
     chart_ref.appendChild(seat_preview_ref);
+
+    seat_shapes_ref.id = "seat-shapes";
+    seat_shapes_ref.style.width = grid_cell_px_dim("--shapes-w");
+    seat_shapes_ref.style.height = grid_cell_px_dim("--shapes-h");
+    // right above the dots, below every seat
+    document.getElementById("grid-dots").after(seat_shapes_ref);
+    seat_shapes_update_schedule();
   }
   // }}}
 

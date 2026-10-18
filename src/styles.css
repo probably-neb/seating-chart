@@ -494,6 +494,9 @@
     /* }}} */
 
     /* {{{ seats */
+    /* seats are drawn by .seat-shapes below, the seat element is just
+       where the student sits and what you grab. The one being dragged draws
+       itself, its drop spot is drawn as part of the shapes */
     .seat {
         position: absolute;
         top: 0;
@@ -502,65 +505,64 @@
         align-items: center;
         justify-content: center;
         pointer-events: auto;
-        border: var(--outline);
         border-radius: calc(var(--seat-radius) * var(--grid-cell-scale));
-        background: var(--seat-bg);
-        box-shadow: var(--shadow-hard);
         outline: none;
     }
-    .seat:not(:has(> .seat-label)) {
-        border-style: dashed;
+    .seat[data-dragging] {
+        border: var(--outline);
+        background: var(--seat-bg);
+        box-shadow: var(--shadow-hard);
+    }
+    .seat[data-dragging]:not(:has(> .seat-label)) {
         background: var(--surface);
-        box-shadow: none;
     }
     .seat:focus-visible {
         outline: 2px solid var(--focus);
         outline-offset: 3px;
-    }
-    .seat[data-selected] {
-        outline: 2px solid var(--select-ring);
-        outline-offset: 1px;
     }
     .seat[data-studentdragover] {
         outline: 3px solid var(--drop);
         outline-offset: 3px;
     }
     .seat[data-invalid] {
-        border-color: var(--invalid);
-        border-style: solid;
+        outline: 2px solid var(--invalid);
+        outline-offset: -2px;
     }
-    /* seats flush against each other are drawn as one shape: one border
-       between them and square corners where they meet. The left or top seat
-       of a pair drops its border on that side, so the line between them is
-       the other seat's border, which is also exactly where the first seat's
-       hard shadow lands, so it doesn't matter which one paints on top */
-    .seat[data-join~="t"] {
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-    }
-    .seat[data-join~="r"] {
-        border-right-width: 0;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-    }
-    .seat[data-join~="b"] {
-        border-bottom-width: 0;
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-    }
-    .seat[data-join~="l"] {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-    }
+    /* only holds the drop position, the shapes draw it */
     .seat-preview {
         position: absolute;
         top: 0;
         left: 0;
-        border: 2px dashed var(--ink);
-        border-radius: calc(var(--seat-radius) * var(--grid-cell-scale));
-        background: color-mix(in srgb, var(--accent) 25%, transparent);
-        transition: transform 75ms ease-out;
+        visibility: hidden;
     }
+
+    /* seats merged into shapes, see shape.js seat_shapes_render. Used in the
+       chart and in the previews on the index page */
+    .seat-shapes {
+        position: absolute;
+        top: 0;
+        left: 0;
+        overflow: visible;
+        pointer-events: none;
+        filter: drop-shadow(2px 2px 0 var(--ink));
+    }
+    .seat-shape-fill {
+        fill: var(--seat-bg);
+    }
+    .seat-shape-fill[data-kind="empty"] {
+        fill: var(--surface);
+    }
+    .seat-shape-fill[data-kind="preview"] {
+        fill: color-mix(in srgb, var(--accent) 45%, var(--surface));
+    }
+    .seat-shape-divider,
+    .seat-shape-outline {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 2px;
+        vector-effect: non-scaling-stroke;
+    }
+
     /* }}} */
 
     /* {{{ students
@@ -568,7 +570,8 @@
        and a seat (.seat-label), looking like the same pill in both places.
        textContent is the full name, data-first the name shown on a seat
        (with a last initial when first names clash), data-fit how to make it
-       fit (see student_seat_names_update), data-initial and data-tone the coloured initial */
+       fit (see student_seat_names_update), data-initial and data-tone the
+       coloured initial */
 
     .student-chip,
     .seat-label {
@@ -634,7 +637,7 @@
         line-height: 1.5;
         scale: var(--grid-cell-scale);
     }
-    .seat:is([data-join~="l"], [data-join~="r"]) > .seat-label,
+    .seat[data-joined] > .seat-label,
     .seat-label[data-joined] {
         --label-overhang: -3px;
     }
@@ -771,14 +774,12 @@
     .chart-card-preview .preview-dot {
         fill: var(--grid-dot);
     }
-    .chart-card-preview .preview-seat {
-        fill: var(--seat-bg);
-        stroke: var(--ink);
-        stroke-width: 0.15;
+    /* inside an svg, filter lengths are in its own units, here grid cells */
+    .chart-card-preview .seat-shapes {
+        filter: drop-shadow(0.18px 0.18px 0 var(--ink));
     }
-    .chart-card-preview .preview-seat[data-empty] {
-        fill: var(--surface);
-        stroke-dasharray: 0.4 0.3;
+    .chart-card-preview :is(.seat-shape-divider, .seat-shape-outline) {
+        stroke-width: 1.25px;
     }
     .chart-card-body {
         display: flex;
