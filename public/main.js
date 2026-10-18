@@ -119,7 +119,7 @@ const sidebar_ref = document.getElementById("sidebar");
 assert(sidebar_ref != null, "sidebar not null");
 const sidebar_student_list_ref = sidebar_ref.querySelector("#students");
 
-// styles for these live in src/styles.css so each theme can restyle them
+// styles for these live in src/styles.css
 const STUDENT_CLASSLIST_SIDEBAR = "student-chip";
 const STUDENT_CLASSLIST_SEATING = "seat-label";
 const STUDENT_TONE_COUNT = 6;
@@ -158,7 +158,7 @@ function grid_cell_px_set(grid_cell_px) {
 
 let grid_dots_draw_pending = false;
 
-/** read from the theme, refreshed on "themechange" */
+/** --grid-dot from src/styles.css, read once in init */
 let grid_dot_color = "";
 
 function grid_dot_color_update() {
@@ -2547,10 +2547,6 @@ async function init() {
     grid_offset_set(0, 0)
     grid_dot_color_update();
     new ResizeObserver(grid_dots_draw_schedule).observe(chart_ref);
-    document.addEventListener("themechange", function () {
-      grid_dot_color_update();
-      grid_dots_draw_schedule();
-    });
 
     chart_ref.ondragover = function (event) {
       event.preventDefault();
