@@ -5,10 +5,9 @@
 (function () {
     const THEMES = [
         { id: "studio", name: "Studio" },
+        { id: "pop", name: "Pop" },
+        { id: "outline", name: "Outline" },
         { id: "sticker", name: "Sticker" },
-        { id: "paper", name: "Paper" },
-        { id: "night", name: "Night" },
-        { id: "soft", name: "Soft" },
     ];
     const STORAGE_KEY = "deskribe-theme";
 
