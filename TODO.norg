@@ -8,7 +8,7 @@
   -- (x) clear students
   -- (x) delete selection
   -- (x) selection move
-  -- ( ) Undo Button
+  -- (x) Undo Button
 
   - ( ) REDO
   -- (x) Handle <C-y> keybinnd to redo
@@ -19,12 +19,12 @@
   -- (x) clear students
   -- (x) delete selection
   -- (x) selection move
-  -- ( ) Redo Button
+  -- (x) Redo Button
 
 * General Chart
-  - ( ) drag student to sidebar to unseat
+  - (x) drag student to sidebar to unseat
   - ( ) remove student from sidebar
-  - ( ) name charts
+  - (x) name charts
   - ( ) dev/prod local storage not synced?
   - ( ) grid size shrink below seat pos handling (don't shrink or shift all seats)
   - ( ) improve closest_non_overlapping_pos algorithm to handle heaavy
@@ -39,7 +39,7 @@
 
 
 * UI
-  - ( ) long student names display
+  - (x) long student names display
   - ( ) Update onetime transition to use CSS :where to fix bugs
   - (x) don't allow negative zoom;
 
@@ -70,7 +70,7 @@
   -- ( ) sidebar
   --- ( ) make foldable
   --- (x) move clear all + clear students to top bar
-  --- ( ) add home button
+  --- (x) add home button
   -- (x) Use estimate center for add seats
 
 ** sonner
