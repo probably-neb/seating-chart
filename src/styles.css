@@ -55,6 +55,9 @@
     --seat-radius: 9px;
     --drop: var(--color-light-sea-green);
 
+    --tip-bg: var(--ink);
+    --tip-ink: #fff;
+
     --select-fill: hsl(174 79% 43% / 0.18);
     --select-ring: var(--ink);
     --invalid: var(--color-light-red);
@@ -306,7 +309,9 @@
         position: relative;
     }
     [data-tip]::after {
-        content: attr(data-tip);
+        /* alt text is empty so screen readers don't read the tip into the
+           button's name, buttons have their own label */
+        content: attr(data-tip) / "";
         position: absolute;
         z-index: 60;
         left: 50%;
@@ -314,8 +319,8 @@
         translate: -50% 0;
         padding: 5px 9px;
         border-radius: 7px;
-        background: var(--ink);
-        color: #fff;
+        background: var(--tip-bg);
+        color: var(--tip-ink);
         font-family: var(--font-body);
         font-size: 12px;
         font-weight: 500;
@@ -701,6 +706,13 @@
     .selection-fitted {
         pointer-events: none;
     }
+    .selection-shape {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
     .selection-ring {
         stroke: var(--select-ring);
     }
@@ -712,6 +724,22 @@
     }
     .selection[data-invalid] .selection-fill {
         fill: var(--invalid-fill);
+    }
+    /* }}} */
+
+    /* {{{ elem_animate_move: lifts a moving element above everything */
+    .anim-layer {
+        position: absolute;
+        z-index: 999;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .anim-layer-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
     }
     /* }}} */
 

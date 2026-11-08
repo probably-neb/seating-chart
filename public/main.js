@@ -635,7 +635,7 @@ function selection_shape_render() {
 
   const svg = svg_elem_create("svg", {
     viewBox: `0 0 ${width} ${height}`,
-    class: "absolute inset-0 w-full h-full overflow-visible",
+    class: "selection-shape",
     "data-selection-shape": "",
   });
 
@@ -1540,14 +1540,9 @@ function elem_animate_move_swap(elem_ref, move, swapping_with_ref) {
   // PERF: store elevated container in dom (hidden) instead
   // of recreating on each animated move
   const elevated_container_ref = document.createElement("div");
-  elevated_container_ref.style.zIndex = 999;
-  elevated_container_ref.style.position = "absolute";
-  elevated_container_ref.className = "w-full h-full";
-  elevated_container_ref.style.top = 0;
-  elevated_container_ref.style.left = 0;
+  elevated_container_ref.className = "anim-layer";
   const elevated_container_inner_ref = document.createElement("div");
-  elevated_container_inner_ref.style.position = "relative";
-  elevated_container_inner_ref.className = "w-full h-full";
+  elevated_container_inner_ref.className = "anim-layer-inner";
   elevated_container_ref.appendChild(elevated_container_inner_ref);
   document.body.appendChild(elevated_container_ref);
 
@@ -1623,14 +1618,9 @@ function elem_animate_move(element, move, center = false) {
   const initialRect = element.getBoundingClientRect();
 
   const elevated_container = document.createElement("div");
-  elevated_container.style.zIndex = 999;
-  elevated_container.style.position = "absolute";
-  elevated_container.className = "w-full h-full";
-  elevated_container.style.top = 0;
-  elevated_container.style.left = 0;
+  elevated_container.className = "anim-layer";
   const elevated_container_inner = document.createElement("div");
-  elevated_container_inner.style.position = "relative";
-  elevated_container_inner.className = "w-full h-full";
+  elevated_container_inner.className = "anim-layer-inner";
   elevated_container.appendChild(elevated_container_inner);
   document.body.appendChild(elevated_container);
 
