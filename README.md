@@ -18,6 +18,7 @@ mise run dev   # http://localhost:8787, local KV data lives in .wrangler/
 - `GET /api/charts` list chart ids
 - `GET /api/charts/:id` get chart json
 - `PUT /api/charts/:id` save chart json (whole document, last write wins)
+- `DELETE /api/charts/:id` delete a chart
 
 ## Deploy
 

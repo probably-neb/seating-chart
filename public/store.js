@@ -4,7 +4,7 @@
 /**
  * @typedef {{ id: string, gridX: number, gridY: number }} Seat
  * @typedef {{ id: string, seatID: string | null, name: string }} Student
- * @typedef {{ id: string, seats: Seat[], students: Student[], cols: number, rows: number }} SeatingChart
+ * @typedef {{ id: string, name?: string, seats: Seat[], students: Student[], cols: number, rows: number }} SeatingChart
  */
 
 /** @param {string} chart_id */
@@ -45,6 +45,12 @@ export async function chart_save(chart) {
         keepalive: true,
     });
     assert_ok(res, "chart_save");
+}
+
+/** @param {string} chart_id */
+export async function chart_delete(chart_id) {
+    const res = await fetch(chart_url(chart_id), { method: "DELETE" });
+    assert_ok(res, "chart_delete");
 }
 
 /** @returns {Promise<string[]>} */

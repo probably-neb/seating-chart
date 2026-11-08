@@ -60,6 +60,7 @@ const CHART_PROP_SCALE = "--scale";
 
 /** @type {HTMLDivElement} */
 const chart_ref = document.getElementById("container");
+const chart_name_input_ref = /** @type {HTMLInputElement} */ (document.getElementById("chart-name"));
 assert(chart_ref != null, "chart not null");
 // TODO: Consider Remove
 let chartDomRect;
@@ -2557,6 +2558,7 @@ async function chart_save() {
 
   const data = {
     id,
+    name: chart_name_input_ref.value.trim(),
     seats,
     students,
     // FIXME: REMOVE
@@ -2616,6 +2618,32 @@ async function init() {
 
   console.log({ initial_chart_data });
 
+  // }}}
+
+  // {{{ chart name
+  {
+    const name_apply = function () {
+      document.title = `${chart_name_input_ref.value.trim() || "Untitled chart"} · Deskribe`;
+    };
+    chart_name_input_ref.value = initial_chart_data.name ?? "";
+    name_apply();
+    chart_name_input_ref.addEventListener("input", name_apply);
+    // saved when you're done editing, not on every key
+    chart_name_input_ref.addEventListener("change", () => chart_save());
+    let name_before_edit = chart_name_input_ref.value;
+    chart_name_input_ref.addEventListener("focus", () => {
+      name_before_edit = chart_name_input_ref.value;
+    });
+    chart_name_input_ref.addEventListener("keydown", (event) => {
+      if (event.key == "Escape") {
+        chart_name_input_ref.value = name_before_edit;
+        name_apply();
+      }
+      if (event.key == "Enter" || event.key == "Escape") {
+        chart_name_input_ref.blur();
+      }
+    });
+  }
   // }}}
 
   // {{{ drag pointer
@@ -3432,6 +3460,10 @@ async function init() {
 
   // {{{ action stack (undo/redo)
   document.addEventListener("keydown", function (event) {
+    // text fields keep their own undo
+    if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select")) {
+      return;
+    }
     if (event.key == "z" && event.ctrlKey) {
       action_stack_undo();
     } else if (event.key == "y" && event.ctrlKey) {

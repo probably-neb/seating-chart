@@ -65,6 +65,10 @@ export default {
                 await env.CHARTS.put(id, body);
                 return new Response(null, { status: 204 });
             }
+            case "DELETE": {
+                await env.CHARTS.delete(id);
+                return new Response(null, { status: 204 });
+            }
             default:
                 return method_not_allowed();
         }

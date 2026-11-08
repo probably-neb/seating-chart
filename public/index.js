@@ -65,6 +65,9 @@ function chart_preview_svg(seating_chart) {
     return svg;
 }
 
+const TRASH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>`;
+const EMPTY_HTML = `<p class="chart-grid-empty">No seating charts yet. Make your first one with <b>New chart</b>.</p>`;
+
 /** @param {number} n @param {string} what */
 function plural(n, what) {
     return `${n} ${what}${n == 1 ? "" : "s"}`;
@@ -75,22 +78,46 @@ function plural(n, what) {
     const charts = await Promise.all(ids.map((id) => Store.chart_get(id)));
     content_ref.innerHTML = "";
     if (ids.length == 0) {
-        content_ref.innerHTML = `<p class="chart-grid-empty">No seating charts yet. Make your first one with <b>New chart</b>.</p>`;
+        content_ref.innerHTML = EMPTY_HTML;
     }
     for (const seating_chart of charts) {
         if (seating_chart == null) continue;
         const seated = seating_chart.students.filter((student) => student.seatID != null).length;
-        const card = document.createElement("a");
+        const name = seating_chart.name?.trim() || "";
+        const card = document.createElement("div");
         card.className = "chart-card";
-        card.href = `/canvas/${seating_chart.id}`;
         card.innerHTML = `
-            <div class="chart-card-preview"></div>
-            <div class="chart-card-body">
-                <h3>Untitled chart<small>${seating_chart.id.slice(-6)}</small></h3>
-                <p>${plural(seating_chart.seats.length, "seat")} · ${seated}/${seating_chart.students.length} seated</p>
-            </div>
+            <a class="chart-card-link" href="/canvas/${seating_chart.id}">
+                <div class="chart-card-preview"></div>
+                <div class="chart-card-body">
+                    <h3></h3>
+                    <p>${plural(seating_chart.seats.length, "seat")} · ${seated}/${seating_chart.students.length} seated</p>
+                </div>
+            </a>
+            <button class="btn btn-icon btn-danger chart-card-delete" aria-label="Delete chart" data-tip="Delete chart">${TRASH_ICON}</button>
         `;
+        // names are typed by the user, so they only ever go in as text
+        const title_ref = card.querySelector("h3");
+        if (name) {
+            title_ref.textContent = name;
+            title_ref.title = name;
+        } else {
+            title_ref.textContent = "Untitled chart";
+            const id_ref = document.createElement("small");
+            id_ref.textContent = seating_chart.id.slice(-6);
+            title_ref.appendChild(id_ref);
+        }
         card.querySelector(".chart-card-preview").appendChild(chart_preview_svg(seating_chart));
+        card.querySelector(".chart-card-delete").addEventListener("click", async () => {
+            if (!confirm(`Delete “${name || "Untitled chart"}”? This can't be undone.`)) {
+                return;
+            }
+            await Store.chart_delete(seating_chart.id);
+            card.remove();
+            if (content_ref.childElementCount == 0) {
+                content_ref.innerHTML = EMPTY_HTML;
+            }
+        });
         content_ref.appendChild(card);
     }
 }
