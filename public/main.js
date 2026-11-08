@@ -1414,10 +1414,13 @@ function seat_create(gridX, gridY, id = null) {
     {
       const original_seat_ref = student_seat_get(student_ref);
       if (original_seat_ref == null) {
+        // whoever is in the seat goes back to the list, undo seats them again
+        const displaced_student_ref = seat_student_get(seat_ref);
         action_stack_push({
           kind: "student-seat-assign",
           student_id: student_ref.id,
           seat_id: seat_ref.id,
+          displaced_student_id: displaced_student_ref?.id,
         });
       } else {
         action_stack_push({
@@ -2269,6 +2272,10 @@ function action_stack_undo() {
     case "student-seat-assign": {
       const student_ref = student_ref_get_by_id(action.student_id);
       student_make_unseated(student_ref);
+      if (action.displaced_student_id != null) {
+        const seat_ref = seat_ref_get_by_id(action.seat_id);
+        seat_student_set(seat_ref, student_ref_get_by_id(action.displaced_student_id));
+      }
       break;
     }
     case "student-unseat": {
@@ -2371,7 +2378,8 @@ function action_stack_redo() {
     case "student-seat-assign": {
       const student_ref = student_ref_get_by_id(action.student_id);
       const seat_ref = seat_ref_get_by_id(action.seat_id);
-      seat_student_set(seat_ref, student_ref);
+      // moves anyone in the seat back to the list, like the original drop
+      seat_student_transfer(seat_ref, student_ref);
       break;
     }
     case "student-unseat": {
