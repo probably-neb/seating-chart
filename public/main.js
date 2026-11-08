@@ -3426,6 +3426,10 @@ async function init() {
 
   // }}}
 
+  // names on seats are measured in the label font, measure them again once
+  // it has loaded
+  document.fonts.addEventListener("loadingdone", student_seat_names_update);
+
   // {{{ action stack (undo/redo)
   document.addEventListener("keydown", function (event) {
     if (event.key == "z" && event.ctrlKey) {
