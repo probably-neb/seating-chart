@@ -2623,9 +2623,14 @@ async function init() {
 
   // {{{ chart
   {
-    const gridCellPx_initial = Math.floor(
-      // FIXME: use initial grid w
-      (0.8 * window.innerWidth) / grid_w_initial
+    // never below the size labels are laid out for, or 100% on a phone
+    // would be a few pixels a cell
+    const gridCellPx_initial = Math.max(
+      GRID_CELL_PX_REFERENCE,
+      Math.floor(
+        // FIXME: use initial grid w
+        (0.8 * window.innerWidth) / grid_w_initial
+      )
     );
 
     // TODO: init all "*_initial" grid properties here
@@ -2751,6 +2756,80 @@ async function init() {
     chart_ref.addEventListener("mouseleave", function () {
       delete chart_ref.dataset['moving'];
     })
+  }
+  // }}}
+
+  // {{{ touch
+  // one finger on empty space pans, two fingers pinch zoom around their
+  // middle. Seats and students are left to native drag and drop. The chart
+  // has touch-action: none so the browser doesn't pan or zoom the page
+  {
+    /** @type {Map<number, {x: number, y: number}>} */
+    const touches = new Map();
+
+    const touches_center_and_spread = function () {
+      const [a, b] = [...touches.values()];
+      if (b == null) {
+        return { x: a.x, y: a.y, spread: 0 };
+      }
+      return {
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+        spread: Math.hypot(a.x - b.x, a.y - b.y),
+      };
+    };
+
+    chart_ref.addEventListener("pointerdown", function (event) {
+      if (event.pointerType != "touch" || touches.size >= 2) {
+        return;
+      }
+      // the first finger has to land on empty space, a second one can land
+      // anywhere since it's joining a pinch
+      if (touches.size == 0 && event.target.closest(".seat, .selection")) {
+        return;
+      }
+      // stops the emulated mousedown that would start a selection
+      event.preventDefault();
+      try {
+        chart_ref.setPointerCapture(event.pointerId);
+      } catch {
+        // synthetic or already released pointers can't be captured
+      }
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    });
+
+    chart_ref.addEventListener("pointermove", function (event) {
+      const touch = touches.get(event.pointerId);
+      if (touch == null) {
+        return;
+      }
+      const before = touches_center_and_spread();
+      touch.x = event.clientX;
+      touch.y = event.clientY;
+      const after = touches_center_and_spread();
+
+      const grid_cell_px = grid_cell_px_get();
+      grid_offset_update(
+        (before.x - after.x) / grid_cell_px,
+        (before.y - after.y) / grid_cell_px
+      );
+
+      if (before.spread > 0 && after.spread > 0) {
+        const scale = Number.parseFloat(chart_ref.style.getPropertyValue(CHART_PROP_SCALE)) || 1;
+        const chart_dom_rect = chart_ref.getBoundingClientRect();
+        grid_cell_px_adjust(
+          scale * (after.spread / before.spread - 1),
+          after.x - chart_dom_rect.left,
+          after.y - chart_dom_rect.top
+        );
+      }
+    });
+
+    const touch_end = function (event) {
+      touches.delete(event.pointerId);
+    };
+    chart_ref.addEventListener("pointerup", touch_end);
+    chart_ref.addEventListener("pointercancel", touch_end);
   }
   // }}}
 
