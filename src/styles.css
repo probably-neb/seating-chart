@@ -51,18 +51,21 @@
     --surface: #fff;
     --ink: hsl(222 28% 12%);
     --ink-muted: hsl(222 10% 40%);
+    /* outlines, dividers and the hard shadows, the same as ink in light */
     --line: var(--ink);
     --focus: var(--ink);
+    /* text on the bright fills (accent, melon, seats), dark in both schemes */
+    --on-color: hsl(222 28% 12%);
 
     --accent: var(--color-light-sea-green);
-    --accent-ink: var(--ink);
+    --accent-ink: var(--on-color);
     --danger: hsl(358 80% 50%);
 
-    --outline: 2px solid var(--ink);
+    --outline: 2px solid var(--line);
     --radius: 18px;
     --radius-sm: 12px;
-    --shadow-panel: 3px 3px 0 var(--ink);
-    --shadow-hard: 2px 2px 0 var(--ink);
+    --shadow-panel: 3px 3px 0 var(--line);
+    --shadow-hard: 2px 2px 0 var(--line);
 
     --btn-h: 36px;
     --btn-radius: 12px;
@@ -92,6 +95,31 @@
     --logo-4: var(--color-light-red);
 
     --side-w: 280px;
+
+    color-scheme: light dark;
+}
+
+/* dark: the same stickers on a dark desk, outlined and shadowed in cream */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: hsl(222 24% 9%);
+        --surface: hsl(222 18% 15%);
+        --ink: hsl(40 45% 92%);
+        --ink-muted: hsl(40 10% 66%);
+        --line: hsl(40 30% 80%);
+        --danger: hsl(358 95% 70%);
+
+        --canvas-bg: hsl(222 20% 12%);
+        --grid-dot: hsl(40 45% 92% / 0.22);
+
+        --tip-bg: var(--ink);
+        --tip-ink: var(--bg);
+
+        --select-fill: hsl(174 79% 43% / 0.22);
+        --invalid-fill: hsl(2 97% 70% / 0.25);
+
+        --tone-l: 70%;
+    }
 }
 
 /* one hue per student, picked from their id, so a name is easy to spot again
@@ -303,6 +331,7 @@
     }
     .btn-danger {
         --btn-bg: var(--color-melon);
+        --btn-ink: var(--on-color);
     }
     /* flat, for icons inside the already outlined dock and zoom */
     .btn-quiet {
@@ -321,7 +350,7 @@
     }
     .btn-quiet.btn-danger:hover:not(:disabled) {
         background: var(--color-melon);
-        color: var(--ink);
+        color: var(--on-color);
     }
     .btn-icon {
         width: var(--btn-h);
@@ -505,7 +534,7 @@
         content: "Everyone has a seat";
         flex: 1 1 100%;
         padding: 16px 12px;
-        border: 2px dashed var(--ink);
+        border: 2px dashed var(--line);
         border-radius: var(--radius-sm);
         font-size: 13px;
         text-align: center;
@@ -602,7 +631,7 @@
         left: 0;
         overflow: visible;
         pointer-events: none;
-        filter: drop-shadow(2px 2px 0 var(--ink));
+        filter: drop-shadow(2px 2px 0 var(--line));
     }
     .seat-shape-fill {
         fill: var(--seat-bg);
@@ -616,7 +645,7 @@
     .seat-shape-divider,
     .seat-shape-outline {
         fill: none;
-        stroke: var(--ink);
+        stroke: var(--line);
         stroke-width: 2px;
         vector-effect: non-scaling-stroke;
     }
@@ -651,7 +680,7 @@
         position: absolute;
         top: 50%;
         translate: 0 -50%;
-        border: 1.5px solid var(--ink);
+        border: 1.5px solid var(--line);
         border-radius: 999px;
         background: var(--tone);
         color: var(--tone-ink);
@@ -733,7 +762,7 @@
 
     /* dragging a seated student over the sidebar */
     .sidebar[data-studentdragover] .student-list {
-        outline: 2px dashed var(--ink);
+        outline: 2px dashed var(--line);
         outline-offset: -2px;
         border-radius: var(--radius-sm);
         background: color-mix(in srgb, var(--accent) 18%, transparent);
@@ -903,7 +932,7 @@
     }
     .chart-card:hover {
         transform: translate(-2px, -2px);
-        box-shadow: 5px 5px 0 var(--ink);
+        box-shadow: 5px 5px 0 var(--line);
     }
     .chart-card-link {
         display: flex;
@@ -959,7 +988,7 @@
     }
     /* inside an svg, filter lengths are in its own units, here grid cells */
     .chart-card-preview .seat-shapes {
-        filter: drop-shadow(0.18px 0.18px 0 var(--ink));
+        filter: drop-shadow(0.18px 0.18px 0 var(--line));
     }
     .chart-card-preview :is(.seat-shape-divider, .seat-shape-outline) {
         stroke-width: 1.25px;

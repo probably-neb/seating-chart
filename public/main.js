@@ -2684,6 +2684,11 @@ async function init() {
     grid_offset_set(0, 0)
     grid_dot_color_update();
     new ResizeObserver(grid_dots_draw_schedule).observe(chart_ref);
+    // the dots are drawn on a canvas, which doesn't follow css on its own
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      grid_dot_color_update();
+      grid_dots_draw_schedule();
+    });
 
     chart_ref.ondragover = function (event) {
       event.preventDefault();
